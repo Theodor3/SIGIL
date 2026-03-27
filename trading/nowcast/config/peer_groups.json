@@ -1,0 +1,13 @@
+{
+  "AAPL": ["MSFT", "GOOGL", "AMZN"],
+  "AMZN": ["WMT", "TGT", "COST"],
+  "NVDA": ["AMD", "AVGO", "TSM"],
+  "TSM": ["NVDA", "AVGO", "AMD"],
+  "AVGO": ["NVDA", "AMD", "QCOM"],
+  "PLTR": ["SNOW", "DDOG", "CRM"],
+  "ANET": ["CSCO", "JNPR", "HPE"],
+  "TTD": ["META", "GOOGL", "SNAP"],
+  "IBKR": ["SCHW", "MS", "GS"],
+  "NEM": ["GOLD", "AEM", "FNV"],
+  "FIX": ["EME", "JCI", "TT"]
+}

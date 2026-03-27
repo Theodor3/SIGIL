@@ -1,0 +1,27 @@
+{
+  "champion_id": "alpha_v1",
+  "challenger_ids": [
+    "alpha_v1_regime_tilt",
+    "alpha_v1_quality_heavy"
+  ],
+  "models": [
+    {
+      "id": "alpha_v1",
+      "name": "Alpha V1",
+      "role": "champion",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "alpha_v1_regime_tilt",
+      "name": "Alpha V1 Regime Tilt",
+      "role": "challenger",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "alpha_v1_quality_heavy",
+      "name": "Alpha V1 Quality Heavy",
+      "role": "challenger",
+      "status": "ACTIVE"
+    }
+  ]
+}

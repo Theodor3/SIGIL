@@ -1,0 +1,4 @@
+name,symbol,quantity,price,average_cost,total_return,equity,asset_type
+Ethereum,ETH,0.724501,2056.07,1658.01,288.71,1489.63,crypto
+Bitcoin,BTC,0.00958814,70400.42,44645.78,247.06,675.01,crypto
+Dogecoin,DOGE,77.00,0.092744,0.141688,3.768,7.14,crypto

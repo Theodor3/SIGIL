@@ -1,0 +1,6 @@
+ticker,as_of_date,final_alpha_score,regime_tilt_score,sector_alignment_multiplier,risk_adjusted_score,target_weight,max_weight_allowed,sector_bucket,sub_industry,constraint_flags,effective_confidence,risk_penalty,liquidity_penalty
+FIX,2026-03-25,0.6296,0.6468,1,0.2966,0.12,0.12,INDUSTRIALS,ENGINEERING_CONSTRUCTION,CAPPED,0.576,0.06,0
+CRM,2026-03-25,0.221,0.3719,1,0.1045,0.0473,0.12,UNKNOWN,UNKNOWN,,0.4998,0.06,0
+NEM,2026-03-25,0.2091,0.2926,0.92,0.0846,0.0382,0.12,MATERIALS,MINING,,0.525,0.06,0
+NVDA,2026-03-25,0.486,0.4511,1.08,0.0759,0.0343,0.12,TECH,SEMICONDUCTORS,,0.2097,0.06,0
+TTD,2026-03-25,0.1181,0.2135,1,0.0576,0.026,0.12,COMMUNICATIONS,ADTECH,,0.5464,0.06,0

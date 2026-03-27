@@ -1,0 +1,43 @@
+{
+  "run": {
+    "as_of_date": "auto",
+    "top_n": 20,
+    "signal_lookback_days": 21,
+    "minimum_source_coverage": 2
+  },
+  "model": {
+    "revenue_surprise": {
+      "intercept": 0.0,
+      "weights": {
+        "yoy_mean": 0.55,
+        "accel_mean": 0.2,
+        "relative_strength_mean": 0.35,
+        "search_trends_yoy": 0.15,
+        "news_mentions_yoy": 0.18,
+        "website_traffic_yoy": 0.2,
+        "app_rank_yoy": 0.1,
+        "price_promo_yoy": 0.1,
+        "foot_traffic_yoy": 0.2,
+        "market_price_proxy_yoy": 0.08,
+        "market_volume_proxy_yoy": 0.06
+      }
+    },
+    "outperformance_probability": {
+      "intercept": -0.1,
+      "weights": {
+        "predicted_revenue_surprise": 2.2,
+        "relative_strength_mean": 1.2,
+        "accel_mean": 0.9,
+        "confidence_score": 1.0
+      }
+    },
+    "confidence": {
+      "source_coverage_weight": 0.45,
+      "history_depth_weight": 0.35,
+      "peer_quality_weight": 0.2,
+      "proxy_coverage_floor": 0.8,
+      "proxy_only_penalty": 0.12
+    }
+  },
+  "holiday_window_days": 3
+}

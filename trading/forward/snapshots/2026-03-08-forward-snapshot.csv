@@ -1,0 +1,6 @@
+as_of_date,opened_date,closed_date,status,close_reason,symbol,entry_price,last_price,days_open,expected_alpha_20d_pct,expected_alpha_90d_pct,expected_alpha_to_date_pct,realized_return_pct,alpha_vs_expected_pct,source_file
+2026-03-08,2026-03-08,,OPEN,,PLTR,157.1600,157.1600,0,1.09,2.53,0.0000,0.0000,0.0000,2026-03-07-final-top5.csv
+2026-03-08,2026-03-08,,OPEN,,APP,502.1400,502.1400,0,0.96,2.23,0.0000,0.0000,0.0000,2026-03-07-final-top5.csv
+2026-03-08,2026-03-08,,OPEN,,NEM,116.2900,116.2900,0,0.84,1.96,0.0000,0.0000,0.0000,2026-03-07-final-top5.csv
+2026-03-08,2026-03-08,,OPEN,,FIX,1279.0600,1279.0600,0,0.77,1.8,0.0000,0.0000,0.0000,2026-03-07-final-top5.csv
+2026-03-08,2026-03-08,,OPEN,,TTD,29.2800,29.2800,0,0.49,1.15,0.0000,0.0000,0.0000,2026-03-07-final-top5.csv

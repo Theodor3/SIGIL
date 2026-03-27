@@ -1,0 +1,32 @@
+﻿{
+  "selection": {
+    "score_threshold": 0.5,
+    "min_sample_for_winner": 20,
+    "hold_days": 20,
+    "benchmark": "QQQ"
+  },
+  "champion": {
+    "name": "Champion v1",
+    "weights": {
+      "quality_score": 0.30,
+      "growth_score": 0.25,
+      "alt_momentum_score": 0.20,
+      "peer_relative_score": 0.15,
+      "value_score": 0.10,
+      "risk_penalty": -1.00,
+      "liquidity_penalty": -1.00
+    }
+  },
+  "challenger": {
+    "name": "Challenger v1",
+    "weights": {
+      "quality_score": 0.22,
+      "growth_score": 0.20,
+      "alt_momentum_score": 0.30,
+      "peer_relative_score": 0.18,
+      "value_score": 0.10,
+      "risk_penalty": -1.10,
+      "liquidity_penalty": -0.90
+    }
+  }
+}

@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arena Learning Shooter</title>
+  <style>
+    :root {
+      --bg-a: #081421;
+      --bg-b: #19324c;
+      --panel: rgba(7, 13, 21, 0.78);
+      --text: #e8f3ff;
+      --accent: #5fd3ff;
+      --danger: #ff6f61;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 20% 20%, #254b70, transparent 45%),
+                  radial-gradient(circle at 85% 80%, #17344f, transparent 40%),
+                  linear-gradient(145deg, var(--bg-a), var(--bg-b));
+      color: var(--text);
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+    }
+
+    #app {
+      width: min(96vw, 1120px);
+      display: grid;
+      gap: 12px;
+      justify-items: center;
+    }
+
+    #hud {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      background: var(--panel);
+      border: 1px solid rgba(116, 191, 235, 0.25);
+      border-radius: 12px;
+      font-size: 14px;
+      letter-spacing: 0.02em;
+    }
+
+    canvas {
+      width: 100%;
+      max-width: 1100px;
+      height: auto;
+      border: 1px solid rgba(116, 191, 235, 0.25);
+      border-radius: 12px;
+      background: #0b1320;
+      display: block;
+    }
+
+    #menu {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 12, 0.78);
+      display: grid;
+      place-items: center;
+      z-index: 10;
+    }
+
+    #menu.hidden { display: none; }
+
+    .panel {
+      width: min(92vw, 640px);
+      background: var(--panel);
+      border: 1px solid rgba(116, 191, 235, 0.35);
+      border-radius: 14px;
+      padding: 22px;
+    }
+
+    h1 { margin: 0 0 10px; font-size: 30px; }
+    p { margin: 8px 0; line-height: 1.45; }
+
+    .btn-row {
+      margin-top: 16px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    #start-duel-btn, #start-coop-btn {
+      color: #06111c;
+      background: linear-gradient(120deg, #7ee4ff, #4fc4f8);
+    }
+
+    #restart-btn {
+      color: #fff;
+      background: var(--danger);
+      display: none;
+    }
+
+    #restart-btn.visible { display: inline-block; }
+  </style>
+</head>
+<body>
+  <div id="menu">
+    <div class="panel">
+      <h1>Arena Learning Shooter</h1>
+      <p>Choose a mode:</p>
+      <p><strong>Duel:</strong> You vs learning AI opponent.</p>
+      <p><strong>Co-op:</strong> You + learning AI ally vs enemy waves.</p>
+      <p>Controls: WASD move, mouse aim, click shoot, Space dash, F fullscreen.</p>
+      <div class="btn-row">
+        <button id="start-duel-btn">Start Duel</button>
+        <button id="start-coop-btn">Start Co-op</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="app">
+    <div id="hud">
+      <span id="hud-mode">Mode: menu</span>
+      <span id="hud-score">Score: 0</span>
+      <span id="hud-timer">Time: 0.0</span>
+      <span id="hud-status">Status: waiting</span>
+      <button id="restart-btn">Restart</button>
+    </div>
+    <canvas id="game-canvas" width="1100" height="640" aria-label="Arena canvas"></canvas>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

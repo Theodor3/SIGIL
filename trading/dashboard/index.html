@@ -1,0 +1,2558 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sigil Trading Console</title>
+  <style>
+    :root {
+      --bg-0: #040406;
+      --bg-1: #0b0b10;
+      --bg-2: #13131c;
+      --line: #313142;
+      --line-hot: #7a7aa2;
+      --ink: #f5f5f7;
+      --muted: #a5a5b6;
+      --accent: #d4d4e8;
+      --ok: #3ed7a9;
+      --warn: #ff7b9c;
+      --panel: rgba(14, 14, 20, 0.86);
+      --glow: 0 0 18px rgba(180, 180, 220, 0.18);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+      background:
+        radial-gradient(circle at 22% 18%, rgba(255,255,255,0.07), transparent 24%),
+        radial-gradient(circle at 78% 62%, rgba(255,255,255,0.06), transparent 28%),
+        linear-gradient(170deg, #09090d 0%, #050508 40%, #0a0a12 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      pointer-events: none;
+      inset: 0;
+      z-index: -1;
+    }
+
+    body::before {
+      background:
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.02) 0 1px, transparent 1px 28px),
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.01) 0 1px, transparent 1px 22px);
+      opacity: 0.35;
+    }
+
+    body::after {
+      background:
+        radial-gradient(circle at 12% 9%, rgba(255,255,255,0.22), transparent 7%),
+        radial-gradient(circle at 86% 18%, rgba(255,255,255,0.18), transparent 8%),
+        radial-gradient(circle at 80% 84%, rgba(255,255,255,0.16), transparent 7%);
+      filter: blur(1px);
+      opacity: 0.45;
+    }
+
+    .wrap {
+      max-width: 1260px;
+      margin: 0 auto;
+      padding: 18px 14px 44px;
+    }
+
+    .hero {
+      position: relative;
+      border: 1px solid var(--line-hot);
+      border-radius: 18px;
+      padding: 18px 16px;
+      background: linear-gradient(145deg, rgba(17,17,24,0.95), rgba(10,10,14,0.92));
+      box-shadow: var(--glow), inset 0 0 0 1px rgba(255,255,255,0.03);
+      overflow: hidden;
+    }
+
+    .hero::before,
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 220px;
+      height: 220px;
+      border: 1px solid rgba(255,255,255,0.16);
+      border-radius: 46% 54% 51% 49% / 61% 44% 56% 39%;
+      transform: rotate(16deg);
+      pointer-events: none;
+      filter: drop-shadow(0 0 8px rgba(255,255,255,0.15));
+    }
+
+    .hero::before { right: -90px; top: -90px; }
+    .hero::after { left: -80px; bottom: -95px; transform: rotate(-21deg); }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.4rem, 3.5vw, 2.2rem);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-family: Georgia, "Times New Roman", serif;
+      text-shadow: 0 0 9px rgba(255,255,255,0.19);
+    }
+
+    #meta { margin: 8px 0 0; color: var(--muted); font-size: 0.9rem; }
+    .section { margin-top: 14px; }
+    .grid { display: grid; gap: 12px; }
+    .stats { grid-template-columns: repeat(auto-fit, minmax(176px, 1fr)); }
+    .two { grid-template-columns: 1fr; }
+    @media (min-width: 980px) { .two { grid-template-columns: 1fr 1fr; } }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+    }
+
+    .label { color: var(--muted); letter-spacing: 0.11em; text-transform: uppercase; font-size: 0.7rem; }
+    .value { font-size: 1.35rem; margin-top: 5px; color: #f6f6ff; font-weight: 700; }
+
+    h2 {
+      margin: 0 0 10px;
+      font-size: 1.05rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #e8e8f8;
+      font-family: Georgia, "Times New Roman", serif;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: rgba(8,8,12,0.7);
+    }
+
+    th, td {
+      text-align: left;
+      padding: 7px 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      vertical-align: top;
+    }
+
+    th {
+      color: #cbcbdf;
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: rgba(255,255,255,0.03);
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    .controls {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    }
+
+    .btn {
+      appearance: none;
+      border: 1px solid var(--line-hot);
+      color: var(--ink);
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.01)),
+        linear-gradient(180deg, #171723, #101019);
+      border-radius: 999px 26px 999px 26px;
+      padding: 10px 12px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+    }
+
+    .btn:hover { transform: translateY(-1px); border-color: #d6d6ff; box-shadow: 0 0 12px rgba(214,214,255,0.26); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .btn.primary {
+      border-color: #fff;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.02)),
+        linear-gradient(180deg, #2d2d3f, #171723);
+    }
+
+    .status { margin-top: 8px; color: var(--muted); font-size: 0.88rem; }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .action-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 800;
+      border: 1px solid rgba(255,255,255,0.12);
+      white-space: nowrap;
+    }
+    .action-add {
+      color: #baf9dc;
+      background: rgba(62,215,169,0.14);
+      border-color: rgba(62,215,169,0.38);
+    }
+    .action-harvest-trim {
+      color: #ffe0a8;
+      background: rgba(255,193,92,0.13);
+      border-color: rgba(255,193,92,0.34);
+    }
+    .action-trim-to-target {
+      color: #ffd2a2;
+      background: rgba(255,146,76,0.13);
+      border-color: rgba(255,146,76,0.34);
+    }
+    .action-rotate-out {
+      color: #ffb8c8;
+      background: rgba(255,123,156,0.14);
+      border-color: rgba(255,123,156,0.34);
+    }
+    .action-trim-and-rotate {
+      color: #ffd6df;
+      background: linear-gradient(135deg, rgba(255,193,92,0.14), rgba(255,123,156,0.16));
+      border-color: rgba(255,170,140,0.42);
+    }
+    .rotation-target {
+      color: #d8dcff;
+      font-weight: 700;
+    }
+    .rotation-target small {
+      display: block;
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 500;
+      margin-top: 2px;
+    }
+
+    .log {
+      margin-top: 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #07070b;
+      color: #d9d9ef;
+      padding: 8px;
+      max-height: 220px;
+      overflow: auto;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 0.8rem;
+      white-space: pre-wrap;
+    }
+
+    .scripts-list { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    .script { padding: 8px; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; background: rgba(255,255,255,0.02); }
+    .script code { font-size: 0.8rem; color: #eee; }
+    .muted { color: var(--muted); }
+
+    .roadmap-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .roadmap-card {
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.025);
+    }
+    .roadmap-status {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 800;
+      margin-bottom: 8px;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .roadmap-status.in-progress {
+      color: #baf9dc;
+      background: rgba(62,215,169,0.14);
+      border-color: rgba(62,215,169,0.38);
+    }
+    .roadmap-status.planned {
+      color: #d7defe;
+      background: rgba(126,184,255,0.12);
+      border-color: rgba(126,184,255,0.28);
+    }
+    .roadmap-status.deferred {
+      color: #ffe0a8;
+      background: rgba(255,193,92,0.13);
+      border-color: rgba(255,193,92,0.34);
+    }
+    .prov-status {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 800;
+      border: 1px solid rgba(255,255,255,0.12);
+      white-space: nowrap;
+    }
+    .prov-fresh {
+      color: #baf9dc;
+      background: rgba(62,215,169,0.14);
+      border-color: rgba(62,215,169,0.38);
+    }
+    .prov-aging {
+      color: #ffe0a8;
+      background: rgba(255,193,92,0.13);
+      border-color: rgba(255,193,92,0.34);
+    }
+    .prov-stale, .prov-missing {
+      color: #ffb8c8;
+      background: rgba(255,123,156,0.14);
+      border-color: rgba(255,123,156,0.34);
+    }
+
+    .forward-panel {
+      border-color: #7ff0c4;
+      box-shadow: 0 0 0 1px rgba(127,240,196,0.28), inset 0 0 0 1px rgba(127,240,196,0.08);
+      background: linear-gradient(180deg, rgba(18,28,26,0.72), rgba(10,14,13,0.72));
+    }
+
+    .forward-panel h2 {
+      color: #b9ffe5;
+      text-shadow: 0 0 8px rgba(127,240,196,0.2);
+    }
+
+    .drilldown-panel {
+      border-color: #d6d6ff;
+      background:
+        radial-gradient(circle at top right, rgba(255,255,255,0.08), transparent 22%),
+        linear-gradient(180deg, rgba(20,20,29,0.92), rgba(10,10,14,0.92));
+      box-shadow: 0 0 0 1px rgba(214,214,255,0.16), inset 0 0 0 1px rgba(255,255,255,0.03);
+    }
+
+    .drilldown-head {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .drilldown-select {
+      appearance: none;
+      background:
+        linear-gradient(180deg, rgba(24,24,34,0.96), rgba(12,12,18,0.96));
+      color: var(--ink);
+      border: 1px solid var(--line-hot);
+      border-radius: 999px;
+      padding: 10px 14px;
+      min-width: 180px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+    }
+
+    .drilldown-select option {
+      background: #0c0c12;
+      color: #f5f5f7;
+    }
+
+    .drilldown-select:focus {
+      outline: none;
+      border-color: #f5f5f7;
+      box-shadow: 0 0 0 2px rgba(245,245,247,0.14);
+    }
+
+    .micro-card {
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.02);
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .micro-card .value {
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    #regime-summary {
+      align-items: stretch;
+    }
+
+    #regime-summary .micro-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      min-height: 86px;
+    }
+
+    #regime-summary .micro-card .value {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .regime-note {
+      margin: 10px 0 14px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.03);
+      color: #d8d8ea;
+      line-height: 1.45;
+      font-size: 0.9rem;
+    }
+
+    .risk-panel {
+      border-color: #ffb067;
+      background:
+        radial-gradient(circle at top left, rgba(255,176,103,0.12), transparent 24%),
+        linear-gradient(180deg, rgba(28,20,12,0.9), rgba(14,10,8,0.9));
+      box-shadow: 0 0 0 1px rgba(255,176,103,0.16), inset 0 0 0 1px rgba(255,255,255,0.03);
+    }
+
+    .risk-panel h2 {
+      color: #ffd6ab;
+      text-shadow: 0 0 8px rgba(255,176,103,0.15);
+    }
+
+    .calendar-panel {
+      border-color: #7eb8ff;
+      background:
+        radial-gradient(circle at top right, rgba(126,184,255,0.12), transparent 24%),
+        linear-gradient(180deg, rgba(12,18,30,0.92), rgba(8,10,18,0.92));
+      box-shadow: 0 0 0 1px rgba(126,184,255,0.16), inset 0 0 0 1px rgba(255,255,255,0.03);
+    }
+
+    .calendar-panel h2 {
+      color: #d2e8ff;
+      text-shadow: 0 0 8px rgba(126,184,255,0.15);
+    }
+
+    .changes-panel {
+      border-color: #b8ff7e;
+      background:
+        radial-gradient(circle at top left, rgba(184,255,126,0.12), transparent 24%),
+        linear-gradient(180deg, rgba(18,28,12,0.92), rgba(10,14,8,0.92));
+      box-shadow: 0 0 0 1px rgba(184,255,126,0.16), inset 0 0 0 1px rgba(255,255,255,0.03);
+    }
+
+    .changes-panel h2 {
+      color: #e3ffd0;
+      text-shadow: 0 0 8px rgba(184,255,126,0.15);
+    }
+
+    .regime-panel {
+      border-color: #ff8bbf;
+      background:
+        radial-gradient(circle at top right, rgba(255,139,191,0.12), transparent 24%),
+        linear-gradient(180deg, rgba(30,14,24,0.92), rgba(16,8,14,0.92));
+      box-shadow: 0 0 0 1px rgba(255,139,191,0.16), inset 0 0 0 1px rgba(255,255,255,0.03);
+    }
+
+    .regime-panel h2 {
+      color: #ffd5e8;
+      text-shadow: 0 0 8px rgba(255,139,191,0.15);
+    }
+
+    .viz-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .viz-card {
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.025);
+    }
+
+    .viz-title {
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 0.7rem;
+      margin-bottom: 8px;
+    }
+
+    .viz-value {
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .meter {
+      height: 10px;
+      width: 100%;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.07);
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .meter > span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, rgba(255,255,255,0.42), rgba(255,255,255,0.92));
+    }
+
+    .bar-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .bar-row {
+      display: grid;
+      gap: 6px;
+    }
+
+    .bar-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 0.8rem;
+    }
+
+    .bar-label {
+      color: #e8e8f8;
+      font-weight: 600;
+    }
+
+    .bar-value {
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .diverging-track {
+      position: relative;
+      height: 14px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(255,123,156,0.14) 0 50%, rgba(62,215,169,0.14) 50% 100%);
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .diverging-track::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: rgba(255,255,255,0.18);
+    }
+
+    .diverging-bar {
+      position: absolute;
+      top: 1px;
+      bottom: 1px;
+      border-radius: 999px;
+    }
+
+    .diverging-bar.pos {
+      left: 50%;
+      background: linear-gradient(90deg, rgba(62,215,169,0.72), rgba(186,249,220,0.96));
+    }
+
+    .diverging-bar.neg {
+      right: 50%;
+      background: linear-gradient(90deg, rgba(255,184,200,0.96), rgba(255,123,156,0.72));
+    }
+
+    .stack-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .stack-track {
+      display: flex;
+      height: 12px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .stack-segment { height: 100%; }
+    .seg-quality { background: #d5e6ff; }
+    .seg-growth { background: #8ce1c6; }
+    .seg-alt { background: #f6d27d; }
+    .seg-peer { background: #f8a9c0; }
+    .seg-proxy { background: #c7a9ff; }
+    .seg-value { background: #9db2ff; }
+
+    .stack-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      margin-top: 10px;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .legend-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .lab-panel {
+      border-color: #8ec5ff;
+      background:
+        radial-gradient(circle at top left, rgba(142,197,255,0.14), transparent 26%),
+        radial-gradient(circle at bottom right, rgba(186,249,220,0.10), transparent 30%),
+        linear-gradient(180deg, rgba(10,16,28,0.95), rgba(8,10,18,0.94));
+      box-shadow: 0 0 0 1px rgba(142,197,255,0.15), inset 0 0 0 1px rgba(255,255,255,0.03);
+    }
+
+    .lab-panel h2 {
+      color: #ddeeff;
+      text-shadow: 0 0 8px rgba(142,197,255,0.16);
+    }
+
+    .lab-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+
+    .lab-card {
+      padding: 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+    }
+
+    .lab-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .lab-card h3 {
+      margin: 0;
+      font-size: 0.95rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      font-family: Georgia, "Times New Roman", serif;
+    }
+
+    .lab-status {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 800;
+      border: 1px solid rgba(255,255,255,0.12);
+      white-space: nowrap;
+      color: #dce8ff;
+      background: rgba(126,184,255,0.12);
+      border-color: rgba(126,184,255,0.34);
+    }
+
+    .lab-status.active {
+      color: #baf9dc;
+      background: rgba(62,215,169,0.14);
+      border-color: rgba(62,215,169,0.36);
+    }
+
+    .lab-status.pause {
+      color: #ffe0a8;
+      background: rgba(255,193,92,0.13);
+      border-color: rgba(255,193,92,0.34);
+    }
+
+    .lab-status.blocked {
+      color: #ffb8c8;
+      background: rgba(255,123,156,0.14);
+      border-color: rgba(255,123,156,0.34);
+    }
+
+    .lab-status.monitor {
+      color: #d8dcff;
+      background: rgba(196,169,255,0.14);
+      border-color: rgba(196,169,255,0.34);
+    }
+
+    .lab-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .lab-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.03);
+      color: #eef1ff;
+    }
+
+    .lab-pill.good {
+      color: #baf9dc;
+      border-color: rgba(62,215,169,0.34);
+      background: rgba(62,215,169,0.12);
+    }
+
+    .lab-pill.warn {
+      color: #ffe0a8;
+      border-color: rgba(255,193,92,0.34);
+      background: rgba(255,193,92,0.12);
+    }
+
+    .lab-pill.bad {
+      color: #ffb8c8;
+      border-color: rgba(255,123,156,0.34);
+      background: rgba(255,123,156,0.12);
+    }
+
+    .lab-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .lab-list-item {
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .lab-list-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 4px;
+      font-size: 0.82rem;
+    }
+
+    .lab-list-title {
+      font-weight: 700;
+      color: #f3f4ff;
+    }
+
+    .lab-list-value {
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .lab-list-note {
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 0.82rem;
+    }
+
+    .lab-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 10px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Sigil Trading Console</h1>
+      <p id="meta">Loading market state...</p>
+      <p id="api-status" class="status">Checking control bridge...</p>
+    </section>
+
+    <section class="section panel">
+      <h2>Control Sigils</h2>
+      <div class="controls">
+        <button class="btn primary" data-task="alpha">Run Alpha Pipeline</button>
+        <button class="btn" data-task="backtest">Run Backtest</button>
+        <button class="btn" data-task="refresh_data">Refresh Dashboard Data</button>
+      </div>
+      <div id="run-status" class="status">Idle.</div>
+      <div id="run-log" class="log">No runs yet.</div>
+    </section>
+
+    <section class="section grid stats" id="stats"></section>
+
+    <section class="section panel">
+      <h2>Platform Roadmap</h2>
+      <div id="roadmap-meta" class="status">Waiting for roadmap state...</div>
+      <div id="roadmap-grid" class="section grid roadmap-grid"></div>
+      <div class="section panel">
+        <h2>Next Backend Actions</h2>
+        <table id="roadmap-actions-table"></table>
+      </div>
+    </section>
+
+    <section class="section panel">
+      <h2>Data Provenance</h2>
+      <div id="provenance-summary" class="grid stats"></div>
+      <div id="provenance-meta" class="status">Waiting for provider state...</div>
+      <div class="section panel">
+        <table id="provenance-table"></table>
+      </div>
+    </section>
+
+    <section class="section panel risk-panel">
+      <h2>Portfolio Risk Console</h2>
+      <div id="risk-summary" class="grid stats"></div>
+      <div class="section grid two">
+        <div class="panel">
+          <h2>Top Positions</h2>
+          <table id="risk-positions-table"></table>
+        </div>
+        <div class="panel">
+          <h2>Sector Exposure</h2>
+          <table id="risk-sector-table"></table>
+        </div>
+      </div>
+      <div class="section panel">
+        <h2>Sub-Industry Exposure</h2>
+        <table id="risk-subindustry-table"></table>
+      </div>
+      <div class="section panel">
+        <h2>Target Drift</h2>
+        <div id="risk-drift-visual" class="section"></div>
+        <table id="risk-drift-table"></table>
+      </div>
+      <div class="section panel">
+        <h2>Sub-Industry Drift</h2>
+        <table id="risk-subindustry-drift-table"></table>
+      </div>
+      <div class="section panel">
+        <h2>Trim + Rotation Assistant</h2>
+        <table id="rotation-table"></table>
+      </div>
+    </section>
+
+    <section class="section panel calendar-panel">
+      <h2>Catalyst Calendar</h2>
+      <div id="calendar-summary" class="grid stats"></div>
+      <div class="section panel">
+        <table id="calendar-table"></table>
+      </div>
+    </section>
+
+    <section class="section panel changes-panel">
+      <h2>Changed Since Last Run</h2>
+      <div id="changes-summary" class="grid stats"></div>
+      <div id="changes-visual" class="section"></div>
+      <div class="section panel">
+        <table id="changes-table"></table>
+      </div>
+    </section>
+
+    <section class="section panel regime-panel">
+      <h2>Active Regime Tilt</h2>
+      <div id="regime-summary" class="grid stats"></div>
+      <div id="regime-note" class="regime-note muted">No regime summary yet.</div>
+      <div id="regime-visual" class="section"></div>
+      <div class="section panel">
+        <table id="regime-tilt-table"></table>
+      </div>
+    </section>
+
+    <section class="section grid two">
+      <div class="panel">
+        <h2>Top Ideas</h2>
+        <div id="ideas-visual" class="section"></div>
+        <table id="ideas-table"></table>
+      </div>
+      <div class="panel">
+        <h2>Nowcast Leaders</h2>
+        <table id="nowcast-table"></table>
+      </div>
+    </section>
+
+    <section class="section panel">
+      <h2>Direct Source Coverage</h2>
+      <div id="coverage-summary" class="grid stats"></div>
+      <div class="section panel">
+        <table id="coverage-table"></table>
+      </div>
+    </section>
+
+    <section class="section panel">
+      <h2>Coverage Targets</h2>
+      <table id="coverage-targets-table"></table>
+    </section>
+
+    <section class="section panel">
+      <h2>Direct Source Leaderboard</h2>
+      <table id="direct-source-table"></table>
+    </section>
+
+    <section class="section panel">
+      <h2>Alpha Top 20</h2>
+      <table id="alpha-table"></table>
+    </section>
+
+    <section class="section panel drilldown-panel">
+      <div class="drilldown-head">
+        <h2>Idea Drilldown</h2>
+        <select id="drilldown-select" class="drilldown-select"></select>
+      </div>
+      <div id="drilldown-summary" class="grid stats"></div>
+      <div class="section grid two">
+        <div class="panel">
+          <h2>Factor Stack</h2>
+          <table id="drilldown-factors"></table>
+        </div>
+        <div class="panel">
+          <h2>Execution Plan</h2>
+          <table id="drilldown-execution"></table>
+        </div>
+      </div>
+      <div class="section grid two">
+        <div class="panel">
+          <h2>Quality + Fundamentals</h2>
+          <table id="drilldown-quality"></table>
+        </div>
+        <div class="panel">
+          <h2>Forward Tape + Context</h2>
+          <table id="drilldown-forward"></table>
+        </div>
+      </div>
+      <div class="section panel">
+        <h2>Idea Memory</h2>
+        <table id="drilldown-memory"></table>
+      </div>
+    </section>
+
+    <section class="section panel">
+      <h2>Expected Alpha By Horizon</h2>
+      <table id="horizon-table"></table>
+    </section>
+
+    <section class="section panel">
+      <h2>Factor Attribution</h2>
+      <table id="factor-table"></table>
+    </section>
+
+    <section class="section panel">
+      <h2>Rolling Realized Alpha</h2>
+      <table id="rolling-table"></table>
+    </section>
+
+    <section class="section panel forward-panel">
+      <h2>Forward Test Monitor</h2>
+      <table id="forward-table"></table>
+    </section>
+
+    <section class="section panel">
+      <h2>Postmortem Shelf</h2>
+      <table id="postmortem-table"></table>
+    </section>
+
+    <section class="section panel">
+      <h2>Promotion Readiness</h2>
+      <table id="promotion-table"></table>
+    </section>
+
+    <section class="section panel lab-panel">
+      <h2>Alpha Lab</h2>
+      <div id="alpha-lab-meta" class="status">Waiting for alpha lab state...</div>
+      <div id="alpha-lab-summary" class="grid stats"></div>
+      <div id="alpha-lab-board" class="section lab-grid"></div>
+      <div class="section panel">
+        <table id="alpha-lab-table"></table>
+      </div>
+    </section>
+
+    <section class="section panel">
+      <h2>Nowcast Ablation</h2>
+      <div id="ablation-summary" class="grid stats"></div>
+      <table id="ablation-table"></table>
+    </section>
+
+    <section class="section panel">
+      <h2>Factor Tournament</h2>
+      <div id="factor-tournament-summary" class="grid stats"></div>
+      <table id="factor-tournament-table"></table>
+    </section>
+
+    <section class="section panel">
+      <h2>Earnings Drift Lab</h2>
+      <div id="earnings-drift-summary" class="grid stats"></div>
+      <table id="earnings-drift-table"></table>
+    </section>
+
+    <section class="section panel">
+      <h2>Model Health</h2>
+      <table id="health-table"></table>
+    </section>
+
+    <section class="section panel">
+      <h2>Script Registry</h2>
+      <div id="scripts-list" class="scripts-list"></div>
+    </section>
+  </div>
+
+  <script>
+    let apiReady = false;
+    let dashboardState = null;
+
+    function fmtMoney(v) {
+      if (v == null || Number.isNaN(Number(v))) return '-';
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(Number(v));
+    }
+
+    function actionBadge(action) {
+      const label = action || '-';
+      const slug = String(label).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      return '<span class="action-badge action-' + slug + '">' + label.replace(/_/g, ' ') + '</span>';
+    }
+
+    function fmtPct(v) {
+      if (v == null || Number.isNaN(Number(v))) return '-';
+      return `${Number(v).toFixed(2)}%`;
+    }
+
+    function fmtSignedPct(v) {
+      if (v == null || Number.isNaN(Number(v))) return '-';
+      const n = Number(v);
+      const sign = n > 0 ? '+' : '';
+      return `${sign}${n.toFixed(2)}%`;
+    }
+
+    function fmtDec(v, digits = 2) {
+      if (v == null || Number.isNaN(Number(v))) return '-';
+      return Number(v).toFixed(digits);
+    }
+
+    function setBusy(busy) {
+      document.querySelectorAll('.btn').forEach(btn => btn.disabled = busy || !apiReady);
+    }
+
+    function setRunStatus(text, cls) {
+      const el = document.getElementById('run-status');
+      el.className = `status ${cls || ''}`.trim();
+      el.textContent = text;
+    }
+
+    function setLog(text) {
+      document.getElementById('run-log').textContent = text;
+    }
+
+    function setStats(data) {
+      const s = data.summaries || {};
+      const p = data.portfolio || {};
+      const cards = [
+        ['Account', fmtMoney(p.account_size)],
+        ['Equities', `${fmtMoney(p.equities_total)} (${fmtPct(p.weights?.equities)})`],
+        ['Crypto', `${fmtMoney(p.crypto_total)} (${fmtPct(p.weights?.crypto)})`],
+        ['Cash', `${fmtMoney(p.cash)} (${fmtPct(p.weights?.cash)})`],
+        ['Top Ideas', s.top_ideas_count ?? 0],
+        ['Forward Open', data.forward_test?.open_count ?? 0],
+        ['Closes Today', data.forward_test?.closes_today_count ?? 0],
+        ['Policy Max Open', data.forward_test?.policy?.max_open_trades ?? '-'],
+        ['Reopen Cooldown', data.forward_test?.policy?.reopen_cooldown_days == null ? '-' : `${data.forward_test.policy.reopen_cooldown_days}d`],
+        ['Alpha Ranked', s.alpha_ranked ?? 0],
+        ['Trim Candidates', s.trim_candidates ?? 0],
+        ['Crypto Alerts', `H:${s.crypto_alerts_high ?? 0} / M:${s.crypto_alerts_medium ?? 0}`],
+        ['Backtest Winner', s.backtest_winner ?? 'N/A'],
+        ['Backtest Sample', s.backtest_sample_n ?? 0],
+        ['Eligible Universe', `${data.model_health?.eligible_rows ?? 0}/${data.model_health?.feature_rows ?? 0} (${data.model_health?.eligible_pct ?? '-'}%)`],
+        ['Avg Confidence', data.model_health?.avg_confidence == null ? '-' : Number(data.model_health.avg_confidence).toFixed(3)],
+        ['30D Alpha', s.rolling_alpha_30d == null ? '-' : fmtPct(s.rolling_alpha_30d * 100)],
+        ['90D Alpha', s.rolling_alpha_90d == null ? '-' : fmtPct(s.rolling_alpha_90d * 100)],
+        ['Promotion Winner', data.model_health?.promotion_winner ?? 'N/A'],
+        ['Freeze Violation', data.model_health?.governance_freeze_violation ? 'YES' : 'NO'],
+        ['Backtest Hold', data.model_health?.backtest_hold_days == null ? '-' : `${data.model_health.backtest_hold_days}d (${data.model_health?.backtest_benchmark_mode ?? 'N/A'})`],
+        ['Champ CAGR', data.model_health?.champion_cagr == null ? '-' : fmtPct(data.model_health.champion_cagr * 100)],
+        ['Chal CAGR', data.model_health?.challenger_cagr == null ? '-' : fmtPct(data.model_health.challenger_cagr * 100)],
+        ['Champ Sharpe', fmtDec(data.model_health?.champion_sharpe, 3)],
+        ['Chal Sharpe', fmtDec(data.model_health?.challenger_sharpe, 3)],
+        ['Champ MaxDD', data.model_health?.champion_max_drawdown == null ? '-' : fmtPct(data.model_health.champion_max_drawdown * 100)],
+        ['Chal MaxDD', data.model_health?.challenger_max_drawdown == null ? '-' : fmtPct(data.model_health.challenger_max_drawdown * 100)],
+      ];
+
+      const host = document.getElementById('stats');
+      host.innerHTML = cards.map(([label, value]) => `
+        <article class="panel">
+          <div class="label">${label}</div>
+          <div class="value">${value}</div>
+        </article>
+      `).join('');
+    }
+
+    function setPortfolioRisk(data) {
+      const risk = data.portfolio_risk || {};
+      const summary = risk.summary || {};
+      const constraints = risk.constraints || {};
+      const summaryHost = document.getElementById('risk-summary');
+      const positionsTable = document.getElementById('risk-positions-table');
+      const sectorTable = document.getElementById('risk-sector-table');
+      const subIndustryTable = document.getElementById('risk-subindustry-table');
+      const driftTable = document.getElementById('risk-drift-table');
+      const driftVisual = document.getElementById('risk-drift-visual');
+      const subIndustryDriftTable = document.getElementById('risk-subindustry-drift-table');
+      const rotationTable = document.getElementById('rotation-table');
+
+      const cards = [
+        ['Beta Proxy', summary.weighted_beta_proxy == null ? '-' : Number(summary.weighted_beta_proxy).toFixed(3)],
+        ['Top 5 Conc.', summary.top5_concentration_pct == null ? '-' : `${summary.top5_concentration_pct}%`],
+        ['Max Name', summary.max_single_name_pct == null ? '-' : `${summary.max_single_name_pct}%`],
+        ['Max Sector', summary.max_sector_pct == null ? '-' : `${summary.max_sector_pct}%`],
+        ['Cash Buffer', summary.cash_buffer_pct == null ? '-' : `${summary.cash_buffer_pct}%`],
+        ['HHI', summary.concentration_hhi == null ? '-' : Number(summary.concentration_hhi).toFixed(4)],
+        ['Country ETF', summary.country_etf_pct == null ? '-' : `${summary.country_etf_pct}%`],
+        ['Thematic ETF', summary.thematic_etf_pct == null ? '-' : `${summary.thematic_etf_pct}%`],
+        ['Sector ETF', summary.sector_etf_pct == null ? '-' : `${summary.sector_etf_pct}%`],
+        ['Leveraged ETF', summary.leveraged_etf_pct == null ? '-' : `${summary.leveraged_etf_pct}%`],
+        ['Limit Flags', (summary.limit_flags || []).join(', ') || 'CLEAR'],
+        ['Policy', `Name ${(constraints.max_single_name_weight == null ? '-' : (Number(constraints.max_single_name_weight) * 100).toFixed(0) + '%')} / Sector ${(constraints.max_sector_weight == null ? '-' : (Number(constraints.max_sector_weight) * 100).toFixed(0) + '%')}`],
+      ];
+
+      summaryHost.innerHTML = cards.map(([label, value]) => `
+        <article class="micro-card">
+          <div class="label">${label}</div>
+          <div class="value">${value}</div>
+        </article>
+      `).join('');
+
+      const positions = risk.top_positions || [];
+      positionsTable.innerHTML =
+        '<thead><tr><th>Ticker</th><th>Weight</th><th>Equity</th><th>Sector</th><th>Sub-Industry</th><th>Beta</th><th>Return</th></tr></thead><tbody>' +
+        (positions.map((row) =>
+          '<tr>' +
+            '<td><strong>' + (row.symbol || '-') + '</strong></td>' +
+            '<td>' + (row.weight_pct == null ? '-' : row.weight_pct + '%') + '</td>' +
+            '<td>' + fmtMoney(row.equity) + '</td>' +
+            '<td>' + (row.sector || '-') + '</td>' +
+            '<td>' + (row.sub_industry || '-') + '</td>' +
+            '<td>' + (row.beta_proxy == null ? '-' : Number(row.beta_proxy).toFixed(2)) + '</td>' +
+            '<td>' + (row.return_pct == null ? '-' : Number(row.return_pct).toFixed(2) + '%') + '</td>' +
+          '</tr>'
+        ).join('') || '<tr><td colspan="7" class="muted">No position risk data.</td></tr>') +
+        '</tbody>';
+
+      const sectors = risk.sector_exposure || [];
+      sectorTable.innerHTML =
+        '<thead><tr><th>Sector</th><th>Weight</th><th>Equity</th><th>Names</th></tr></thead><tbody>' +
+        (sectors.map((row) =>
+          '<tr>' +
+            '<td>' + (row.sector || '-') + '</td>' +
+            '<td>' + (row.weight_pct == null ? '-' : row.weight_pct + '%') + '</td>' +
+            '<td>' + fmtMoney(row.equity) + '</td>' +
+            '<td>' + (row.names ?? '-') + '</td>' +
+          '</tr>'
+        ).join('') || '<tr><td colspan="4" class="muted">No sector exposure data.</td></tr>') +
+        '</tbody>';
+
+      const subIndustries = risk.sub_industry_exposure || [];
+      subIndustryTable.innerHTML =
+        '<thead><tr><th>Sub-Industry</th><th>Weight</th><th>Equity</th><th>Names</th></tr></thead><tbody>' +
+        (subIndustries.map((row) =>
+          '<tr>' +
+            '<td>' + (row.sub_industry || '-') + '</td>' +
+            '<td>' + (row.weight_pct == null ? '-' : row.weight_pct + '%') + '</td>' +
+            '<td>' + fmtMoney(row.equity) + '</td>' +
+            '<td>' + (row.names == null ? '-' : row.names) + '</td>' +
+          '</tr>'
+        ).join('') || '<tr><td colspan="4" class="muted">No sub-industry exposure data.</td></tr>') +
+        '</tbody>';
+
+      const drift = risk.target_drift || [];
+      const maxAbsDrift = drift.reduce((max, row) => Math.max(max, Math.abs(Number(row.drift_pct_points) || 0)), 0) || 1;
+      driftVisual.innerHTML = drift.length ? `
+        <div class="viz-card">
+          <div class="viz-title">Model Book Drift Map</div>
+          <div class="bar-list">
+            ${drift.map((row) => {
+              const driftValue = Number(row.drift_pct_points) || 0;
+              const widthPct = Math.max(4, (Math.abs(driftValue) / maxAbsDrift) * 50);
+              const klass = driftValue >= 0 ? 'pos' : 'neg';
+              return `
+                <div class="bar-row">
+                  <div class="bar-meta">
+                    <span class="bar-label">${row.ticker || '-'}</span>
+                    <span class="bar-value">${driftValue.toFixed(2)} pts</span>
+                  </div>
+                  <div class="diverging-track">
+                    <span class="diverging-bar ${klass}" style="width:${widthPct}%;"></span>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      ` : '<div class="muted">No drift chart data.</div>';
+      driftTable.innerHTML =
+        '<thead><tr><th>Ticker</th><th>Current</th><th>Target</th><th>Drift</th><th>Sector</th></tr></thead><tbody>' +
+        (drift.map((row) =>
+          '<tr>' +
+            '<td><strong>' + (row.ticker || '-') + '</strong></td>' +
+            '<td>' + (row.current_weight_pct == null ? '-' : row.current_weight_pct + '%') + '</td>' +
+            '<td>' + (row.target_weight_pct == null ? '-' : row.target_weight_pct + '%') + '</td>' +
+            '<td>' + (row.drift_pct_points == null ? '-' : Number(row.drift_pct_points).toFixed(2) + ' pts') + '</td>' +
+            '<td>' + (row.sector_bucket || '-') + '</td>' +
+          '</tr>'
+        ).join('') || '<tr><td colspan="5" class="muted">No target drift data.</td></tr>') +
+        '</tbody>';
+
+      const subIndustryDrift = risk.sub_industry_drift || [];
+      subIndustryDriftTable.innerHTML =
+        '<thead><tr><th>Sub-Industry</th><th>Current</th><th>Target</th><th>Drift</th></tr></thead><tbody>' +
+        (subIndustryDrift.map((row) =>
+          '<tr>' +
+            '<td>' + (row.sub_industry || '-') + '</td>' +
+            '<td>' + (row.current_weight_pct == null ? '-' : row.current_weight_pct + '%') + '</td>' +
+            '<td>' + (row.target_weight_pct == null ? '-' : row.target_weight_pct + '%') + '</td>' +
+            '<td>' + (row.drift_pct_points == null ? '-' : Number(row.drift_pct_points).toFixed(2) + ' pts') + '</td>' +
+          '</tr>'
+        ).join('') || '<tr><td colspan="4" class="muted">No sub-industry drift data.</td></tr>') +
+        '</tbody>';
+
+      const rotation = (data.rotation_assistant && data.rotation_assistant.rows) || [];
+      rotationTable.innerHTML =
+        '<thead><tr><th>Action</th><th>Ticker</th><th>Current</th><th>Target</th><th>Drift</th><th>Sub-Industry</th><th>Fund Rotation Target</th><th>Est Cash</th><th>Reason</th></tr></thead><tbody>' +
+        (rotation.map((row) =>
+          '<tr>' +
+            '<td>' + actionBadge(row.action) + '</td>' +
+            '<td>' + (row.symbol || '-') + '</td>' +
+            '<td>' + (row.current_weight_pct == null ? '-' : row.current_weight_pct + '%') + '</td>' +
+            '<td>' + (row.target_weight_pct == null ? '-' : row.target_weight_pct + '%') + '</td>' +
+            '<td>' + (row.drift_pct_points == null ? '-' : Number(row.drift_pct_points).toFixed(2) + ' pts') + '</td>' +
+            '<td>' + (row.sub_industry || '-') + '</td>' +
+            '<td>' + (
+              row.rotation_target_symbol
+                ? '<span class="rotation-target">' + row.rotation_target_symbol + '<small>' + (row.rotation_target_sub_industry || '-') + '</small></span>'
+                : '-'
+            ) + '</td>' +
+            '<td>' + fmtMoney(row.est_cash_out) + '</td>' +
+            '<td>' + [row.reason, row.rotation_target_reason].filter(Boolean).join(' | ') + '</td>' +
+          '</tr>'
+        ).join('') || '<tr><td colspan="9" class="muted">No trim or rotation recommendations.</td></tr>') +
+        '</tbody>';
+    }
+
+    function setCatalystCalendar(data) {
+      const cal = data.catalyst_calendar || {};
+      const summaryHost = document.getElementById('calendar-summary');
+      const table = document.getElementById('calendar-table');
+
+      const cards = [
+        ['As Of', cal.as_of_date || '-'],
+        ['7D Events', cal.upcoming_7d ?? 0],
+        ['30D Events', cal.upcoming_30d ?? 0],
+        ['Earnings', cal.earnings_count ?? 0],
+        ['Forward Checks', cal.forward_checkpoints_count ?? 0],
+      ];
+
+      summaryHost.innerHTML = cards.map(([label, value]) => `
+        <article class="micro-card">
+          <div class="label">${label}</div>
+          <div class="value">${value}</div>
+        </article>
+      `).join('');
+
+      const rows = cal.events || [];
+      table.innerHTML =
+        '<thead><tr><th>Date</th><th>D-Count</th><th>Symbol</th><th>Category</th><th>Scope</th><th>Headline</th><th>Note</th></tr></thead><tbody>' +
+        (rows.map((row) =>
+          '<tr>' +
+            '<td>' + (row.date || '-') + '</td>' +
+            '<td>' + (row.days_until == null ? '-' : row.days_until) + '</td>' +
+            '<td><strong>' + (row.symbol || '-') + '</strong></td>' +
+            '<td>' + (row.category || '-') + '</td>' +
+            '<td>' + (row.scope || '-') + '</td>' +
+            '<td>' + (row.headline || '-') + '</td>' +
+            '<td>' + (row.note || '-') + '</td>' +
+          '</tr>'
+        ).join('') || '<tr><td colspan="7" class="muted">No upcoming catalysts found.</td></tr>') +
+        '</tbody>';
+    }
+
+    function setRunChanges(data) {
+      const changes = data.run_changes || {};
+      const summaryHost = document.getElementById('changes-summary');
+      const table = document.getElementById('changes-table');
+      const visual = document.getElementById('changes-visual');
+
+      const cards = [
+        ['Lineup Changed', changes.lineup_changed ? 'YES' : 'NO'],
+        ['Added', (changes.added_symbols || []).join(', ') || 'None'],
+        ['Removed', (changes.removed_symbols || []).join(', ') || 'None'],
+        ['Current File', changes.current_file ? changes.current_file.split('\\').pop() : '-'],
+        ['Previous File', changes.previous_file ? changes.previous_file.split('\\').pop() : '-'],
+      ];
+
+      summaryHost.innerHTML = cards.map(([label, value]) => `
+        <article class="micro-card">
+          <div class="label">${label}</div>
+          <div class="value">${value}</div>
+        </article>
+      `).join('');
+
+      const rows = changes.score_changes || [];
+      const maxAbsDelta = rows.reduce((max, row) => Math.max(max, Math.abs(Number(row.score_delta) || 0), Math.abs(Number(row.expected_alpha_20d_delta) || 0)), 0) || 1;
+      visual.innerHTML = rows.length ? `
+        <div class="viz-card">
+          <div class="viz-title">Score And 20D Alpha Deltas</div>
+          <div class="bar-list">
+            ${rows.map((row) => {
+              const scoreDelta = Number(row.score_delta) || 0;
+              const alphaDelta = Number(row.expected_alpha_20d_delta) || 0;
+              const scoreWidth = Math.max(4, (Math.abs(scoreDelta) / maxAbsDelta) * 50);
+              const alphaWidth = Math.max(4, (Math.abs(alphaDelta) / maxAbsDelta) * 50);
+              return `
+                <div class="bar-row">
+                  <div class="bar-meta">
+                    <span class="bar-label">${row.symbol || '-'}</span>
+                    <span class="bar-value">score ${scoreDelta.toFixed(4)} / alpha ${alphaDelta.toFixed(2)} pts</span>
+                  </div>
+                  <div class="diverging-track">
+                    <span class="diverging-bar ${scoreDelta >= 0 ? 'pos' : 'neg'}" style="width:${scoreWidth}%; opacity:0.95;"></span>
+                  </div>
+                  <div class="diverging-track">
+                    <span class="diverging-bar ${alphaDelta >= 0 ? 'pos' : 'neg'}" style="width:${alphaWidth}%; opacity:0.72;"></span>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      ` : '<div class="muted">No run delta chart data.</div>';
+      table.innerHTML =
+        '<thead><tr><th>Ticker</th><th>Score</th><th>Prev</th><th>Delta</th><th>20D Alpha Delta</th><th>Entry Changed</th></tr></thead><tbody>' +
+        (rows.map((row) =>
+          '<tr>' +
+            '<td><strong>' + (row.symbol || '-') + '</strong></td>' +
+            '<td>' + (row.current_score == null ? '-' : Number(row.current_score).toFixed(4)) + '</td>' +
+            '<td>' + (row.previous_score == null ? '-' : Number(row.previous_score).toFixed(4)) + '</td>' +
+            '<td>' + (row.score_delta == null ? '-' : Number(row.score_delta).toFixed(4)) + '</td>' +
+            '<td>' + (row.expected_alpha_20d_delta == null ? '-' : Number(row.expected_alpha_20d_delta).toFixed(2) + ' pts') + '</td>' +
+            '<td>' + (row.entry_changed ? 'YES' : 'NO') + '</td>' +
+          '</tr>'
+        ).join('') || '<tr><td colspan="6" class="muted">No run comparison data found.</td></tr>') +
+        '</tbody>';
+    }
+
+    function setRegimeTilt(data) {
+      const regime = data.regime || {};
+      const summaryHost = document.getElementById('regime-summary');
+      const noteHost = document.getElementById('regime-note');
+      const table = document.getElementById('regime-tilt-table');
+      const visual = document.getElementById('regime-visual');
+
+      const cards = [
+        ['Market Date', regime.source_market_date || '-'],
+        ['Regime', regime.regime_id || '-'],
+        ['Confidence', regime.regime_confidence == null ? '-' : Number(regime.regime_confidence).toFixed(2)],
+        ['Gross Exposure', regime.recommended_gross_exposure == null ? '-' : fmtPct(Number(regime.recommended_gross_exposure) * 100)],
+        ['Multiplier', regime.regime_multiplier == null ? '-' : Number(regime.regime_multiplier).toFixed(2)],
+        ['Vol State', regime.vol_state || '-'],
+        ['Breadth', regime.breadth_state || '-'],
+        ['Sector Leadership', regime.sector_leadership_state || '-'],
+        ['VIX', regime.vix_level == null ? '-' : Number(regime.vix_level).toFixed(2)],
+        ['20D Realized Vol', regime.realized_vol_20d == null ? '-' : fmtPct(Number(regime.realized_vol_20d) * 100)],
+        ['RSP vs SPY 20D', regime.rsp_spy_relative_20d == null ? '-' : fmtPct(Number(regime.rsp_spy_relative_20d) * 100)],
+        ['Sector Participation', regime.sector_positive_ratio_20d == null ? '-' : fmtPct(Number(regime.sector_positive_ratio_20d) * 100)],
+        ['Top Leaders', regime.top_sector_leaders_20d || '-'],
+        ['Top Laggards', regime.top_sector_laggards_20d || '-'],
+      ];
+
+      summaryHost.innerHTML = cards.map(([label, value]) => `
+        <article class="micro-card">
+          <div class="label">${label}</div>
+          <div class="value">${value}</div>
+        </article>
+      `).join('');
+      noteHost.textContent = regime.why_this_regime || 'No regime explanation available.';
+
+      const rows = regime.factor_tilts || [];
+      visual.innerHTML = regime.regime_id ? `
+        <div class="viz-grid">
+          <article class="viz-card">
+            <div class="viz-title">Regime Strength</div>
+            <div class="viz-value">${regime.regime_confidence == null ? '-' : Number(regime.regime_confidence).toFixed(2)}</div>
+            <div class="meter"><span style="width:${Math.max(0, Math.min(100, (Number(regime.regime_confidence) || 0) * 100))}%;"></span></div>
+          </article>
+          <article class="viz-card">
+            <div class="viz-title">Recommended Gross Exposure</div>
+            <div class="viz-value">${regime.recommended_gross_exposure == null ? '-' : fmtPct(Number(regime.recommended_gross_exposure) * 100)}</div>
+            <div class="meter"><span style="width:${Math.max(0, Math.min(100, (Number(regime.recommended_gross_exposure) || 0) * 100))}%;"></span></div>
+          </article>
+          <article class="viz-card">
+            <div class="viz-title">Factor Tilt Shape</div>
+            <div class="bar-list">
+              ${rows.map((row) => {
+                const mult = Number(row.multiplier);
+                const pct = Number.isFinite(mult) ? Math.max(0, Math.min(100, (mult / 1.3) * 100)) : 0;
+                return `
+                  <div class="bar-row">
+                    <div class="bar-meta">
+                      <span class="bar-label">${row.factor || '-'}</span>
+                      <span class="bar-value">${row.multiplier == null ? '-' : mult.toFixed(2)}</span>
+                    </div>
+                    <div class="meter"><span style="width:${pct}%;"></span></div>
+                  </div>
+                `;
+              }).join('') || '<div class="muted">No tilt rows.</div>'}
+            </div>
+          </article>
+        </div>
+      ` : '<div class="muted">No regime visual data.</div>';
+      table.innerHTML =
+        '<thead><tr><th>Factor</th><th>Multiplier</th><th>Bias</th></tr></thead><tbody>' +
+        (rows.map((row) => {
+          const mult = Number(row.multiplier);
+          const bias = !Number.isFinite(mult) ? '-' : (mult > 1 ? 'Overweight' : (mult < 1 ? 'Underweight' : 'Neutral'));
+          return '<tr>' +
+            '<td>' + (row.factor || '-') + '</td>' +
+            '<td>' + (row.multiplier == null ? '-' : mult.toFixed(2)) + '</td>' +
+            '<td>' + bias + '</td>' +
+          '</tr>';
+        }).join('') || '<tr><td colspan="3" class="muted">No regime tilt data found.</td></tr>') +
+        '</tbody>';
+    }
+
+    function setIdeas(data) {
+      const rows = data.top_ideas || [];
+      const visual = document.getElementById('ideas-visual');
+      const t = document.getElementById('ideas-table');
+      const drilldowns = (data.idea_drilldowns || []).slice(0, 6);
+      const factors = [
+        ['quality_score', 'Quality', 'seg-quality'],
+        ['growth_score', 'Growth', 'seg-growth'],
+        ['alt_momentum_score', 'Alt', 'seg-alt'],
+        ['peer_relative_score', 'Peer', 'seg-peer'],
+        ['proxy_inferred_score', 'Proxy', 'seg-proxy'],
+        ['value_score', 'Value', 'seg-value'],
+      ];
+      visual.innerHTML = drilldowns.length ? `
+        <div class="viz-card">
+          <div class="viz-title">Rank Decomposition</div>
+          <div class="stack-list">
+            ${drilldowns.map((row) => {
+              const entries = factors.map(([key, label, klass]) => {
+                const factorRow = (row.factor_scores || []).find((item) => item.factor === key);
+                const score = Number(factorRow?.score) || 0;
+                return { label, klass, score };
+              });
+              const total = entries.reduce((sum, item) => sum + Math.max(item.score, 0), 0) || 1;
+              return `
+                <div class="bar-row">
+                  <div class="bar-meta">
+                    <span class="bar-label">${row.symbol || '-'}</span>
+                    <span class="bar-value">alpha ${row.final_alpha_score == null ? '-' : Number(row.final_alpha_score).toFixed(4)} / conf ${row.confidence == null ? '-' : Number(row.confidence).toFixed(3)}</span>
+                  </div>
+                  <div class="stack-track">
+                    ${entries.map((item) => `<span class="stack-segment ${item.klass}" style="width:${(Math.max(item.score, 0) / total) * 100}%;"></span>`).join('')}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+          <div class="stack-legend">
+            ${factors.map(([, label, klass]) => `<span class="legend-chip"><span class="legend-dot ${klass}"></span>${label}</span>`).join('')}
+          </div>
+        </div>
+      ` : '<div class="muted">No rank decomposition data.</div>';
+      t.innerHTML = `
+        <thead>
+          <tr><th>Ticker</th><th>Alpha</th><th>Conf</th><th>Exp 20D</th><th>Entry</th><th>Max Size</th><th>Options</th></tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td><strong>${r.symbol || '-'}</strong></td>
+              <td>${r.adjusted_score ?? '-'}</td>
+              <td>${r.confidence ?? '-'}</td>
+              <td>${r.expected_alpha_20d || '-'}</td>
+              <td>${r.entry_zone || '-'}</td>
+              <td>${r.max_position_size_usd == null ? '-' : `$${Number(r.max_position_size_usd).toFixed(2)}`}</td>
+            </tr>
+            <tr><td colspan="7" class="muted">${r.options_overlay || r.strongest_drivers || '-'}</td></tr>
+          `).join('') || '<tr><td colspan="7" class="muted">No idea rows found.</td></tr>'}
+        </tbody>
+      `;
+    }
+
+    function drillStat(label, value) {
+      return `
+        <article class="micro-card">
+          <div class="label">${label}</div>
+          <div class="value">${value}</div>
+        </article>
+      `;
+    }
+
+    function setDrilldownOptions(data) {
+      const select = document.getElementById('drilldown-select');
+      const rows = data.idea_drilldowns || [];
+      if (!rows.length) {
+        select.innerHTML = '<option value="">No ideas</option>';
+        return;
+      }
+
+      const current = select.value;
+      select.innerHTML = rows.map((r) => `<option value="${r.symbol}">${r.symbol}</option>`).join('');
+      if (current && rows.some((r) => r.symbol === current)) {
+        select.value = current;
+      }
+    }
+
+    function renderDrilldown(symbol) {
+      const rows = (dashboardState && dashboardState.idea_drilldowns) || [];
+      const row = rows.find((r) => r.symbol === symbol) || rows[0];
+
+      const summary = document.getElementById('drilldown-summary');
+      const factors = document.getElementById('drilldown-factors');
+      const execution = document.getElementById('drilldown-execution');
+      const quality = document.getElementById('drilldown-quality');
+      const forward = document.getElementById('drilldown-forward');
+      const memory = document.getElementById('drilldown-memory');
+
+      if (!row) {
+        summary.innerHTML = '<div class="muted">No drilldown ideas available.</div>';
+        factors.innerHTML = '<tbody><tr><td class="muted">No factor data.</td></tr></tbody>';
+        execution.innerHTML = '<tbody><tr><td class="muted">No execution data.</td></tr></tbody>';
+        quality.innerHTML = '<tbody><tr><td class="muted">No quality data.</td></tr></tbody>';
+        forward.innerHTML = '<tbody><tr><td class="muted">No forward data.</td></tr></tbody>';
+        memory.innerHTML = '<tbody><tr><td class="muted">No idea memory.</td></tr></tbody>';
+        return;
+      }
+
+      document.getElementById('drilldown-select').value = row.symbol;
+
+      summary.innerHTML = [
+        drillStat('Ticker', row.symbol),
+        drillStat('Rank', row.rank ?? '-'),
+        drillStat('Alpha', row.final_alpha_score == null ? '-' : Number(row.final_alpha_score).toFixed(4)),
+        drillStat('Regime Tilt', row.execution?.regime_tilt_score == null ? '-' : Number(row.execution.regime_tilt_score).toFixed(4)),
+        drillStat('Risk Adj', row.risk_adjusted_score == null ? '-' : Number(row.risk_adjusted_score).toFixed(4)),
+        drillStat('Confidence', row.confidence == null ? '-' : Number(row.confidence).toFixed(3)),
+        drillStat('Eff. Conf', row.effective_confidence == null ? '-' : Number(row.effective_confidence).toFixed(3)),
+        drillStat('Conf Mix', row.confidence_snapshot || '-'),
+        drillStat('20D Alpha', row.expected_alpha_20d == null ? '-' : `${Number(row.expected_alpha_20d).toFixed(2)}%`),
+        drillStat('90D Alpha', row.expected_alpha_90d == null ? '-' : `${Number(row.expected_alpha_90d).toFixed(2)}%`),
+      ].join('');
+
+      factors.innerHTML =
+        '<thead><tr><th>Factor</th><th>Score</th></tr></thead><tbody>' +
+        (row.factor_scores || []).map((f) =>
+          '<tr><td>' + (f.factor || '-') + '</td><td>' + (f.score == null ? '-' : Number(f.score).toFixed(3)) + '</td></tr>'
+        ).join('') +
+        '<tr><td>Drivers</td><td>' + (row.strongest_drivers || '-') + '</td></tr>' +
+        '<tr><td>Eligible</td><td>' + (row.eligible ? 'YES' : 'NO') + '</td></tr>' +
+        '<tr><td>Gate Note</td><td>' + (row.gate_reason || '-') + '</td></tr>' +
+        '</tbody>';
+
+      execution.innerHTML =
+        '<thead><tr><th>Execution</th><th>Value</th></tr></thead><tbody>' +
+        '<tr><td>Entry zone</td><td>' + (row.execution?.entry_zone || '-') + '</td></tr>' +
+        '<tr><td>Invalidation</td><td>' + (row.execution?.invalidation || '-') + '</td></tr>' +
+        '<tr><td>Action</td><td>' + (row.execution?.action || '-') + '</td></tr>' +
+        '<tr><td>Target weight</td><td>' + (row.execution?.target_weight == null ? '-' : fmtPct(Number(row.execution.target_weight) * 100)) + '</td></tr>' +
+        '<tr><td>Max size</td><td>' + fmtMoney(row.execution?.max_position_size_usd) + '</td></tr>' +
+        '<tr><td>Shares delta</td><td>' + (row.execution?.shares_delta == null ? '-' : Number(row.execution.shares_delta).toFixed(3)) + '</td></tr>' +
+        '<tr><td>Trade notional</td><td>' + fmtMoney(row.execution?.trade_notional_usd) + '</td></tr>' +
+        '<tr><td>Slippage</td><td>' + (row.execution?.est_slippage_bps == null ? '-' : Number(row.execution.est_slippage_bps).toFixed(2) + ' bps') + '</td></tr>' +
+        '<tr><td>Est. cost</td><td>' + fmtMoney(row.execution?.est_cost_usd) + '</td></tr>' +
+        '<tr><td>Sector / sub-industry</td><td>' + ((row.execution?.sector_bucket || '-') + ' / ' + (row.execution?.sub_industry || '-')) + '</td></tr>' +
+        '<tr><td>Constraint flags</td><td>' + (row.execution?.constraint_flags || '-') + '</td></tr>' +
+        '<tr><td>Options overlay</td><td>' + (row.execution?.options_overlay || '-') + '</td></tr>' +
+        '<tr><td>Options gate</td><td>' + (row.execution?.options_gate_reason || '-') + '</td></tr>' +
+        '</tbody>';
+
+      quality.innerHTML =
+        '<thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>' +
+        '<tr><td>Coverage score</td><td>' + (row.quality?.coverage_score == null ? '-' : Number(row.quality.coverage_score).toFixed(2)) + '</td></tr>' +
+        '<tr><td>Staleness score</td><td>' + (row.quality?.staleness_score == null ? '-' : Number(row.quality.staleness_score).toFixed(2)) + '</td></tr>' +
+        '<tr><td>Agreement</td><td>' + (row.quality?.cross_source_agreement == null ? '-' : Number(row.quality.cross_source_agreement).toFixed(2)) + '</td></tr>' +
+        '<tr><td>Source integrity</td><td>' + (row.quality?.source_integrity_score == null ? '-' : Number(row.quality.source_integrity_score).toFixed(2)) + '</td></tr>' +
+        '<tr><td>Quality penalty</td><td>' + (row.quality?.quality_penalty == null ? '-' : Number(row.quality.quality_penalty).toFixed(4)) + '</td></tr>' +
+        '<tr><td>Fundamental conf</td><td>' + (row.confidence_components?.fundamental_confidence == null ? '-' : Number(row.confidence_components.fundamental_confidence).toFixed(3)) + '</td></tr>' +
+        '<tr><td>Value conf</td><td>' + (row.confidence_components?.value_confidence == null ? '-' : Number(row.confidence_components.value_confidence).toFixed(3)) + '</td></tr>' +
+        '<tr><td>Valuation context str</td><td>' + (row.confidence_components?.valuation_context_strength == null ? '-' : Number(row.confidence_components.valuation_context_strength).toFixed(3)) + '</td></tr>' +
+        '<tr><td>Valuation method str</td><td>' + (row.confidence_components?.valuation_method_strength == null ? '-' : Number(row.confidence_components.valuation_method_strength).toFixed(3)) + '</td></tr>' +
+        '<tr><td>Alt conf</td><td>' + (row.confidence_components?.alt_confidence == null ? '-' : Number(row.confidence_components.alt_confidence).toFixed(3)) + '</td></tr>' +
+        '<tr><td>Peer conf</td><td>' + (row.confidence_components?.peer_confidence == null ? '-' : Number(row.confidence_components.peer_confidence).toFixed(3)) + '</td></tr>' +
+        '<tr><td>Proxy conf</td><td>' + (row.confidence_components?.proxy_confidence == null ? '-' : Number(row.confidence_components.proxy_confidence).toFixed(3)) + '</td></tr>' +
+        '<tr><td>Structural penalty</td><td>' + (row.confidence_components?.structural_anomaly_penalty == null ? '-' : Number(row.confidence_components.structural_anomaly_penalty).toFixed(3)) + '</td></tr>' +
+        '<tr><td>Alt source mix</td><td>' + (row.nowcast?.source_mix || '-') + '</td></tr>' +
+        '<tr><td>Direct alt sources</td><td>' + (row.nowcast?.direct_source_count == null ? '-' : row.nowcast.direct_source_count) + '</td></tr>' +
+        '<tr><td>Proxy alt sources</td><td>' + (row.nowcast?.proxy_source_count == null ? '-' : row.nowcast.proxy_source_count) + '</td></tr>' +
+        '<tr><td>Proxy share</td><td>' + (row.nowcast?.proxy_share == null ? '-' : fmtPct(Number(row.nowcast.proxy_share))) + '</td></tr>' +
+        '<tr><td>Value score</td><td>' + (row.fundamentals?.value_score == null ? '-' : Number(row.fundamentals.value_score).toFixed(3)) + '</td></tr>' +
+        '<tr><td>Valuation raw</td><td>' + (row.fundamentals?.valuation_score_raw == null ? '-' : Number(row.fundamentals.valuation_score_raw).toFixed(3)) + '</td></tr>' +
+        '<tr><td>Valuation method</td><td>' + (row.fundamentals?.valuation_method || '-') + '</td></tr>' +
+        '<tr><td>Sector / industry</td><td>' + ((row.fundamentals?.sector || '-') + ' / ' + (row.fundamentals?.industry || '-')) + '</td></tr>' +
+        '<tr><td>Revenue CAGR 3Y</td><td>' + (row.fundamentals?.revenue_cagr_3y == null ? '-' : fmtPct(Number(row.fundamentals.revenue_cagr_3y) * 100)) + '</td></tr>' +
+        '<tr><td>FCF CAGR 3Y</td><td>' + (row.fundamentals?.fcf_cagr_3y == null ? '-' : fmtPct(Number(row.fundamentals.fcf_cagr_3y) * 100)) + '</td></tr>' +
+        '<tr><td>ROIC</td><td>' + (row.fundamentals?.roic == null ? '-' : fmtPct(Number(row.fundamentals.roic) * 100)) + '</td></tr>' +
+        '<tr><td>FCF margin</td><td>' + (row.fundamentals?.fcf_margin == null ? '-' : fmtPct(Number(row.fundamentals.fcf_margin) * 100)) + '</td></tr>' +
+        '<tr><td>Asset turnover</td><td>' + (row.fundamentals?.asset_turnover == null ? '-' : Number(row.fundamentals.asset_turnover).toFixed(2)) + '</td></tr>' +
+        '<tr><td>FCF yield</td><td>' + (row.fundamentals?.fcf_yield == null ? '-' : fmtPct(Number(row.fundamentals.fcf_yield) * 100)) + '</td></tr>' +
+        '<tr><td>Forward P/E</td><td>' + (row.fundamentals?.forward_pe == null ? '-' : Number(row.fundamentals.forward_pe).toFixed(2)) + '</td></tr>' +
+        '<tr><td>Trailing P/E</td><td>' + (row.fundamentals?.trailing_pe == null ? '-' : Number(row.fundamentals.trailing_pe).toFixed(2)) + '</td></tr>' +
+        '<tr><td>Price / Sales</td><td>' + (row.fundamentals?.price_to_sales == null ? '-' : Number(row.fundamentals.price_to_sales).toFixed(2)) + '</td></tr>' +
+        '<tr><td>EV / EBITDA</td><td>' + (row.fundamentals?.enterprise_to_ebitda == null ? '-' : Number(row.fundamentals.enterprise_to_ebitda).toFixed(2)) + '</td></tr>' +
+        '<tr><td>EV / Revenue</td><td>' + (row.fundamentals?.enterprise_to_revenue == null ? '-' : Number(row.fundamentals.enterprise_to_revenue).toFixed(2)) + '</td></tr>' +
+        '<tr><td>Debt / EBITDA</td><td>' + (row.fundamentals?.debt_to_ebitda == null ? '-' : Number(row.fundamentals.debt_to_ebitda).toFixed(2)) + '</td></tr>' +
+        '<tr><td>Next earnings</td><td>' + (row.fundamentals?.next_earnings_date || '-') + '</td></tr>' +
+        '<tr><td>Days to earnings</td><td>' + (row.fundamentals?.days_to_earnings == null ? '-' : row.fundamentals.days_to_earnings) + '</td></tr>' +
+        '</tbody>';
+
+      forward.innerHTML =
+        '<thead><tr><th>Context</th><th>Value</th></tr></thead><tbody>' +
+        '<tr><td>Regime</td><td>' + ((row.regime?.regime_id || '-') + ' / conf ' + (row.regime?.regime_confidence == null ? '-' : Number(row.regime.regime_confidence).toFixed(2))) + '</td></tr>' +
+        '<tr><td>Gross exposure</td><td>' + (row.regime?.recommended_gross_exposure == null ? '-' : fmtPct(Number(row.regime.recommended_gross_exposure) * 100)) + '</td></tr>' +
+        '<tr><td>Nowcast confidence</td><td>' + (row.nowcast?.confidence_score == null ? '-' : Number(row.nowcast.confidence_score).toFixed(3)) + '</td></tr>' +
+        '<tr><td>Nowcast source mix</td><td>' + (row.nowcast?.source_mix || '-') + '</td></tr>' +
+        '<tr><td>Direct / proxy count</td><td>' + ((row.nowcast?.direct_source_count == null ? '-' : row.nowcast.direct_source_count) + ' / ' + (row.nowcast?.proxy_source_count == null ? '-' : row.nowcast.proxy_source_count)) + '</td></tr>' +
+        '<tr><td>Source signals</td><td>' + (((row.nowcast?.source_signals || []).map(signal => signal.label + ': ' + fmtSignedPct(signal.value) + (signal.provenance ? ' [' + signal.provenance + ']' : '')).join('<br>')) || '-') + '</td></tr>' +
+        '<tr><td>Source provenance</td><td>' + (row.nowcast?.source_provenance_summary || '-') + '</td></tr>' +
+        '<tr><td>Nowcast drivers</td><td>' + (row.nowcast?.strongest_drivers || '-') + '</td></tr>' +
+        '<tr><td>Expected KPI surprise</td><td>' + (row.nowcast?.expected_kpi_surprise || '-') + '</td></tr>' +
+        '<tr><td>Expected stock reaction</td><td>' + (row.expected_stock_reaction || '-') + '</td></tr>' +
+        '<tr><td>Historical setup</td><td>' + (row.historical_backtest || '-') + '</td></tr>' +
+        '<tr><td>Days open</td><td>' + (row.forward?.days_open == null ? '-' : row.forward.days_open) + '</td></tr>' +
+        '<tr><td>Realized return</td><td>' + (row.forward?.realized_return_pct == null ? '-' : Number(row.forward.realized_return_pct).toFixed(2) + '%') + '</td></tr>' +
+        '<tr><td>Expected alpha to date</td><td>' + (row.forward?.expected_alpha_to_date_pct == null ? '-' : Number(row.forward.expected_alpha_to_date_pct).toFixed(2) + '%') + '</td></tr>' +
+        '<tr><td>Alpha vs expected</td><td>' + (row.forward?.alpha_vs_expected_pct == null ? '-' : Number(row.forward.alpha_vs_expected_pct).toFixed(2) + '%') + '</td></tr>' +
+        '</tbody>';
+
+      const recentAppearances = (row.memory?.recent_appearances || []).map((appearance) => {
+        const score = appearance.final_alpha_score == null ? '-' : Number(appearance.final_alpha_score).toFixed(4);
+        const alpha20 = appearance.expected_alpha_20d == null ? '-' : Number(appearance.expected_alpha_20d).toFixed(2) + '%';
+        return `${appearance.date || '-'}: rank ${appearance.rank ?? '-'}, score ${score}, 20D ${alpha20}`;
+      }).join('<br>');
+
+      const tradeHistory = (row.memory?.trades || []).map((trade) => {
+        const realized = trade.realized_return_pct == null ? '-' : Number(trade.realized_return_pct).toFixed(2) + '%';
+        const alphaDiff = trade.alpha_vs_expected_pct == null ? '-' : Number(trade.alpha_vs_expected_pct).toFixed(2) + '%';
+        const closed = trade.closed_date || 'open';
+        const reason = trade.close_reason ? `, ${trade.close_reason}` : '';
+        return `${trade.opened_date || '-'} -> ${closed}: ${trade.status || '-'}, realized ${realized}, alpha gap ${alphaDiff}${reason}`;
+      }).join('<br>');
+
+      memory.innerHTML =
+        '<thead><tr><th>Memory</th><th>Value</th></tr></thead><tbody>' +
+        '<tr><td>First seen</td><td>' + (row.memory?.first_seen_date || '-') + '</td></tr>' +
+        '<tr><td>Last seen</td><td>' + (row.memory?.last_seen_date || '-') + '</td></tr>' +
+        '<tr><td>Idea appearances</td><td>' + (row.memory?.appearance_count == null ? '-' : row.memory.appearance_count) + '</td></tr>' +
+        '<tr><td>Tracked trades</td><td>' + (row.memory?.summary?.tracked_trades == null ? '-' : row.memory.summary.tracked_trades) + '</td></tr>' +
+        '<tr><td>Open / closed</td><td>' + ((row.memory?.summary?.open_trades == null ? '-' : row.memory.summary.open_trades) + ' / ' + (row.memory?.summary?.closed_trades == null ? '-' : row.memory.summary.closed_trades)) + '</td></tr>' +
+        '<tr><td>Wins / losses</td><td>' + ((row.memory?.summary?.wins == null ? '-' : row.memory.summary.wins) + ' / ' + (row.memory?.summary?.losses == null ? '-' : row.memory.summary.losses)) + '</td></tr>' +
+        '<tr><td>Avg realized</td><td>' + (row.memory?.summary?.avg_realized_return_pct == null ? '-' : Number(row.memory.summary.avg_realized_return_pct).toFixed(2) + '%') + '</td></tr>' +
+        '<tr><td>Avg alpha vs expected</td><td>' + (row.memory?.summary?.avg_alpha_vs_expected_pct == null ? '-' : Number(row.memory.summary.avg_alpha_vs_expected_pct).toFixed(2) + '%') + '</td></tr>' +
+        '<tr><td>Recent appearances</td><td>' + (recentAppearances || '-') + '</td></tr>' +
+        '<tr><td>Trade history</td><td>' + (tradeHistory || '-') + '</td></tr>' +
+        '</tbody>';
+    }
+
+    function setNowcast(data) {
+      const rows = data.nowcast_top20 || [];
+      const t = document.getElementById('nowcast-table');
+      t.innerHTML = `
+        <thead>
+          <tr><th>Ticker</th><th>Confidence</th><th>Source Mix</th><th>KPI Surprise</th><th>Reaction</th></tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td><strong>${r.ticker || '-'}</strong></td>
+              <td>${r.confidence_score ?? '-'}</td>
+              <td>${r.source_mix || '-'}</td>
+              <td>${r.expected_kpi_surprise || '-'}</td>
+              <td>${r.expected_stock_reaction || '-'}</td>
+            </tr>
+          `).join('') || '<tr><td colspan="5" class="muted">No nowcast rows found.</td></tr>'}
+        </tbody>
+      `;
+    }
+
+    function setCoverage(data) {
+      const coverage = data.nowcast_coverage || {};
+      const rows = coverage.rows || [];
+      const summary = document.getElementById('coverage-summary');
+      const table = document.getElementById('coverage-table');
+
+      const cards = [
+        ['Tracked', coverage.tracked_symbols ?? 0],
+        ['Direct', coverage.direct_pct == null ? `${coverage.direct_count ?? 0}` : `${coverage.direct_count ?? 0} (${fmtPct(coverage.direct_pct)})`],
+        ['Hybrid', coverage.hybrid_pct == null ? `${coverage.hybrid_count ?? 0}` : `${coverage.hybrid_count ?? 0} (${fmtPct(coverage.hybrid_pct)})`],
+        ['Proxy Only', coverage.proxy_only_pct == null ? `${coverage.proxy_only_count ?? 0}` : `${coverage.proxy_only_count ?? 0} (${fmtPct(coverage.proxy_only_pct)})`],
+        ['No Nowcast', coverage.no_nowcast_pct == null ? `${coverage.no_nowcast_count ?? 0}` : `${coverage.no_nowcast_count ?? 0} (${fmtPct(coverage.no_nowcast_pct)})`],
+      ];
+
+      summary.innerHTML = cards.map(([label, value]) => `
+        <article class="micro-card">
+          <div class="label">${label}</div>
+          <div class="value">${value}</div>
+        </article>
+      `).join('');
+
+      table.innerHTML = `
+        <thead>
+          <tr><th>Ticker</th><th>Rank</th><th>Source Mix</th><th>Direct</th><th>Proxy</th><th>Proxy Share</th><th>Nowcast Conf</th><th>KPI Surprise</th></tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td><strong>${r.symbol || '-'}</strong></td>
+              <td>${r.rank ?? '-'}</td>
+              <td>${r.source_mix || '-'}</td>
+              <td>${r.direct_source_count ?? '-'}</td>
+              <td>${r.proxy_source_count ?? '-'}</td>
+              <td>${r.proxy_share == null ? '-' : fmtPct(r.proxy_share)}</td>
+              <td>${r.nowcast_confidence == null ? '-' : Number(r.nowcast_confidence).toFixed(3)}</td>
+              <td>${r.expected_kpi_surprise || '-'}</td>
+            </tr>
+          `).join('') || '<tr><td colspan="8" class="muted">No coverage rows found.</td></tr>'}
+        </tbody>
+      `;
+
+      const targets = data.direct_coverage_targets || [];
+      const targetsTable = document.getElementById('coverage-targets-table');
+      targetsTable.innerHTML = `
+        <thead>
+          <tr><th>Ticker</th><th>Rank</th><th>Alpha</th><th>Gap</th><th>Sector</th><th>Sub-Industry</th><th>Industry</th><th>Priority</th></tr>
+        </thead>
+        <tbody>
+          ${targets.map(r => `
+            <tr>
+              <td><strong>${r.symbol || '-'}</strong></td>
+              <td>${r.rank ?? '-'}</td>
+              <td>${r.final_alpha_score == null ? '-' : Number(r.final_alpha_score).toFixed(4)}</td>
+              <td>${r.gap_reason || '-'}</td>
+              <td>${r.sector_bucket || '-'}</td>
+              <td>${r.sub_industry || '-'}</td>
+              <td>${r.industry || '-'}</td>
+              <td>${r.priority_score == null ? '-' : Number(r.priority_score).toFixed(2)}</td>
+            </tr>
+          `).join('') || '<tr><td colspan="8" class="muted">No coverage targets found.</td></tr>'}
+        </tbody>
+      `;
+
+      const directRows = data.direct_source_leaderboard || [];
+      const directTable = document.getElementById('direct-source-table');
+      directTable.innerHTML = `
+        <thead>
+          <tr><th>Ticker</th><th>Mix</th><th>Direct Score</th><th>Best Direct</th><th>Avg Direct</th><th>Nowcast Conf</th><th>KPI Surprise</th><th>Drivers</th></tr>
+        </thead>
+        <tbody>
+          ${directRows.map(r => `
+            <tr>
+              <td><strong>${r.ticker || '-'}</strong></td>
+              <td>${r.source_mix || '-'}</td>
+              <td>${r.direct_signal_score == null ? '-' : Number(r.direct_signal_score).toFixed(3)}</td>
+              <td>${r.best_direct_signal_label ? `${r.best_direct_signal_label}: ${fmtSignedPct(r.best_direct_signal_value)}` : '-'}</td>
+              <td>${r.avg_abs_direct_signal_pct == null ? '-' : fmtPct(r.avg_abs_direct_signal_pct)}</td>
+              <td>${r.confidence_score == null ? '-' : Number(r.confidence_score).toFixed(3)}</td>
+              <td>${r.expected_kpi_surprise || '-'}</td>
+              <td>${r.strongest_drivers || '-'}</td>
+            </tr>
+          `).join('') || '<tr><td colspan="8" class="muted">No direct-source leaders found.</td></tr>'}
+        </tbody>
+      `;
+    }
+
+    function setAlphaTop(data) {
+      const rows = data.alpha_top20 || [];
+      const t = document.getElementById('alpha-table');
+      t.innerHTML = `
+        <thead>
+          <tr><th>Rank</th><th>Ticker</th><th>Alpha</th><th>Conf</th><th>Eligible</th><th>Gate Note</th></tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td>${r.rank ?? '-'}</td>
+              <td><strong>${r.ticker || '-'}</strong></td>
+              <td>${r.final_alpha_score ?? '-'}</td>
+              <td>${r.confidence ?? '-'}</td>
+              <td>${r.eligible ? 'YES' : 'NO'}</td>
+                          <td>${r.gate_reason || '-'}</td>
+            </tr>
+          `).join('') || '<tr><td colspan="6" class="muted">No alpha rows found.</td></tr>'}
+        </tbody>
+      `;
+    }
+
+    function setHorizon(data) {
+      const summary = data.expected_alpha_summary || {};
+      const rows = summary.by_symbol || [];
+      const t = document.getElementById('horizon-table');
+      t.innerHTML =         '<thead><tr><th>Ticker</th><th>Exp Alpha 20D</th><th>Exp Alpha 90D</th></tr></thead>' +
+        '<tbody>' +
+        (rows.map(r =>           '<tr>' +
+            '<td><strong>' + (r.symbol || '-') + '</strong></td>' +
+            '<td>' + (r.expected_alpha_20d == null ? '-' : Number(r.expected_alpha_20d).toFixed(2) + '%') + '</td>' +
+            '<td>' + (r.expected_alpha_90d == null ? '-' : Number(r.expected_alpha_90d).toFixed(2) + '%') + '</td>' +
+          '</tr>'
+        ).join('') || '<tr><td colspan="3" class="muted">No horizon rows found.</td></tr>') +
+        '</tbody>';
+    }
+
+    function setFactors(data) {
+      const rows = data.factor_attribution || [];
+      const t = document.getElementById('factor-table');
+      t.innerHTML =
+        '<thead><tr><th>Factor</th><th>Avg Score</th><th>Mentions</th></tr></thead>' +
+        '<tbody>' +
+        (rows.map(r =>
+          '<tr>' +
+            '<td>' + (r.factor || '-') + '</td>' +
+            '<td>' + (r.avg_score == null ? '-' : Number(r.avg_score).toFixed(3)) + '</td>' +
+            '<td>' + (r.mentions ?? 0) + '</td>' +
+          '</tr>'
+        ).join('') || '<tr><td colspan="3" class="muted">No factor rows found.</td></tr>') +
+        '</tbody>';
+    }
+
+    function setRolling(data) {
+      const rows = (data.rolling_alpha && data.rolling_alpha.series_last20) || [];
+      const t = document.getElementById('rolling-table');
+      t.innerHTML =         '<thead><tr><th>Date</th><th>Trade</th><th>Benchmark</th><th>Alpha</th><th>Cumulative Alpha</th></tr></thead>' +
+        '<tbody>' +
+        (rows.map(r =>           '<tr>' +
+            '<td>' + (r.report_date || '-') + '</td>' +
+            '<td>' + (r.trade_return == null ? '-' : (Number(r.trade_return) * 100).toFixed(2) + '%') + '</td>' +
+            '<td>' + (r.benchmark_return == null ? '-' : (Number(r.benchmark_return) * 100).toFixed(2) + '%') + '</td>' +
+            '<td>' + (r.alpha == null ? '-' : (Number(r.alpha) * 100).toFixed(2) + '%') + '</td>' +
+            '<td>' + (r.cumulative_alpha == null ? '-' : (Number(r.cumulative_alpha) * 100).toFixed(2) + '%') + '</td>' +
+          '</tr>'
+        ).join('') || '<tr><td colspan="5" class="muted">No rolling alpha rows found.</td></tr>') +
+        '</tbody>';
+    }
+
+    function setForward(data) {
+      const f = data.forward_test || {};
+      const policy = f.policy || {};
+      const rows = f.open_rows || [];
+      const reasonRows = Object.entries(f.close_reasons_today || {});
+      const t = document.getElementById('forward-table');
+      t.innerHTML =
+        '<thead><tr><th>Summary</th><th>Value</th></tr></thead>' +
+        '<tbody>' +
+          '<tr><td>Open trades</td><td>' + (f.open_count ?? 0) + '</td></tr>' +
+          '<tr><td>Closed trades</td><td>' + (f.closed_count ?? 0) + '</td></tr>' +
+          '<tr><td>Matured 20D</td><td>' + (f.matured_20d_count ?? 0) + '</td></tr>' +
+          '<tr><td>Closes today</td><td>' + (f.closes_today_count ?? 0) + '</td></tr>' +
+          '<tr><td>Hit rate (open)</td><td>' + (f.hit_rate_open == null ? '-' : (Number(f.hit_rate_open) * 100).toFixed(2) + '%') + '</td></tr>' +
+          '<tr><td>Avg alpha vs expected (pct pts)</td><td>' + (f.avg_alpha_vs_expected_pct_points == null ? '-' : Number(f.avg_alpha_vs_expected_pct_points).toFixed(4)) + '</td></tr>' +
+        '</tbody>' +
+        '<thead><tr><th>Active Policy</th><th>Value</th></tr></thead>' +
+        '<tbody>' +
+          '<tr><td>close_after_days</td><td>' + (policy.close_after_days ?? '-') + '</td></tr>' +
+          '<tr><td>reopen_cooldown_days</td><td>' + (policy.reopen_cooldown_days ?? '-') + '</td></tr>' +
+          '<tr><td>max_open_trades</td><td>' + (policy.max_open_trades ?? '-') + '</td></tr>' +
+          '<tr><td>stop_loss_pct</td><td>' + (policy.stop_loss_pct ?? '-') + '</td></tr>' +
+          '<tr><td>take_profit_pct</td><td>' + (policy.take_profit_pct ?? '-') + '</td></tr>' +
+          '<tr><td>close_on_hit_stop_or_take</td><td>' + (policy.close_on_hit_stop_or_take ? 'true' : 'false') + '</td></tr>' +
+        '</tbody>' +
+        '<thead><tr><th>Rule Triggered Today</th><th>Count</th></tr></thead>' +
+        '<tbody>' +
+          (reasonRows.map(([k,v]) => '<tr><td>' + k + '</td><td>' + v + '</td></tr>').join('') || '<tr><td colspan="2" class="muted">No closes triggered today.</td></tr>') +
+        '</tbody>' +
+        '<thead><tr><th>Symbol</th><th>Days / Realized / Expected / Diff</th></tr></thead>' +
+        '<tbody>' +
+          (rows.map(r =>
+            '<tr><td><strong>' + (r.symbol || '-') + '</strong></td><td>' +
+              (r.days_open ?? '-') + 'd / ' +
+              (r.realized_return_pct == null ? '-' : Number(r.realized_return_pct).toFixed(2) + '%') + ' / ' +
+              (r.expected_alpha_to_date_pct == null ? '-' : Number(r.expected_alpha_to_date_pct).toFixed(2) + '%') + ' / ' +
+              (r.alpha_vs_expected_pct == null ? '-' : Number(r.alpha_vs_expected_pct).toFixed(2) + '%') +
+            '</td></tr>'
+          ).join('') || '<tr><td colspan="2" class="muted">No open forward-test rows.</td></tr>') +
+        '</tbody>';
+    }
+
+    function formatShelfRows(rows, includeReason) {
+      return (rows || []).map((row) => {
+        const realized = row.realized_return_pct == null ? '-' : Number(row.realized_return_pct).toFixed(2) + '%';
+        const alphaGap = row.alpha_vs_expected_pct == null ? '-' : Number(row.alpha_vs_expected_pct).toFixed(2) + '%';
+        const dateLabel = row.closed_date || row.opened_date || '-';
+        const reason = includeReason && row.close_reason ? ' [' + row.close_reason + ']' : '';
+        return '<tr><td><strong>' + (row.symbol || '-') + '</strong></td><td>' +
+          dateLabel + ' / ' + (row.status || '-') + reason + ' / ' + realized + ' / ' + alphaGap +
+          '</td></tr>';
+      }).join('');
+    }
+
+    function setPostmortemShelf(data) {
+      const shelf = data.postmortem_shelf || {};
+      const reasonRows = Object.entries(shelf.reasons || {}).sort((a, b) => b[1] - a[1]);
+      const table = document.getElementById('postmortem-table');
+      table.innerHTML =
+        '<thead><tr><th>Shelf</th><th>Value</th></tr></thead><tbody>' +
+        '<tr><td>Total tracked trades</td><td>' + (shelf.total_trades ?? 0) + '</td></tr>' +
+        '<tr><td>Open / closed</td><td>' + ((shelf.open_trades ?? 0) + ' / ' + (shelf.closed_trades ?? 0)) + '</td></tr>' +
+        '<tr><td>Avg closed return</td><td>' + (shelf.avg_closed_return_pct == null ? '-' : Number(shelf.avg_closed_return_pct).toFixed(2) + '%') + '</td></tr>' +
+        '<tr><td>Avg closed alpha gap</td><td>' + (shelf.avg_closed_alpha_vs_expected_pct == null ? '-' : Number(shelf.avg_closed_alpha_vs_expected_pct).toFixed(2) + '%') + '</td></tr>' +
+        '<tr><td>Close reasons</td><td>' + (reasonRows.map(([reason, count]) => reason + ': ' + count).join('<br>') || 'No closed trades yet.') + '</td></tr>' +
+        '</tbody>' +
+        '<thead><tr><th>Recent closed</th><th>Date / Status / Realized / Diff</th></tr></thead><tbody>' +
+        (formatShelfRows(shelf.recent_closed, true) || '<tr><td colspan="2" class="muted">No closed trades yet.</td></tr>') +
+        '</tbody>' +
+        '<thead><tr><th>Top winners</th><th>Date / Status / Realized / Diff</th></tr></thead><tbody>' +
+        (formatShelfRows(shelf.top_winners, false) || '<tr><td colspan="2" class="muted">No realized rows yet.</td></tr>') +
+        '</tbody>' +
+        '<thead><tr><th>Top laggards</th><th>Date / Status / Realized / Diff</th></tr></thead><tbody>' +
+        (formatShelfRows(shelf.top_losers, false) || '<tr><td colspan="2" class="muted">No realized rows yet.</td></tr>') +
+        '</tbody>' +
+        '<thead><tr><th>Open watchlist</th><th>Date / Status / Realized / Diff</th></tr></thead><tbody>' +
+        (formatShelfRows(shelf.open_watchlist, false) || '<tr><td colspan="2" class="muted">No open trades tracked.</td></tr>') +
+        '</tbody>';
+    }
+
+    function setHealth(data) {
+      const m = data.model_health || {};
+      const g = m.gate_breakdown || {};
+      const rows = [
+        ['Feature rows', m.feature_rows],
+        ['Eligible rows', m.eligible_rows],
+        ['Eligible pct', m.eligible_pct == null ? '-' : m.eligible_pct + '%'],
+        ['Low confidence filtered', g.LOW_CONFIDENCE ?? 0],
+        ['High leverage filtered', g.HIGH_LEVERAGE ?? 0],
+        ['Weak pre-earnings filtered', g.WEAK_PRE_EARNINGS ?? 0],
+      ];
+      const t = document.getElementById('health-table');
+      t.innerHTML = '<thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>' + rows.map(r =>
+        '<tr><td>' + r[0] + '</td><td>' + (r[1] ?? '-') + '</td></tr>'
+      ).join('') + '</tbody>';
+    }
+
+    function setPromotion(data) {
+      const gov = data.governance || {};
+      const gate = gov.promotion_gate || {};
+      const policy = gov.promotion_policy || {};
+      const ready = Boolean(gate.promote_challenger);
+      const executed = Boolean(gate.promotion_executed);
+
+      const rows = [
+        ['Status', ready ? 'READY' : 'NOT READY'],
+        ['Promotion Executed', executed ? 'YES' : 'NO'],
+        ['Winner', gate.winner ?? '-'],
+        ['Backtest Sample', `${gate.sample_n ?? '-'} / ${gate.min_sample ?? '-'}`],
+        ['Forward Closed Trades', `${gate.forward_closed_trades ?? '-'} / ${gate.min_forward_closed_trades ?? '-'}`],
+        ['Forward Alpha vs Expected', `${gate.forward_avg_alpha_vs_expected_pct_points ?? 'n/a'} / ${gate.min_forward_avg_alpha_pct_points ?? '-'}`],
+        ['Freeze Violation', gov.freeze_violation ? 'YES' : 'NO'],
+        ['Require Challenger Winner', policy.require_challenger_winner === false ? 'false' : 'true'],
+        ['Block On Freeze Violation', policy.block_on_freeze_violation === false ? 'false' : 'true'],
+        ['Current Champion ID', gov.champion?.id || '-'],
+        ['Target Promotion ID', gate.promotion_target || '-'],
+        ['Reason', gate.reason || '-'],
+      ];
+
+      const t = document.getElementById('promotion-table');
+      t.innerHTML =
+        '<thead><tr><th>Gate</th><th>Live Value</th></tr></thead><tbody>' +
+        rows.map((r, idx) => {
+          const cls = idx === 0 ? (ready ? 'ok' : 'warn') : '';
+          return '<tr><td>' + r[0] + '</td><td class="' + cls + '">' + (r[1] ?? '-') + '</td></tr>';
+        }).join('') +
+        '</tbody>';
+    }
+
+    function normalizeLabel(value, fallback) {
+      const text = String(value || fallback || '').trim();
+      return text || fallback || '-';
+    }
+
+    function statusClass(value) {
+      const text = String(value || '').toLowerCase();
+      if (['active', 'ready', 'promote', 'promoted'].includes(text)) return 'active';
+      if (['monitor', 'watch', 'watching'].includes(text)) return 'monitor';
+      if (['pause', 'paused', 'blocked', 'hold'].includes(text)) return 'blocked';
+      return '';
+    }
+
+    function pillClass(value) {
+      const text = String(value || '').toLowerCase();
+      if (['good', 'positive', 'healthy', 'ready', 'pass'].includes(text)) return 'good';
+      if (['warn', 'caution', 'partial', 'monitor'].includes(text)) return 'warn';
+      if (['bad', 'blocked', 'stale', 'fail'].includes(text)) return 'bad';
+      return '';
+    }
+
+    function fmtMaybePct(value, digits = 1) {
+      if (value == null || Number.isNaN(Number(value))) return '-';
+      const n = Number(value);
+      return `${n.toFixed(digits)}%`;
+    }
+
+    function alphaLabEvidenceItems(evidence) {
+      if (Array.isArray(evidence)) return evidence.filter(Boolean).map((item) => String(item));
+      if (!evidence || typeof evidence !== 'object') return [];
+
+      return Object.entries(evidence)
+        .filter(([, value]) => value != null && value !== '')
+        .map(([key, value]) => {
+          const label = key.replace(/_/g, ' ');
+          if (typeof value === 'number') {
+            return `${label}: ${Number(value).toFixed(3)}`;
+          }
+          return `${label}: ${value}`;
+        });
+    }
+
+    function buildAlphaLabFallback(data) {
+      const governance = data.governance || {};
+      const backtest = data.backtest || {};
+      const health = data.model_health || {};
+      const signalQuality = data.signal_quality || {};
+      const coverage = data.nowcast_coverage || {};
+      const rows = Array.isArray(data.alpha_lab?.experiments) && data.alpha_lab.experiments.length
+        ? data.alpha_lab.experiments
+        : [
+            {
+              id: 'broadened_universe_preselection',
+              name: 'Broadened Universe Preselection',
+              status: 'active',
+              hypothesis: 'A wider scored universe should improve cross-sectional alpha and reduce path dependence from hard gates.',
+              evidence: [
+                `Eligible universe: ${health.eligible_rows ?? 0}/${health.feature_rows ?? 0}`,
+                `Top ideas today: ${(data.summaries && data.summaries.top_ideas_count) || 0}`,
+                `Model winner: ${governance?.promotion_gate?.winner || 'N/A'}`,
+              ],
+              readiness: {
+                score: health.eligible_rows != null && health.feature_rows ? health.eligible_rows / health.feature_rows : null,
+                label: 'monitor',
+              },
+              metrics: [
+                ['Universe', `${health.eligible_rows ?? 0}/${health.feature_rows ?? 0}`],
+                ['Alpha 30D', health.rolling_alpha_30d == null ? null : fmtPct(health.rolling_alpha_30d * 100)],
+                ['Forward Hit', health.forward_hit_rate_open == null ? null : fmtPct(health.forward_hit_rate_open * 100)],
+              ],
+              notes: 'Use this to compare the current wider bucket against the older hard-gated setup.',
+            },
+            {
+              id: 'nowcast_ablation',
+              name: 'Nowcast Ablation',
+              status: 'monitor',
+              hypothesis: 'Direct, proxy, and hybrid alt-data variants should compete so we can keep only the one that adds forward alpha.',
+              evidence: [
+                `Direct / hybrid / proxy-only / none: ${(coverage.direct_count ?? 0)} / ${(coverage.hybrid_count ?? 0)} / ${(coverage.proxy_only_count ?? 0)} / ${(coverage.no_nowcast_count ?? 0)}`,
+                `Signal quality penalty: ${health.avg_signal_quality_penalty == null ? '-' : Number(health.avg_signal_quality_penalty).toFixed(3)}`,
+                `Avg effective confidence: ${health.avg_effective_confidence == null ? '-' : Number(health.avg_effective_confidence).toFixed(3)}`,
+              ],
+              readiness: {
+                score: coverage.tracked_symbols ? (coverage.direct_count ?? 0) / coverage.tracked_symbols : null,
+                label: coverage.direct_count ? 'good' : 'warn',
+              },
+              metrics: [
+                ['Direct', coverage.direct_count ?? 0],
+                ['Hybrid', coverage.hybrid_count ?? 0],
+                ['Proxy Only', coverage.proxy_only_count ?? 0],
+              ],
+              notes: 'This is a good candidate for a backend experiment table later, but the UI can already show the evidence snapshot.',
+            },
+            {
+              id: 'champion_challenger_registry',
+              name: 'Champion / Challenger Registry',
+              status: governance?.promotion_gate?.promote_challenger ? 'active' : 'blocked',
+              hypothesis: 'Experiments should be promoted only when backtest and forward evidence cross explicit gates.',
+              evidence: [
+                `Decision: ${governance?.promotion_gate?.winner || 'N/A'}`,
+                `Promotion reason: ${governance?.promotion_gate?.reason || 'n/a'}`,
+                `Freeze violation: ${governance?.freeze_violation ? 'YES' : 'NO'}`,
+              ],
+              readiness: {
+                score: governance?.promotion_gate?.promote_challenger ? 1 : 0.35,
+                label: governance?.promotion_gate?.promote_challenger ? 'good' : 'blocked',
+              },
+              metrics: [
+                ['Backtest Sample', `${governance?.promotion_gate?.sample_n ?? 0}/${governance?.promotion_gate?.min_sample ?? '-'}`],
+                ['Forward Closed', `${governance?.promotion_gate?.forward_closed_trades ?? 0}/${governance?.promotion_gate?.min_forward_closed_trades ?? '-'}`],
+                ['Alpha vs Exp', governance?.promotion_gate?.forward_avg_alpha_vs_expected_pct_points == null ? '-' : Number(governance.promotion_gate.forward_avg_alpha_vs_expected_pct_points).toFixed(2)],
+              ],
+              notes: 'The board should make it obvious when a challenger is blocked, ready, or already promoted.',
+            },
+          ];
+
+      return {
+        meta: {
+          source: data.alpha_lab ? 'backend alpha_lab payload' : 'synthesized from governance, backtest, and coverage outputs',
+          experiment_count: rows.length,
+          active_count: rows.filter((row) => String(row.status || '').toLowerCase() === 'active').length,
+          blocked_count: rows.filter((row) => String(row.status || '').toLowerCase() === 'blocked').length,
+          ready_count: rows.filter((row) => row.readiness && Number(row.readiness.score) >= 0.75).length,
+        },
+        experiments: rows.map((row, idx) => ({
+          id: row.id || `experiment_${idx + 1}`,
+          name: row.name || row.id || `Experiment ${idx + 1}`,
+          status: row.status || 'monitor',
+          hypothesis: row.hypothesis || row.description || 'No hypothesis available.',
+          evidence: Array.isArray(row.evidence) ? row.evidence : [],
+          readiness: row.readiness || null,
+          metrics: Array.isArray(row.metrics) ? row.metrics : [],
+          notes: row.notes || row.summary || '',
+        })),
+      };
+    }
+
+    function setAlphaLab(data) {
+      const payload = data.alpha_lab || null;
+      const alphaLab = payload || buildAlphaLabFallback(data);
+      const meta = document.getElementById('alpha-lab-meta');
+      const summary = document.getElementById('alpha-lab-summary');
+      const board = document.getElementById('alpha-lab-board');
+      const table = document.getElementById('alpha-lab-table');
+
+      const experiments = alphaLab.experiments || [];
+      const cards = [
+        ['Source', alphaLab.meta?.source || (payload ? 'backend alpha_lab payload' : 'synthesized fallback')],
+        ['Experiments', alphaLab.meta?.experiment_count ?? experiments.length ?? 0],
+        ['Active', alphaLab.meta?.active_count ?? experiments.filter((e) => String(e.status || '').toLowerCase() === 'active').length],
+        ['Ready', alphaLab.meta?.ready_count ?? experiments.filter((e) => e.readiness && Number(e.readiness.score) >= 0.75).length],
+        ['Blocked', alphaLab.meta?.blocked_count ?? experiments.filter((e) => String(e.status || '').toLowerCase() === 'blocked').length],
+        ['Promotion', data.governance?.promotion_gate?.promote_challenger ? 'Ready' : 'Not ready'],
+      ];
+
+      summary.innerHTML = cards.map(([label, value]) => `
+        <article class="micro-card">
+          <div class="label">${label}</div>
+          <div class="value">${value}</div>
+        </article>
+      `).join('');
+
+      meta.textContent = `Alpha lab ${alphaLab.meta?.source ? '• ' + alphaLab.meta.source : ''}`;
+
+      board.innerHTML = experiments.length ? experiments.map((exp) => {
+        const status = normalizeLabel(exp.status, 'monitor');
+        const expName = exp.name || exp.model_name || exp.id || exp.model_id || 'Experiment';
+        const expId = exp.id || exp.model_id || '-';
+        const readinessScore = exp.readiness && Number.isFinite(Number(exp.readiness.score)) ? Number(exp.readiness.score) : null;
+        const readinessLabel = exp.readiness?.label || (readinessScore == null ? 'monitor' : readinessScore >= 0.75 ? 'good' : readinessScore >= 0.45 ? 'warn' : 'bad');
+        const metricRows = (exp.metrics || []).map(([label, value]) => `
+          <div class="lab-pill ${pillClass(label)}">${label}: ${value == null ? '-' : value}</div>
+        `).join('');
+        const evidenceItems = alphaLabEvidenceItems(exp.evidence);
+        const evidenceRows = evidenceItems.map((item) => `
+          <div class="lab-list-item">
+            <div class="lab-list-note">${item}</div>
+          </div>
+        `).join('');
+
+        return `
+          <article class="lab-card">
+            <div class="lab-card-header">
+              <div>
+                <h3>${expName}</h3>
+                <div class="muted" style="margin-top:4px; font-size:0.78rem;">${expId}</div>
+              </div>
+              <span class="lab-status ${statusClass(status) || statusClass(readinessLabel)}">${status}</span>
+            </div>
+            <div class="lab-list-note">${exp.hypothesis || 'No hypothesis available.'}</div>
+            <div class="lab-pills">
+              <span class="lab-pill ${pillClass(readinessLabel)}">Readiness: ${readinessLabel}${readinessScore == null ? '' : ` ${Number(readinessScore).toFixed(2)}`}</span>
+              ${metricRows}
+            </div>
+            <div class="lab-list" style="margin-top:10px;">
+              ${evidenceRows || '<div class="lab-list-item"><div class="lab-list-note">No evidence snapshot yet.</div></div>'}
+            </div>
+            ${exp.notes ? `<div class="lab-legend"><span>${exp.notes}</span></div>` : ''}
+          </article>
+        `;
+      }).join('') : '<div class="muted">No alpha lab experiments found.</div>';
+
+      table.innerHTML = `
+        <thead>
+          <tr><th>Experiment</th><th>Status</th><th>Readiness</th><th>Evidence</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          ${(experiments.map((exp) => `
+            <tr>
+              <td><strong>${exp.name || exp.model_name || exp.id || exp.model_id || '-'}</strong><div class="muted">${exp.id || exp.model_id || '-'}</div></td>
+              <td><span class="lab-status ${statusClass(exp.status)}">${normalizeLabel(exp.status, 'monitor')}</span></td>
+              <td>${exp.readiness?.label || '-'}${exp.readiness?.score == null ? '' : ` (${Number(exp.readiness.score).toFixed(2)})`}</td>
+              <td>${alphaLabEvidenceItems(exp.evidence).slice(0, 3).join('<br>') || '-'}</td>
+              <td>${exp.notes || '-'}</td>
+            </tr>
+          `).join('')) || '<tr><td colspan="5" class="muted">No alpha lab rows found.</td></tr>'}
+        </tbody>
+      `;
+    }
+
+    function setNowcastAblation(data) {
+      const ablation = data.nowcast_ablation || {};
+      const variants = ablation.variants || [];
+      const summary = document.getElementById('ablation-summary');
+      const table = document.getElementById('ablation-table');
+      const winner = ablation.winner || {};
+
+      const cards = [
+        ['Winner', winner.label || '-'],
+        ['Winner Avg Score', winner.avg_variant_score == null ? '-' : Number(winner.avg_variant_score).toFixed(4)],
+        ['Winner Coverage', winner.eligible_count ?? '-'],
+        ['As Of', ablation.as_of_date || '-'],
+      ];
+
+      summary.innerHTML = cards.map(([label, value]) => `
+        <article class="micro-card">
+          <div class="label">${label}</div>
+          <div class="value">${value}</div>
+        </article>
+      `).join('');
+
+      table.innerHTML = `
+        <thead>
+          <tr><th>Variant</th><th>Coverage</th><th>Eligible</th><th>Avg Score</th><th>Avg Conf</th><th>Top Names</th></tr>
+        </thead>
+        <tbody>
+          ${(variants.map((variant) => `
+            <tr>
+              <td><strong>${variant.label || variant.mode || '-'}</strong><div class="muted">${variant.mode || '-'}</div></td>
+              <td>${variant.coverage_count ?? '-'}</td>
+              <td>${variant.eligible_count ?? '-'}</td>
+              <td>${variant.avg_variant_score == null ? '-' : Number(variant.avg_variant_score).toFixed(4)}</td>
+              <td>${variant.avg_confidence == null ? '-' : Number(variant.avg_confidence).toFixed(4)}</td>
+              <td>${(variant.rows || []).slice(0, 5).map((row) => `${row.ticker} (${Number(row.variant_score).toFixed(3)})`).join('<br>') || '-'}</td>
+            </tr>
+          `).join('')) || '<tr><td colspan="6" class="muted">No ablation rows found.</td></tr>'}
+        </tbody>
+        <thead>
+          <tr><th>Variant Leaders</th><th colspan="5">Top Cohort Snapshot</th></tr>
+        </thead>
+        <tbody>
+          ${(variants.map((variant) => `
+            <tr>
+              <td><strong>${variant.label || variant.mode || '-'}</strong></td>
+              <td colspan="5">${(variant.rows || []).slice(0, 3).map((row) => `${row.ticker}: ${Number(row.variant_score).toFixed(4)} vs base ${row.baseline_score == null ? '-' : Number(row.baseline_score).toFixed(4)} (${row.score_delta_vs_baseline == null ? '-' : (row.score_delta_vs_baseline >= 0 ? '+' : '') + Number(row.score_delta_vs_baseline).toFixed(4)})`).join('<br>') || 'No cohort rows.'}</td>
+            </tr>
+          `).join('')) || '<tr><td colspan="6" class="muted">No leaders found.</td></tr>'}
+        </tbody>
+      `;
+    }
+
+    function setFactorTournament(data) {
+      const tournament = data.factor_tournament || {};
+      const sleeves = tournament.sleeves || [];
+      const summary = document.getElementById('factor-tournament-summary');
+      const table = document.getElementById('factor-tournament-table');
+      const winner = tournament.winner || {};
+
+      const cards = [
+        ['Winner', winner.label || '-'],
+        ['Winner Avg Sleeve', winner.avg_sleeve_score == null ? '-' : Number(winner.avg_sleeve_score).toFixed(4)],
+        ['Winner Coverage', winner.eligible_count ?? '-'],
+        ['As Of', tournament.as_of_date || '-'],
+      ];
+
+      summary.innerHTML = cards.map(([label, value]) => `
+        <article class="micro-card">
+          <div class="label">${label}</div>
+          <div class="value">${value}</div>
+        </article>
+      `).join('');
+
+      table.innerHTML = `
+        <thead>
+          <tr><th>Sleeve</th><th>Weight</th><th>Coverage</th><th>Eligible</th><th>Avg Sleeve</th><th>Top Names</th></tr>
+        </thead>
+        <tbody>
+          ${(sleeves.map((sleeve) => `
+            <tr>
+              <td><strong>${sleeve.label || sleeve.sleeve_id || '-'}</strong><div class="muted">${sleeve.sleeve_id || '-'}</div></td>
+              <td>${sleeve.weight == null ? '-' : Number(sleeve.weight).toFixed(2)}</td>
+              <td>${sleeve.coverage_count ?? '-'}</td>
+              <td>${sleeve.eligible_count ?? '-'}</td>
+              <td>${sleeve.avg_sleeve_score == null ? '-' : Number(sleeve.avg_sleeve_score).toFixed(4)}</td>
+              <td>${(sleeve.rows || []).slice(0, 5).map((row) => `${row.ticker} (${Number(row.sleeve_score).toFixed(3)})`).join('<br>') || '-'}</td>
+            </tr>
+          `).join('')) || '<tr><td colspan="6" class="muted">No factor tournament rows found.</td></tr>'}
+        </tbody>
+        <thead>
+          <tr><th>Sleeve Leaders</th><th colspan="5">Top Cohort Snapshot</th></tr>
+        </thead>
+        <tbody>
+          ${(sleeves.map((sleeve) => `
+            <tr>
+              <td><strong>${sleeve.label || sleeve.sleeve_id || '-'}</strong></td>
+              <td colspan="5">${(sleeve.rows || []).slice(0, 3).map((row) => `${row.ticker}: ${Number(row.sleeve_score).toFixed(4)} vs base ${row.baseline_score == null ? '-' : Number(row.baseline_score).toFixed(4)} (${row.score_delta_vs_baseline == null ? '-' : (row.score_delta_vs_baseline >= 0 ? '+' : '') + Number(row.score_delta_vs_baseline).toFixed(4)})`).join('<br>') || 'No cohort rows.'}</td>
+            </tr>
+          `).join('')) || '<tr><td colspan="6" class="muted">No leaders found.</td></tr>'}
+        </tbody>
+      `;
+    }
+
+    function setEarningsDriftLab(data) {
+      const lab = data.earnings_drift_lab || {};
+      const summary = lab.summary || {};
+      const rows = lab.upcoming_setups || [];
+      const overlapRows = lab.active_overlap || [];
+      const host = document.getElementById('earnings-drift-summary');
+      const table = document.getElementById('earnings-drift-table');
+
+      const cards = [
+        ['Top Setup', summary.top_setup?.ticker || '-'],
+        ['Upcoming', summary.upcoming_count ?? 0],
+        ['Live Overlap', summary.active_overlap_count ?? 0],
+        ['Hist Coverage', summary.historical_coverage_count ?? 0],
+      ];
+
+      host.innerHTML = cards.map(([label, value]) => `
+        <article class="micro-card">
+          <div class="label">${label}</div>
+          <div class="value">${value}</div>
+        </article>
+      `).join('');
+
+      table.innerHTML = `
+        <thead>
+          <tr><th>Setup</th><th>Date / Days</th><th>Drift</th><th>Signal</th><th>History</th><th>Forward</th></tr>
+        </thead>
+        <tbody>
+          ${(rows.slice(0, 10).map((row) => `
+            <tr>
+              <td><strong>${row.ticker || '-'}</strong><div class="muted">${row.expected_stock_reaction || '-'}</div></td>
+              <td>${row.next_earnings_date || '-'} / ${row.days_to_earnings == null ? '-' : row.days_to_earnings + 'd'}</td>
+              <td>${row.drift_score == null ? '-' : Number(row.drift_score).toFixed(4)}</td>
+              <td>KPI ${row.expected_kpi_surprise == null ? '-' : Number(row.expected_kpi_surprise).toFixed(3)}<br>Prob ${row.probability_post_earnings_outperform == null ? '-' : Number(row.probability_post_earnings_outperform).toFixed(3)}</td>
+              <td>${row.historical_sample_n ?? 0} setups<br>${row.historical_avg_return_5d == null ? '-' : Number(row.historical_avg_return_5d * 100).toFixed(2) + '%'} avg 5D<br>${row.historical_hit_rate == null ? '-' : Number(row.historical_hit_rate * 100).toFixed(1) + '%'} hit</td>
+              <td>${row.forward_status || '-'}${row.forward_days_open == null ? '' : '<br>' + row.forward_days_open + 'd open'}${row.forward_alpha_vs_expected_pct == null ? '' : '<br>alpha gap ' + Number(row.forward_alpha_vs_expected_pct).toFixed(2) + '%'}</td>
+            </tr>
+          `).join('')) || '<tr><td colspan="6" class="muted">No earnings drift setups found.</td></tr>'}
+        </tbody>
+        <thead>
+          <tr><th>Live Overlap</th><th colspan="5">Paper Trades Near Earnings</th></tr>
+        </thead>
+        <tbody>
+          ${(overlapRows.map((row) => `
+            <tr>
+              <td><strong>${row.ticker || '-'}</strong></td>
+              <td colspan="5">${row.next_earnings_date || '-'} in ${row.days_to_earnings == null ? '-' : row.days_to_earnings + 'd'} | drift ${row.drift_score == null ? '-' : Number(row.drift_score).toFixed(4)} | open ${row.forward_days_open == null ? '-' : row.forward_days_open + 'd'} | realized ${row.forward_realized_return_pct == null ? '-' : Number(row.forward_realized_return_pct).toFixed(2) + '%'} | alpha gap ${row.forward_alpha_vs_expected_pct == null ? '-' : Number(row.forward_alpha_vs_expected_pct).toFixed(2) + '%'}</td>
+            </tr>
+          `).join('')) || '<tr><td colspan="6" class="muted">No live paper-trade overlaps near earnings.</td></tr>'}
+        </tbody>
+      `;
+    }
+
+    function setScripts(data) {
+      const rows = data.scripts || [];
+      const host = document.getElementById('scripts-list');
+      host.innerHTML = rows.map(r => `
+        <div class="script">
+          <div class="label">${r.id}</div>
+          <div style="margin-top:4px"><code>${r.command}</code></div>
+          <div class="muted" style="margin-top:4px">${r.purpose}</div>
+        </div>
+      `).join('');
+    }
+
+    function setRoadmap(data) {
+      const roadmap = data.platform_roadmap || {};
+      const meta = document.getElementById('roadmap-meta');
+      const grid = document.getElementById('roadmap-grid');
+      const actionsTable = document.getElementById('roadmap-actions-table');
+      const phases = roadmap.phases || [];
+      const actions = roadmap.next_actions || [];
+
+      meta.textContent = `${roadmap.active_focus || 'No active focus set.'} ${roadmap.updated_by ? '• owner: ' + roadmap.updated_by : ''}`;
+
+      grid.innerHTML = phases.map((phase) => `
+        <article class="roadmap-card">
+          <div class="roadmap-status ${String(phase.status || '').replace(/_/g, '-')}">${String(phase.status || 'planned').replace(/_/g, ' ')}</div>
+          <div class="label">${phase.name || '-'}</div>
+          <div style="margin-top:8px; line-height:1.45">${phase.note || '-'}</div>
+        </article>
+      `).join('') || '<div class="muted">No roadmap phases found.</div>';
+
+      actionsTable.innerHTML =
+        '<thead><tr><th>Step</th><th>Action</th></tr></thead><tbody>' +
+        (actions.map((action, idx) =>
+          '<tr><td>' + (idx + 1) + '</td><td>' + action + '</td></tr>'
+        ).join('') || '<tr><td colspan="2" class="muted">No next actions found.</td></tr>') +
+        '</tbody>';
+    }
+
+    function provenanceBadge(status) {
+      const value = String(status || 'unknown').toLowerCase();
+      return '<span class="prov-status prov-' + value + '">' + value + '</span>';
+    }
+
+    function setProvenance(data) {
+      const prov = data.data_provenance || {};
+      const env = prov.provider_env || {};
+      const summary = prov.summary || {};
+      const rows = prov.rows || [];
+      const summaryHost = document.getElementById('provenance-summary');
+      const meta = document.getElementById('provenance-meta');
+      const table = document.getElementById('provenance-table');
+
+      const cards = [
+        ['Market Data', env.marketDataProvider || '-'],
+        ['Fundamentals', env.fundamentalsProvider || '-'],
+        ['Fresh', summary.fresh_count ?? 0],
+        ['Aging', summary.aging_count ?? 0],
+        ['Stale', summary.stale_count ?? 0],
+        ['Missing', summary.missing_count ?? 0],
+      ];
+
+      summaryHost.innerHTML = cards.map(([label, value]) => `
+        <article class="micro-card">
+          <div class="label">${label}</div>
+          <div class="value">${value}</div>
+        </article>
+      `).join('');
+
+      meta.textContent = `Provider env: market=${env.marketDataProvider || '-'} (${env.polygon ? 'key present' : 'fallback only'}), fundamentals=${env.fundamentalsProvider || '-'} (${env.finnhub ? 'key present' : 'fallback only'})`;
+
+      table.innerHTML =
+        '<thead><tr><th>Contract</th><th>Status</th><th>Source</th><th>Rows</th><th>Latest Data</th><th>Age</th><th>Notes</th></tr></thead><tbody>' +
+        (rows.map((row) =>
+          '<tr>' +
+            '<td><strong>' + (row.label || '-') + '</strong></td>' +
+            '<td>' + provenanceBadge(row.status) + '</td>' +
+            '<td>' + (row.source_type || '-') + '</td>' +
+            '<td>' + (row.row_count ?? 0) + '</td>' +
+            '<td>' + (row.latest_data_date || '-') + '</td>' +
+            '<td>' + (row.age_days == null ? '-' : row.age_days + 'd') + '</td>' +
+            '<td>' + (row.notes || '-') + '</td>' +
+          '</tr>'
+        ).join('') || '<tr><td colspan="7" class="muted">No provenance rows found.</td></tr>') +
+        '</tbody>';
+    }
+
+    async function loadDashboard() {
+      const meta = document.getElementById('meta');
+      const res = await fetch('./data/dashboard_data.json', { cache: 'no-store' });
+      if (!res.ok) throw new Error(`Dashboard data HTTP ${res.status}`);
+      const data = await res.json();
+      dashboardState = data;
+      meta.textContent = `Updated ${new Date(data.generated_at).toLocaleString()} • ${data.portfolio?.holdings_count || 0} equity holdings • ${data.portfolio?.crypto_count || 0} crypto assets`;
+      setStats(data);
+      setRoadmap(data);
+      setProvenance(data);
+      setPortfolioRisk(data);
+      setCatalystCalendar(data);
+      setRunChanges(data);
+      setRegimeTilt(data);
+      setIdeas(data);
+      setDrilldownOptions(data);
+      renderDrilldown(document.getElementById('drilldown-select').value);
+      setAlphaLab(data);
+      setNowcastAblation(data);
+      setFactorTournament(data);
+      setEarningsDriftLab(data);
+      setNowcast(data);
+      setCoverage(data);
+      setAlphaTop(data);
+      setHorizon(data);
+      setFactors(data);
+      setRolling(data);
+      setForward(data);
+      setPostmortemShelf(data);
+      setPromotion(data);
+      setHealth(data);
+      setScripts(data);
+    }
+
+    async function checkApi() {
+      const apiStatus = document.getElementById('api-status');
+      try {
+        const res = await fetch('/api/tasks');
+        if (!res.ok) throw new Error('no api');
+        apiReady = true;
+        apiStatus.innerHTML = '<span class="ok">Control bridge online. Buttons run scripts and auto-refresh outputs.</span>';
+      } catch {
+        apiReady = false;
+        apiStatus.innerHTML = '<span class="warn">Control bridge offline. Start with: npm run trading:dashboard:serve</span>';
+      }
+      setBusy(false);
+    }
+
+    async function runTask(task) {
+      if (!apiReady) return;
+      setBusy(true);
+      setRunStatus(`Running ${task}...`, '');
+      setLog('Executing...');
+
+      try {
+        const res = await fetch('/api/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ task }),
+        });
+
+        const data = await res.json();
+        const logs = (data.results || []).map(r => {
+          const out = (r.stdout || '').trim();
+          const err = (r.stderr || '').trim();
+          return `> ${r.script} (exit ${r.code})\n${out}${err ? `\n[stderr]\n${err}` : ''}`;
+        }).join('\n\n');
+        setLog(logs || 'No script logs returned.');
+
+        if (!res.ok || !data.ok) {
+          setRunStatus(`Failed: ${data.error || 'unknown error'}`, 'warn');
+          return;
+        }
+
+        setRunStatus(`Completed ${task}. Refreshing dashboard...`, 'ok');
+        await loadDashboard();
+        setRunStatus(`Completed ${task}.`, 'ok');
+      } catch (err) {
+        setRunStatus(`Error: ${err.message || err}`, 'warn');
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    function bindButtons() {
+      document.querySelectorAll('.btn[data-task]').forEach(btn => {
+        btn.addEventListener('click', () => runTask(btn.dataset.task));
+      });
+      document.getElementById('drilldown-select').addEventListener('change', (event) => {
+        renderDrilldown(event.target.value);
+      });
+    }
+
+    async function boot() {
+      bindButtons();
+      setBusy(true);
+      await checkApi();
+      try {
+        await loadDashboard();
+      } catch {
+        document.getElementById('meta').innerHTML = '<span class="warn">Failed to load dashboard data. Run refresh_data.</span>';
+      }
+      setBusy(false);
+    }
+
+    boot();
+  </script>
+</body>
+</html>
+
+
+
+
+
+
+

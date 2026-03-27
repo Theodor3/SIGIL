@@ -1,0 +1,34 @@
+{
+  "name": "playground-trading",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "trading:scan": "node scripts/run_growth_scan.mjs",
+    "trading:top5": "node trading/scripts/run_daily_top5.mjs",
+    "trading:trim": "node trading/scripts/run_trim_plan.mjs",
+    "trading:risk": "node trading/scripts/run_risk_board.mjs",
+    "trading:crypto-alerts": "node trading/scripts/run_crypto_alerts.mjs",
+    "trading:nowcast": "node trading/nowcast/run_alt_nowcast.mjs",
+    "trading:dashboard:data": "node trading/dashboard/generate_dashboard_data.mjs",
+    "trading:dashboard:serve": "node trading/dashboard/server.mjs",
+    "trading:alpha": "node trading/pipeline/run_alpha_pipeline.mjs",
+    "trading:backtest": "node trading/backtest/run_alpha_backtest.mjs",
+    "trading:playbook": "node trading/execution/run_execution_playbook.mjs",
+    "trading:governance": "node trading/governance/run_governance_checks.mjs",
+    "trading:benchmarks": "node trading/backtest/run_benchmark_returns.mjs",
+    "trading:forward": "node trading/forward/run_forward_monitor.mjs",
+    "trading:quality": "node trading/quality/run_signal_quality.mjs",
+    "trading:ablation:nowcast": "node trading/scripts/run_nowcast_ablation.mjs",
+    "trading:factor:tournament": "node trading/scripts/run_factor_tournament.mjs",
+    "trading:earnings:drift": "node trading/scripts/run_earnings_drift_lab.mjs",
+    "trading:market-context": "node trading/regime/run_daily_market_context.mjs",
+    "trading:regime": "node trading/regime/run_regime_model.mjs",
+    "trading:scorecard": "node trading/governance/run_model_scorecard.mjs",
+    "trading:execution:sim": "node trading/execution/run_execution_simulator.mjs",
+    "trading:portfolio": "node trading/portfolio/run_portfolio_constructor.mjs"
+  },
+  "dependencies": {
+    "yahoo-finance2": "^3.13.2"
+  }
+}

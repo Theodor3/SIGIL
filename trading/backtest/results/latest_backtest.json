@@ -1,0 +1,113 @@
+{
+  "as_of_date": "2026-03-25",
+  "threshold": 0.5,
+  "hold_days": 20,
+  "benchmark_mode": "QQQ",
+  "min_sample_for_winner": 20,
+  "champion": {
+    "name": "Champion v1",
+    "hold_days": 20,
+    "benchmark_mode": "QQQ",
+    "sample_n": 120,
+    "trades_n": 12,
+    "participation_rate": 0.1,
+    "hit_rate": 0.8333333333333334,
+    "avg_trade_return": 0.07300745916666672,
+    "avg_benchmark_return": 0.01683387390560187,
+    "alpha_vs_benchmark": 0.05617358526106485,
+    "avg_alpha_per_trade": 0.05617358526106484,
+    "cumulative_return": 1.2897041884886438,
+    "benchmark_cumulative_return": 0.1912804806656483,
+    "cagr": 0.3533477898291706,
+    "benchmark_cagr": 0.06601698137038037,
+    "sharpe": 4.543932156248537,
+    "info_ratio": 2.4061679587376115,
+    "max_drawdown": -0.039403990000000055,
+    "benchmark_max_drawdown": -0.12379683509183403,
+    "alpha_buckets": [
+      {
+        "bucket": "Q1",
+        "sample_n": 3,
+        "avg_alpha": 0.12711129829390877,
+        "min_score": 0.6296451232080478,
+        "max_score": 0.6296451232080478
+      },
+      {
+        "bucket": "Q2",
+        "sample_n": 3,
+        "avg_alpha": 0.04161409198375532,
+        "min_score": 0.6296451232080478,
+        "max_score": 0.6296451232080478
+      },
+      {
+        "bucket": "Q3",
+        "sample_n": 3,
+        "avg_alpha": 0.06499346463916571,
+        "min_score": 0.6296451232080478,
+        "max_score": 0.6296451232080478
+      },
+      {
+        "bucket": "Q4",
+        "sample_n": 3,
+        "avg_alpha": -0.009024513872570417,
+        "min_score": 0.6296451232080478,
+        "max_score": 0.6296451232080478
+      }
+    ]
+  },
+  "challenger": {
+    "name": "Challenger v1",
+    "hold_days": 20,
+    "benchmark_mode": "QQQ",
+    "sample_n": 120,
+    "trades_n": 12,
+    "participation_rate": 0.1,
+    "hit_rate": 0.8333333333333334,
+    "avg_trade_return": 0.07300745916666672,
+    "avg_benchmark_return": 0.01683387390560187,
+    "alpha_vs_benchmark": 0.05617358526106485,
+    "avg_alpha_per_trade": 0.05617358526106484,
+    "cumulative_return": 1.2897041884886438,
+    "benchmark_cumulative_return": 0.1912804806656483,
+    "cagr": 0.3533477898291706,
+    "benchmark_cagr": 0.06601698137038037,
+    "sharpe": 4.543932156248537,
+    "info_ratio": 2.4061679587376115,
+    "max_drawdown": -0.039403990000000055,
+    "benchmark_max_drawdown": -0.12379683509183403,
+    "alpha_buckets": [
+      {
+        "bucket": "Q1",
+        "sample_n": 3,
+        "avg_alpha": 0.12711129829390877,
+        "min_score": 0.6743890703525683,
+        "max_score": 0.6743890703525683
+      },
+      {
+        "bucket": "Q2",
+        "sample_n": 3,
+        "avg_alpha": 0.04161409198375532,
+        "min_score": 0.6743890703525683,
+        "max_score": 0.6743890703525683
+      },
+      {
+        "bucket": "Q3",
+        "sample_n": 3,
+        "avg_alpha": 0.06499346463916571,
+        "min_score": 0.6743890703525683,
+        "max_score": 0.6743890703525683
+      },
+      {
+        "bucket": "Q4",
+        "sample_n": 3,
+        "avg_alpha": -0.009024513872570417,
+        "min_score": 0.6743890703525683,
+        "max_score": 0.6743890703525683
+      }
+    ]
+  },
+  "decision": {
+    "winner": "CHAMPION",
+    "reason": "Champion remains better on simulated portfolio returns"
+  }
+}

@@ -1,0 +1,43 @@
+name,symbol,shares,price,average_cost,total_return,equity,asset_type
+Global X MSCI Argentina ETF,ARGT,8,86.57,73.51,104.52,692.56,equity
+Broadcom,AVGO,2,333.95,191.63,284.65,667.90,equity
+State Street SPDR S&P Metals & Mining ETF,XME,5,112.69,23.75,444.68,563.43,equity
+RTX Corporation,RTX,2,204.13,63.77,280.73,408.27,equity
+First Solar,FSLR,2,193.53,129.84,127.38,387.06,equity
+ARK Innovation ETF,ARKK,5,74.50,53.80,103.50,372.50,equity
+Taiwan Semiconductor Manufacturing,TSM,1,354.11,86.32,267.79,354.11,equity
+Altria,MO,5,67.07,46.16,104.55,335.35,equity
+CVS,CVS,4,78.56,58.02,82.16,314.24,equity
+ATI,ATI,2,155.07,18.68,272.79,310.14,equity
+Exxon Mobil,XOM,2,151.21,117.50,67.42,302.42,equity
+Eli Lilly,LLY,0.291,984.01,859.96,36.06,286.06,equity
+Arista,ANET,2,140.19,139.98,0.42,280.38,equity
+iShares MSCI India ETF,INDA,5,50.66,52.05,6.93,253.30,equity
+iShares MSCI Emerging Markets ETF,EEM,4,58.71,44.49,56.88,234.84,equity
+Take-Two Interactive Software,TTWO,1,212.62,172.07,40.55,212.62,equity
+CRISPR,CRSP,3.586,57.83,46.14,41.91,207.38,equity
+Calumet,CLMT,5,30.19,4.16,130.13,150.95,equity
+BHP Billiton,BHP,2,73.79,51.50,44.58,147.58,equity
+Barrick Mining,B,3,45.63,28.42,51.64,136.89,equity
+Chef's Warehouse,CHEF,2,63.22,24.69,77.07,126.44,equity
+Merck,MRK,1,115.65,100.01,15.64,115.65,equity
+ProShares UltraPro QQQ,TQQQ,2,49.78,13.54,72.48,99.56,equity
+eBay,EBAY,1,92.44,74.67,17.77,92.44,equity
+Galiano Gold,GAU,25,3.10,1.32,44.50,77.50,equity
+Coca-Cola,KO,1,77.08,49.60,27.48,77.08,equity
+Uber,UBER,1,75.82,44.73,31.09,75.82,equity
+Global X Lithium & Battery Tech ETF,LIT,1,70.84,41.87,28.97,70.84,equity
+Minerals Technologies,MTX,1,70.16,52.75,17.41,70.16,equity
+Peabody Energy,BTU,2,33.90,19.15,29.50,67.80,equity
+Bluelinx,BXC,1,62.15,51.00,11.15,62.15,equity
+Delta Air Lines,DAL,1,61.52,32.35,29.17,61.52,equity
+Worthington Enterprise,WOR,1,52.13,20.62,31.51,52.13,equity
+Intel,INTC,1,46.00,43.91,2.09,46.00,equity
+Worthington Steel,WS,1,38.47,20.62,17.85,38.47,equity
+EntrepreneurShares Series Trust ERShares Private-Public Crossover ETF,XOVR,2,17.84,19.16,2.64,35.68,equity
+CD Projekt,OTGLY,2,16.76,5.19,23.14,33.52,equity
+Bank of China,BACHY,2,14.13,9.58,9.10,28.26,equity
+HP Enterprise,HPE,1,21.50,16.99,4.51,21.50,equity
+AbbVie,ABBV,0.062,231.60,162.49,4.25,14.25,equity
+SEELOS THERAPEUTICS,SEELQ,0.003,0.0001,8780.80,27.44,0.00,equity
+Interactive Brokers,IBKR,5,68.10,68.20,0.50,340.50,equity

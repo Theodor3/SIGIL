@@ -1,0 +1,47 @@
+﻿{
+  "deployment": {
+    "cash_deploy_pct": 0.90,
+    "min_position_pct": 0.04,
+    "max_position_pct": 0.10,
+    "base_position_pct": 0.05,
+    "confidence_anchor": 0.55,
+    "confidence_boost_cap": 0.25,
+    "confidence_boost_multiplier": 0.18,
+    "alpha_boost_multiplier": 0.05
+  },
+  "entry": {
+    "zone_lower_buffer_pct": 0.02,
+    "zone_upper_buffer_pct": 0.02,
+    "stagger_weights": [0.4, 0.3, 0.3],
+    "pullback_steps_pct": [0, -3, -6]
+  },
+  "invalidation": {
+    "leverage_cutoff": 3.0,
+    "thesis_break_rule": "2 weak KPI prints or -12% from blended entry"
+  },
+  "trim_schedule": [
+    { "gain_pct": 20, "trim_pct": 10 },
+    { "gain_pct": 40, "trim_pct": 10 },
+    { "gain_pct": 75, "trim_pct": 15 },
+    { "gain_pct": 120, "trim_pct": 20 }
+  ],
+  "expected_alpha": {
+    "scale_20d": 0.03,
+    "scale_90d": 0.07,
+    "min_pct": -8,
+    "max_pct": 15
+  },
+  "options_overlay": {
+    "enabled": true,
+    "min_confidence_long_call": 0.62,
+    "min_account_usd_for_long_call": 8000,
+    "min_price": 20,
+    "max_price": 500,
+    "max_debit_usd": 150,
+    "covered_call_min_shares": 100,
+    "liquidity": {
+      "min_avg_daily_volume": 1000000,
+      "min_market_cap_usd": 2000000000
+    }
+  }
+}

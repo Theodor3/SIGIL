@@ -1,0 +1,475 @@
+{
+  "as_of_date": "2026-03-25",
+  "weights": {
+    "quality": 0.3,
+    "growth": 0.25,
+    "alt_momentum": 0.15,
+    "peer_relative": 0.12,
+    "value": 0.1,
+    "proxy_inferred": 0.08
+  },
+  "winner": {
+    "mode": "hybrid",
+    "label": "Hybrid",
+    "avg_variant_score": 0.2945,
+    "eligible_count": 4,
+    "top_symbols": [
+      "FIX",
+      "CRM",
+      "NEM",
+      "TTD"
+    ]
+  },
+  "variants": [
+    {
+      "mode": "direct_only",
+      "label": "Direct Only",
+      "coverage_count": 4,
+      "eligible_count": 4,
+      "avg_variant_score": 0.2689,
+      "avg_confidence": 0.8644,
+      "avg_expected_alpha_20d": 0,
+      "top_symbols": [
+        "FIX",
+        "NEM",
+        "CRM",
+        "TTD"
+      ],
+      "rows": [
+        {
+          "rank": 1,
+          "ticker": "FIX",
+          "source_mix": "hybrid",
+          "variant_score": 0.5496,
+          "baseline_score": 0.6296,
+          "score_delta_vs_baseline": -0.08,
+          "confidence": 0.9144,
+          "expected_alpha_20d": null
+        },
+        {
+          "rank": 2,
+          "ticker": "NEM",
+          "source_mix": "hybrid",
+          "variant_score": 0.2091,
+          "baseline_score": 0.2091,
+          "score_delta_vs_baseline": 0,
+          "confidence": 0.8554,
+          "expected_alpha_20d": null
+        },
+        {
+          "rank": 3,
+          "ticker": "CRM",
+          "source_mix": "hybrid",
+          "variant_score": 0.1994,
+          "baseline_score": 0.221,
+          "score_delta_vs_baseline": -0.0217,
+          "confidence": 0.8324,
+          "expected_alpha_20d": null
+        },
+        {
+          "rank": 4,
+          "ticker": "TTD",
+          "source_mix": "hybrid",
+          "variant_score": 0.1176,
+          "baseline_score": 0.1181,
+          "score_delta_vs_baseline": -0.0004,
+          "confidence": 0.8554,
+          "expected_alpha_20d": null
+        }
+      ]
+    },
+    {
+      "mode": "proxy_only",
+      "label": "Proxy Only",
+      "coverage_count": 11,
+      "eligible_count": 11,
+      "avg_variant_score": 0.1299,
+      "avg_confidence": 0.751,
+      "avg_expected_alpha_20d": 0,
+      "top_symbols": [
+        "FIX",
+        "NEM",
+        "LRCX",
+        "COR",
+        "CRM"
+      ],
+      "rows": [
+        {
+          "rank": 1,
+          "ticker": "FIX",
+          "source_mix": "hybrid",
+          "variant_score": 0.3596,
+          "baseline_score": 0.6296,
+          "score_delta_vs_baseline": -0.27,
+          "confidence": 0.9144,
+          "expected_alpha_20d": null
+        },
+        {
+          "rank": 2,
+          "ticker": "NEM",
+          "source_mix": "hybrid",
+          "variant_score": 0.2091,
+          "baseline_score": 0.2091,
+          "score_delta_vs_baseline": 0,
+          "confidence": 0.8554,
+          "expected_alpha_20d": null
+        },
+        {
+          "rank": 3,
+          "ticker": "LRCX",
+          "source_mix": "proxy_only",
+          "variant_score": 0.206,
+          "baseline_score": 0.206,
+          "score_delta_vs_baseline": 0,
+          "confidence": 0.6954,
+          "expected_alpha_20d": null
+        },
+        {
+          "rank": 4,
+          "ticker": "COR",
+          "source_mix": "proxy_only",
+          "variant_score": 0.1549,
+          "baseline_score": 0.1549,
+          "score_delta_vs_baseline": 0,
+          "confidence": 0.6362,
+          "expected_alpha_20d": null
+        },
+        {
+          "rank": 5,
+          "ticker": "CRM",
+          "source_mix": "hybrid",
+          "variant_score": 0.1351,
+          "baseline_score": 0.221,
+          "score_delta_vs_baseline": -0.0859,
+          "confidence": 0.8324,
+          "expected_alpha_20d": null
+        },
+        {
+          "rank": 6,
+          "ticker": "KLAC",
+          "source_mix": "proxy_only",
+          "variant_score": 0.1349,
+          "baseline_score": 0.1349,
+          "score_delta_vs_baseline": 0,
+          "confidence": 0.6954,
+          "expected_alpha_20d": null
+        },
+        {
+          "rank": 7,
+          "ticker": "TTD",
+          "source_mix": "hybrid",
+          "variant_score": 0.1134,
+          "baseline_score": 0.1181,
+          "score_delta_vs_baseline": -0.0047,
+          "confidence": 0.8554,
+          "expected_alpha_20d": null
+        },
+        {
+          "rank": 8,
+          "ticker": "DELL",
+          "source_mix": "proxy_only",
+          "variant_score": 0.0986,
+          "baseline_score": 0.0986,
+          "score_delta_vs_baseline": 0,
+          "confidence": 0.6954,
+          "expected_alpha_20d": null
+        },
+        {
+          "rank": 9,
+          "ticker": "EFX",
+          "source_mix": "proxy_only",
+          "variant_score": 0.0318,
+          "baseline_score": 0.0318,
+          "score_delta_vs_baseline": 0,
+          "confidence": 0.6899,
+          "expected_alpha_20d": null
+        },
+        {
+          "rank": 10,
+          "ticker": "APH",
+          "source_mix": "proxy_only",
+          "variant_score": 0.0268,
+          "baseline_score": 0.0268,
+          "score_delta_vs_baseline": 0,
+          "confidence": 0.6954,
+          "expected_alpha_20d": null
+        }
+      ]
+    },
+    {
+      "mode": "hybrid",
+      "label": "Hybrid",
+      "coverage_count": 4,
+      "eligible_count": 4,
+      "avg_variant_score": 0.2945,
+      "avg_confidence": 0.8644,
+      "avg_expected_alpha_20d": 0,
+      "top_symbols": [
+        "FIX",
+        "CRM",
+        "NEM",
+        "TTD"
+      ],
+      "rows": [
+        {
+          "rank": 1,
+          "ticker": "FIX",
+          "source_mix": "hybrid",
+          "variant_score": 0.6296,
+          "baseline_score": 0.6296,
+          "score_delta_vs_baseline": 0,
+          "confidence": 0.9144,
+          "expected_alpha_20d": null
+        },
+        {
+          "rank": 2,
+          "ticker": "CRM",
+          "source_mix": "hybrid",
+          "variant_score": 0.221,
+          "baseline_score": 0.221,
+          "score_delta_vs_baseline": 0,
+          "confidence": 0.8324,
+          "expected_alpha_20d": null
+        },
+        {
+          "rank": 3,
+          "ticker": "NEM",
+          "source_mix": "hybrid",
+          "variant_score": 0.2091,
+          "baseline_score": 0.2091,
+          "score_delta_vs_baseline": 0,
+          "confidence": 0.8554,
+          "expected_alpha_20d": null
+        },
+        {
+          "rank": 4,
+          "ticker": "TTD",
+          "source_mix": "hybrid",
+          "variant_score": 0.1181,
+          "baseline_score": 0.1181,
+          "score_delta_vs_baseline": 0,
+          "confidence": 0.8554,
+          "expected_alpha_20d": null
+        }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "mode": "direct_only",
+      "label": "Direct Only",
+      "rank": 1,
+      "ticker": "FIX",
+      "source_mix": "hybrid",
+      "variant_score": 0.5496,
+      "baseline_score": 0.6296,
+      "score_delta_vs_baseline": -0.08,
+      "confidence": 0.9144,
+      "expected_alpha_20d": null
+    },
+    {
+      "mode": "direct_only",
+      "label": "Direct Only",
+      "rank": 2,
+      "ticker": "NEM",
+      "source_mix": "hybrid",
+      "variant_score": 0.2091,
+      "baseline_score": 0.2091,
+      "score_delta_vs_baseline": 0,
+      "confidence": 0.8554,
+      "expected_alpha_20d": null
+    },
+    {
+      "mode": "direct_only",
+      "label": "Direct Only",
+      "rank": 3,
+      "ticker": "CRM",
+      "source_mix": "hybrid",
+      "variant_score": 0.1994,
+      "baseline_score": 0.221,
+      "score_delta_vs_baseline": -0.0217,
+      "confidence": 0.8324,
+      "expected_alpha_20d": null
+    },
+    {
+      "mode": "direct_only",
+      "label": "Direct Only",
+      "rank": 4,
+      "ticker": "TTD",
+      "source_mix": "hybrid",
+      "variant_score": 0.1176,
+      "baseline_score": 0.1181,
+      "score_delta_vs_baseline": -0.0004,
+      "confidence": 0.8554,
+      "expected_alpha_20d": null
+    },
+    {
+      "mode": "proxy_only",
+      "label": "Proxy Only",
+      "rank": 1,
+      "ticker": "FIX",
+      "source_mix": "hybrid",
+      "variant_score": 0.3596,
+      "baseline_score": 0.6296,
+      "score_delta_vs_baseline": -0.27,
+      "confidence": 0.9144,
+      "expected_alpha_20d": null
+    },
+    {
+      "mode": "proxy_only",
+      "label": "Proxy Only",
+      "rank": 2,
+      "ticker": "NEM",
+      "source_mix": "hybrid",
+      "variant_score": 0.2091,
+      "baseline_score": 0.2091,
+      "score_delta_vs_baseline": 0,
+      "confidence": 0.8554,
+      "expected_alpha_20d": null
+    },
+    {
+      "mode": "proxy_only",
+      "label": "Proxy Only",
+      "rank": 3,
+      "ticker": "LRCX",
+      "source_mix": "proxy_only",
+      "variant_score": 0.206,
+      "baseline_score": 0.206,
+      "score_delta_vs_baseline": 0,
+      "confidence": 0.6954,
+      "expected_alpha_20d": null
+    },
+    {
+      "mode": "proxy_only",
+      "label": "Proxy Only",
+      "rank": 4,
+      "ticker": "COR",
+      "source_mix": "proxy_only",
+      "variant_score": 0.1549,
+      "baseline_score": 0.1549,
+      "score_delta_vs_baseline": 0,
+      "confidence": 0.6362,
+      "expected_alpha_20d": null
+    },
+    {
+      "mode": "proxy_only",
+      "label": "Proxy Only",
+      "rank": 5,
+      "ticker": "CRM",
+      "source_mix": "hybrid",
+      "variant_score": 0.1351,
+      "baseline_score": 0.221,
+      "score_delta_vs_baseline": -0.0859,
+      "confidence": 0.8324,
+      "expected_alpha_20d": null
+    },
+    {
+      "mode": "proxy_only",
+      "label": "Proxy Only",
+      "rank": 6,
+      "ticker": "KLAC",
+      "source_mix": "proxy_only",
+      "variant_score": 0.1349,
+      "baseline_score": 0.1349,
+      "score_delta_vs_baseline": 0,
+      "confidence": 0.6954,
+      "expected_alpha_20d": null
+    },
+    {
+      "mode": "proxy_only",
+      "label": "Proxy Only",
+      "rank": 7,
+      "ticker": "TTD",
+      "source_mix": "hybrid",
+      "variant_score": 0.1134,
+      "baseline_score": 0.1181,
+      "score_delta_vs_baseline": -0.0047,
+      "confidence": 0.8554,
+      "expected_alpha_20d": null
+    },
+    {
+      "mode": "proxy_only",
+      "label": "Proxy Only",
+      "rank": 8,
+      "ticker": "DELL",
+      "source_mix": "proxy_only",
+      "variant_score": 0.0986,
+      "baseline_score": 0.0986,
+      "score_delta_vs_baseline": 0,
+      "confidence": 0.6954,
+      "expected_alpha_20d": null
+    },
+    {
+      "mode": "proxy_only",
+      "label": "Proxy Only",
+      "rank": 9,
+      "ticker": "EFX",
+      "source_mix": "proxy_only",
+      "variant_score": 0.0318,
+      "baseline_score": 0.0318,
+      "score_delta_vs_baseline": 0,
+      "confidence": 0.6899,
+      "expected_alpha_20d": null
+    },
+    {
+      "mode": "proxy_only",
+      "label": "Proxy Only",
+      "rank": 10,
+      "ticker": "APH",
+      "source_mix": "proxy_only",
+      "variant_score": 0.0268,
+      "baseline_score": 0.0268,
+      "score_delta_vs_baseline": 0,
+      "confidence": 0.6954,
+      "expected_alpha_20d": null
+    },
+    {
+      "mode": "hybrid",
+      "label": "Hybrid",
+      "rank": 1,
+      "ticker": "FIX",
+      "source_mix": "hybrid",
+      "variant_score": 0.6296,
+      "baseline_score": 0.6296,
+      "score_delta_vs_baseline": 0,
+      "confidence": 0.9144,
+      "expected_alpha_20d": null
+    },
+    {
+      "mode": "hybrid",
+      "label": "Hybrid",
+      "rank": 2,
+      "ticker": "CRM",
+      "source_mix": "hybrid",
+      "variant_score": 0.221,
+      "baseline_score": 0.221,
+      "score_delta_vs_baseline": 0,
+      "confidence": 0.8324,
+      "expected_alpha_20d": null
+    },
+    {
+      "mode": "hybrid",
+      "label": "Hybrid",
+      "rank": 3,
+      "ticker": "NEM",
+      "source_mix": "hybrid",
+      "variant_score": 0.2091,
+      "baseline_score": 0.2091,
+      "score_delta_vs_baseline": 0,
+      "confidence": 0.8554,
+      "expected_alpha_20d": null
+    },
+    {
+      "mode": "hybrid",
+      "label": "Hybrid",
+      "rank": 4,
+      "ticker": "TTD",
+      "source_mix": "hybrid",
+      "variant_score": 0.1181,
+      "baseline_score": 0.1181,
+      "score_delta_vs_baseline": 0,
+      "confidence": 0.8554,
+      "expected_alpha_20d": null
+    }
+  ]
+}

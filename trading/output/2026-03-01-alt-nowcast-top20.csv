@@ -1,0 +1,2 @@
+company,ticker,strongest_drivers,confidence_score,expected_kpi_surprise,expected_stock_reaction,probability_post_earnings_outperform,deviation_vs_consensus,historical_backtest,report_date
+NVDA,NVDA,,0.007,0.00%,Mixed / neutral expected reaction,47.67%,-0.0300,Insufficient historical setups (need outcomes + historical alt data).,2026-05-20

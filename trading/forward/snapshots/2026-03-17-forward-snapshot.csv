@@ -1,0 +1,7 @@
+as_of_date,opened_date,closed_date,status,close_reason,symbol,entry_price,last_price,days_open,expected_alpha_20d_pct,expected_alpha_90d_pct,expected_alpha_to_date_pct,realized_return_pct,alpha_vs_expected_pct,source_file
+2026-03-17,2026-03-08,,OPEN,,PLTR,157.1600,156.3428,9,1.09,2.53,0.4905,-0.5200,-1.0105,2026-03-07-final-top5.csv
+2026-03-17,2026-03-08,,OPEN,,APP,502.1400,467.0800,9,0.96,2.23,0.4320,-6.9821,-7.4141,2026-03-07-final-top5.csv
+2026-03-17,2026-03-08,,OPEN,,NEM,116.2900,110.7290,9,0.84,1.96,0.3780,-4.7820,-5.1600,2026-03-07-final-top5.csv
+2026-03-17,2026-03-08,,OPEN,,FIX,1279.0600,1413.4200,9,0.77,1.8,0.3465,10.5046,10.1581,2026-03-07-final-top5.csv
+2026-03-17,2026-03-08,,OPEN,,TTD,29.2800,28.0500,9,0.49,1.15,0.2205,-4.2008,-4.4213,2026-03-07-final-top5.csv
+2026-03-17,2026-03-16,,OPEN,,NVDA,180.2500,182.5253,1,2.26,5.27,0.1130,1.2623,1.1493,2026-03-16-final-top5.csv

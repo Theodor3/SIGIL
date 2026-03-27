@@ -1,0 +1,13 @@
+{
+  "base_slippage_bps": 12,
+  "min_slippage_bps": 8,
+  "max_slippage_bps": 55,
+  "impact_scaler": 35,
+  "commission_per_trade_usd": 0,
+  "min_trade_notional_usd": 50,
+  "max_trade_cost_pct": 0.012,
+  "liquidity": {
+    "adv_soft_floor": 500000,
+    "adv_hard_floor": 200000
+  }
+}

@@ -1,0 +1,111 @@
+{
+    "version":  "1.0.0",
+    "checkpoint_id":  "ally-v1",
+    "supported_mode":  "ally",
+    "feature_order":  [
+                          "self_x",
+                          "self_y",
+                          "self_vx",
+                          "self_vy",
+                          "self_hp",
+                          "target_x",
+                          "target_y",
+                          "target_hp",
+                          "target_dist",
+                          "threat_x",
+                          "threat_y",
+                          "threat_dist",
+                          "time_left_norm",
+                          "mode_duel",
+                          "mode_co_op",
+                          "cooldown_dash"
+                      ],
+    "action_order":  [
+                         "move_x",
+                         "move_y",
+                         "aim_x",
+                         "aim_y",
+                         "shoot",
+                         "dash"
+                     ],
+    "normalization":  {
+                          "threat_x":  {
+                                           "mean":  0.5,
+                                           "std":  0.35
+                                       },
+                          "target_hp":  {
+                                            "mean":  0.5,
+                                            "std":  0.35
+                                        },
+                          "self_y":  {
+                                         "mean":  0.5,
+                                         "std":  0.35
+                                     },
+                          "threat_y":  {
+                                           "mean":  0.5,
+                                           "std":  0.35
+                                       },
+                          "time_left_norm":  {
+                                                 "mean":  0.5,
+                                                 "std":  0.35
+                                             },
+                          "mode_duel":  {
+                                            "mean":  0,
+                                            "std":  1
+                                        },
+                          "target_x":  {
+                                           "mean":  0.5,
+                                           "std":  0.35
+                                       },
+                          "threat_dist":  {
+                                              "mean":  0.5,
+                                              "std":  0.35
+                                          },
+                          "self_hp":  {
+                                          "mean":  0.5,
+                                          "std":  0.35
+                                      },
+                          "self_vy":  {
+                                          "mean":  0.5,
+                                          "std":  0.35
+                                      },
+                          "target_y":  {
+                                           "mean":  0.5,
+                                           "std":  0.35
+                                       },
+                          "mode_co_op":  {
+                                             "mean":  0,
+                                             "std":  1
+                                         },
+                          "cooldown_dash":  {
+                                                "mean":  0,
+                                                "std":  1
+                                            },
+                          "self_vx":  {
+                                          "mean":  0.5,
+                                          "std":  0.35
+                                      },
+                          "self_x":  {
+                                         "mean":  0.5,
+                                         "std":  0.35
+                                     },
+                          "target_dist":  {
+                                              "mean":  0.5,
+                                              "std":  0.35
+                                          }
+                      },
+    "action_bounds":  {
+                          "min":  {
+                                      "move_x":  -1,
+                                      "move_y":  -1,
+                                      "aim_x":  -1,
+                                      "aim_y":  -1
+                                  },
+                          "max":  {
+                                      "move_x":  1,
+                                      "move_y":  1,
+                                      "aim_x":  1,
+                                      "aim_y":  1
+                                  }
+                      }
+}

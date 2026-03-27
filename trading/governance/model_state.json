@@ -1,0 +1,24 @@
+{
+  "last_weights_hash": "c0493d837e16094a7b64574cefb358099e33c842cbe3e2a67dec8b73f1cfd85e",
+  "last_change_date": "2026-03-16",
+  "changes": [
+    {
+      "date": "2026-03-07",
+      "event": "BASELINE_SET",
+      "days_since_last_change": null,
+      "freeze_violation": false,
+      "reason": "Initialized governance model hash baseline",
+      "prev_hash": "",
+      "new_hash": "e6c52d948039b5c0a31b6a8d6cf3d86b5617f94d480f66e0e982e3ca1c5aa36c"
+    },
+    {
+      "date": "2026-03-16",
+      "event": "WEIGHTS_CHANGED",
+      "days_since_last_change": 9,
+      "freeze_violation": false,
+      "reason": "Detected new alpha_model weights hash",
+      "prev_hash": "e6c52d948039b5c0a31b6a8d6cf3d86b5617f94d480f66e0e982e3ca1c5aa36c",
+      "new_hash": "c0493d837e16094a7b64574cefb358099e33c842cbe3e2a67dec8b73f1cfd85e"
+    }
+  ]
+}

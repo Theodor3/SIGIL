@@ -1,0 +1,103 @@
+{
+  "thresholds": {
+    "risk_off_avg20d": -0.02,
+    "high_vol_5d_abs": 0.03,
+    "trend_growth_qqq20d": 0.05,
+    "trend_growth_spread_5d": 0.008,
+    "vix_high": 22,
+    "vix_risk_off": 28,
+    "vix_change_5d_high": 0.12,
+    "realized_vol_high": 0.24,
+    "realized_vol_risk_off": 0.3,
+    "trend_growth_vix_max": 20,
+    "trend_growth_realized_vol_max": 0.22,
+    "breadth_positive_ratio": 0.6,
+    "breadth_negative_ratio": 0.4,
+    "breadth_rsp_spy_positive": -0.005,
+    "breadth_rsp_spy_negative": -0.03
+  },
+  "exposure": {
+    "risk_off": 0.35,
+    "high_vol": 0.5,
+    "risk_on": 0.75,
+    "trend_growth": 0.9
+  },
+  "regime_multipliers": {
+    "risk_off": 0.85,
+    "high_vol": 0.75,
+    "risk_on": 1.0,
+    "trend_growth": 1.1
+  },
+  "factor_tilts": {
+    "risk_off": {
+      "quality": 1.2,
+      "growth": 0.8,
+      "alt_momentum": 0.75,
+      "peer_relative": 0.95,
+      "value": 1.15
+    },
+    "high_vol": {
+      "quality": 1.1,
+      "growth": 0.85,
+      "alt_momentum": 0.7,
+      "peer_relative": 0.9,
+      "value": 1.05
+    },
+    "risk_on": {
+      "quality": 1.0,
+      "growth": 1.0,
+      "alt_momentum": 1.0,
+      "peer_relative": 1.0,
+      "value": 1.0
+    },
+    "trend_growth": {
+      "quality": 0.95,
+      "growth": 1.2,
+      "alt_momentum": 1.15,
+      "peer_relative": 1.05,
+      "value": 0.9
+    }
+  },
+  "sector_leadership_factor_tilts": {
+    "growth_led": {
+      "quality": 0.96,
+      "growth": 1.12,
+      "alt_momentum": 1.08,
+      "peer_relative": 1.05,
+      "value": 0.94
+    },
+    "defensive_led": {
+      "quality": 1.12,
+      "growth": 0.92,
+      "alt_momentum": 0.9,
+      "peer_relative": 0.97,
+      "value": 1.08
+    },
+    "cyclical_led": {
+      "quality": 1.02,
+      "growth": 1.04,
+      "alt_momentum": 1.02,
+      "peer_relative": 1.06,
+      "value": 0.98
+    },
+    "mixed_sector_leadership": {
+      "quality": 1.02,
+      "growth": 1.0,
+      "alt_momentum": 0.98,
+      "peer_relative": 1.0,
+      "value": 1.0
+    },
+    "unknown": {
+      "quality": 1.0,
+      "growth": 1.0,
+      "alt_momentum": 1.0,
+      "peer_relative": 1.0,
+      "value": 1.0
+    }
+  },
+  "sector_alignment": {
+    "leader_bonus": 1.08,
+    "laggard_penalty": 0.92,
+    "neutral": 1.0
+  }
+}

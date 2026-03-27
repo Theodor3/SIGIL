@@ -1,0 +1,17 @@
+{
+  "name": "arena-learning-shooter",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Single-player 2D arena shooter with duel and co-op modes.",
+  "type": "module",
+  "scripts": {
+    "start": "node ..\\node_modules\\http-server\\bin\\http-server -p 5173 -c-1",
+    "smoke:duel": "node scripts/web_game_playwright_client.js --url http://127.0.0.1:5173 --actions-file tests/actions_duel.json --click-selector \"#start-duel-btn\" --iterations 3 --pause-ms 180 --screenshot-dir output/web-game/duel",
+    "smoke:coop": "node scripts/web_game_playwright_client.js --url http://127.0.0.1:5173 --actions-file tests/actions_coop.json --click-selector \"#start-coop-btn\" --iterations 3 --pause-ms 180 --screenshot-dir output/web-game/coop"
+  },
+  "dependencies": {
+    "http-server": "^14.1.1",
+    "playwright": "^1.58.2"
+  }
+}
+

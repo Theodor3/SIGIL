@@ -1,0 +1,18 @@
+{
+    "version":  "1.0.0",
+    "default_mode":  "duel",
+    "policies":  {
+                     "opponent":  {
+                                      "model_url":  "./assets/models/opponent/model.json",
+                                      "metadata_url":  "./assets/models/opponent/metadata.json",
+                                      "checkpoint_id":  "opponent-v1",
+                                      "stable":  true
+                                  },
+                     "ally":  {
+                                  "model_url":  "./assets/models/ally/model.json",
+                                  "metadata_url":  "./assets/models/ally/metadata.json",
+                                  "checkpoint_id":  "ally-v1",
+                                  "stable":  true
+                              }
+                 }
+}

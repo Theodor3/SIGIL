@@ -1,0 +1,33 @@
+# Growth Bucket Scan - 2026-03-16
+
+- Universe size: 503
+- Successfully evaluated: 503
+- Passed all filters: 9
+- Filters: Revenue CAGR 3Y >= 20%, FCF CAGR 3Y >= 15%, ROIC >= 15%, FCF Margin >= 10%, Debt/EBITDA <= 2.0
+
+## Top Ranked Names (up to 20)
+
+| Rank | Ticker | Growth Score | Valuation | Method | Context | Rev CAGR 3Y | FCF CAGR 3Y | ROIC | FCF Yield | Fwd P/E | EV/EBITDA | Missing Data |
+|---:|---|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---|
+| 1 | NVDA | 81.47 | 0.283 | enterprise_multiples | industry:SEMICONDUCTORS | 100.05% | 193.91% | 70.17% | 2.16% | 17.09 | 32.49 | none |
+| 2 | APP | 61.28 | 0.124 | enterprise_multiples | sector:COMMUNICATION SERVICES | 24.84% | 112.29% | 112.96% | 2.57% | 22.40 | 36.46 | none |
+| 3 | ANET | 58.11 | 0.160 | enterprise_multiples | industry:COMPUTER HARDWARE | 27.15% | 111.70% | 30.61% | 2.51% | 31.54 | 39.99 | none |
+| 4 | PLTR | 57.54 | 0.024 | enterprise_multiples | industry:SOFTWARE - INFRASTRUCTURE | 32.92% | 125.29% | 22.51% | 0.58% | 81.64 |  | none |
+| 5 | FIX | 52.62 | 0.200 | enterprise_multiples | industry:ENGINEERING & CONSTRUCTION | 30.03% | 59.71% | 53.24% | 2.08% | 31.75 | 32.60 | none |
+| 6 | IBKR | 50.90 | 0.417 | financial_multiples | industry:CAPITAL MARKETS | 34.60% | 59.24% | 1915.12% | 13.54% | 24.96 |  | none |
+| 7 | NEM | 49.33 | 0.630 | enterprise_multiples | sector:BASIC MATERIALS | 23.91% | 88.54% | 22.52% | 6.09% | 9.71 | 8.44 | none |
+| 8 | TTD | 26.22 | 0.422 | enterprise_multiples | sector:COMMUNICATION SERVICES | 22.44% | 19.67% | 17.53% | 6.07% | 11.38 | 17.60 | none |
+| 9 | AVGO | 22.98 | 0.533 | enterprise_multiples | industry:SEMICONDUCTORS | 24.38% | 18.17% | 15.82% | 1.73% | 18.58 | 4.35 | none |
+
+## Missing Data Flags
+
+- fcf_cagr_3y: 103
+- roic: 59
+- debt_to_ebitda: 58
+- fcf_margin: 38
+- revenue_cagr_3y: 1
+
+## Notes
+
+- Source: Yahoo Finance fundamentals-timeseries via yahoo-finance2.
+- This is a candidate bucket for manual review, not investment advice.

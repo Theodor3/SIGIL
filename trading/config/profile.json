@@ -1,0 +1,42 @@
+{
+    "generated_at":  "2026-03-06",
+    "timezone":  "America/New_York",
+    "investor_profile":  {
+                             "age":  27,
+                             "style":  "long_term_with_partial_trims",
+                             "account_size_usd":  14508.25,
+                             "target_new_ideas_per_day":  5,
+                             "valuation_preference":  {
+                                                          "pe_soft_cap":  30,
+                                                          "strict":  false
+                                                      },
+                             "risk":  {
+                                          "risk_tolerance":  "high_controlled",
+                                          "avoid_excess_beta":  true,
+                                          "max_options_risk_per_trade_usd":  150
+                                      }
+                         },
+    "allocation":  {
+                       "equities_usd":  8225.25,
+                       "crypto_usd":  2171.78,
+                       "crypto_split":  {
+                                            "BTC":  0.31,
+                                            "ETH":  0.69
+                                        },
+                       "cash_usd":  4111
+                   },
+    "trim_rules":  {
+                       "gain_20_pct":  0.1,
+                       "gain_40_pct":  0.1,
+                       "gain_75_pct":  0.15,
+                       "gain_120_pct":  0.2,
+                       "max_single_trim_pct":  0.2,
+                       "min_share_increment":  0.001
+                   },
+    "crypto_alerts":  {
+                          "daily_move_pct":  0.06,
+                          "weekly_move_pct":  0.1,
+                          "severity_daily_pct":  0.1,
+                          "severity_weekly_pct":  0.15
+                      }
+}

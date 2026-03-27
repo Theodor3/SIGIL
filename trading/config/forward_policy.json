@@ -1,0 +1,8 @@
+﻿{
+  "close_after_days": 90,
+  "reopen_cooldown_days": 21,
+  "max_open_trades": 10,
+  "stop_loss_pct": -12,
+  "take_profit_pct": 20,
+  "close_on_hit_stop_or_take": false
+}
