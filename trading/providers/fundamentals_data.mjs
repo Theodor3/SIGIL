@@ -76,15 +76,21 @@ function get3yCagrFromSeries(series) {
 }
 
 async function httpJson(url) {
+  const parsed = new URL(url);
+  const label = `${parsed.hostname}${parsed.pathname}`;
   const res = await fetch(url, {
     headers: {
       'User-Agent': 'playground-trading-console/1.0',
       Accept: 'application/json',
     },
+    signal: AbortSignal.timeout(15000),
   });
   if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`HTTP ${res.status} for ${url} ${body.slice(0, 180)}`.trim());
+    throw new Error(`HTTP ${res.status} from ${label}`);
+  }
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    throw new Error(`Non-JSON response (${res.status}) from ${label}`);
   }
   return res.json();
 }

@@ -1,6 +1,6 @@
 {
-  "last_weights_hash": "c0493d837e16094a7b64574cefb358099e33c842cbe3e2a67dec8b73f1cfd85e",
-  "last_change_date": "2026-03-16",
+  "last_weights_hash": "f9657e4c1aae91f9bd85c1ceb72218758eb686d76c3271d0e978b644df4e58f7",
+  "last_change_date": "2026-04-02",
   "changes": [
     {
       "date": "2026-03-07",
@@ -19,6 +19,15 @@
       "reason": "Detected new alpha_model weights hash",
       "prev_hash": "e6c52d948039b5c0a31b6a8d6cf3d86b5617f94d480f66e0e982e3ca1c5aa36c",
       "new_hash": "c0493d837e16094a7b64574cefb358099e33c842cbe3e2a67dec8b73f1cfd85e"
+    },
+    {
+      "date": "2026-04-02",
+      "event": "WEIGHTS_CHANGED",
+      "days_since_last_change": 17,
+      "freeze_violation": false,
+      "reason": "Detected new alpha_model weights hash",
+      "prev_hash": "c0493d837e16094a7b64574cefb358099e33c842cbe3e2a67dec8b73f1cfd85e",
+      "new_hash": "f9657e4c1aae91f9bd85c1ceb72218758eb686d76c3271d0e978b644df4e58f7"
     }
   ]
 }

@@ -22,6 +22,7 @@
     "trading:ablation:nowcast": "node trading/scripts/run_nowcast_ablation.mjs",
     "trading:factor:tournament": "node trading/scripts/run_factor_tournament.mjs",
     "trading:earnings:drift": "node trading/scripts/run_earnings_drift_lab.mjs",
+    "trading:earnings:history": "node trading/providers/build_earnings_history.mjs",
     "trading:market-context": "node trading/regime/run_daily_market_context.mjs",
     "trading:regime": "node trading/regime/run_regime_model.mjs",
     "trading:scorecard": "node trading/governance/run_model_scorecard.mjs",

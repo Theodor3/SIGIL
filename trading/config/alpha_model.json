@@ -1,21 +1,24 @@
 {
   "weights": {
-    "quality": 0.30,
-    "growth": 0.25,
-    "alt_momentum": 0.15,
+    "quality": 0.27,
+    "growth": 0.22,
+    "alt_momentum": 0.13,
     "peer_relative": 0.12,
     "value": 0.10,
-    "proxy_inferred": 0.08
+    "proxy_inferred": 0.08,
+    "pead": 0.08
   },
   "gates": {
     "min_confidence": 0.58,
     "max_debt_to_ebitda": 3.0,
     "earnings_event_window_days": 10,
-    "weak_signal_confidence": 0.64
+    "weak_signal_confidence": 0.64,
+    "pead_min_samples": 2,
+    "pead_max_days_to_earnings": 45
   },
   "freeze": {
     "weights_frozen_days": 7,
-    "last_weight_change_date": "2026-03-07"
+    "last_weight_change_date": "2026-04-01"
   },
   "promotion": {
     "min_backtest_sample_n": 40,

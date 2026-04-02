@@ -594,6 +594,7 @@
     .seg-peer { background: #f8a9c0; }
     .seg-proxy { background: #c7a9ff; }
     .seg-value { background: #9db2ff; }
+    .seg-pead { background: #ffc97a; }
 
     .stack-legend {
       display: flex;
@@ -1451,6 +1452,7 @@
         ['peer_relative_score', 'Peer', 'seg-peer'],
         ['proxy_inferred_score', 'Proxy', 'seg-proxy'],
         ['value_score', 'Value', 'seg-value'],
+        ['pead_score', 'PEAD', 'seg-pead'],
       ];
       visual.innerHTML = drilldowns.length ? `
         <div class="viz-card">
@@ -1625,6 +1627,8 @@
         '<tr><td>Debt / EBITDA</td><td>' + (row.fundamentals?.debt_to_ebitda == null ? '-' : Number(row.fundamentals.debt_to_ebitda).toFixed(2)) + '</td></tr>' +
         '<tr><td>Next earnings</td><td>' + (row.fundamentals?.next_earnings_date || '-') + '</td></tr>' +
         '<tr><td>Days to earnings</td><td>' + (row.fundamentals?.days_to_earnings == null ? '-' : row.fundamentals.days_to_earnings) + '</td></tr>' +
+        '<tr><td>PEAD score</td><td>' + (row.fundamentals?.pead_score == null ? '-' : Number(row.fundamentals.pead_score).toFixed(4)) + '</td></tr>' +
+        '<tr><td>PEAD raw signal</td><td>' + (row.fundamentals?.pead_raw == null ? '— no active setup' : Number(row.fundamentals.pead_raw).toFixed(6)) + '</td></tr>' +
         '</tbody>';
 
       forward.innerHTML =

@@ -38,3 +38,8 @@ Pipeline steps implemented:
 6. Rank top names by deviation vs consensus * confidence.
 7. Historical setup backtest summary from outcomes file.
 
+Notes:
+
+- `earnings_outcomes.csv` is keyed to approximate earnings announcement dates.
+- When Finnhub is used, its raw `period` field is treated as fiscal quarter-end and shifted forward by about 35 calendar days before post-earnings returns are measured.
+

@@ -52,6 +52,12 @@ Current design intent:
 - `Finnhub` should provide fundamentals, earnings, company news, and reference enrichment where possible
 - `Yahoo` remains as a fallback path while the migration is still in progress
 
+Current earnings-history note:
+
+- `trading/providers/build_earnings_history.mjs` normalizes both Finnhub and Yahoo earnings-history inputs onto approximate announcement dates
+- Finnhub's `period` values are fiscal quarter-end dates, so the local builder applies an approximately 35-day offset before calculating post-earnings returns
+- stale rows generated from raw quarter-end dates are filtered out during rebuild so the dashboard and nowcast do not anchor on quarter-close noise
+
 This is intentionally incremental.
 
 The goal is to replace fragile one-off vendor calls with normalized provider clients, not to rewrite the entire stack in one pass.

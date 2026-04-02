@@ -1697,6 +1697,7 @@ export async function run() {
       { factor: 'peer_relative', score: asNum(feature.peer_relative_score) },
       { factor: 'proxy_inferred', score: asNum(feature.proxy_inferred_score) },
       { factor: 'value', score: asNum(feature.value_score) },
+      { factor: 'pead', score: asNum(feature.pead_score) },
     ].sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
 
     return {
@@ -1763,6 +1764,8 @@ export async function run() {
         industry: bucket.industry || '',
         next_earnings_date: feature.next_earnings_date || '',
         days_to_earnings: asNum(feature.days_to_earnings),
+        pead_score: asNum(feature.pead_score),
+        pead_raw: asNum(feature.pead_raw),
       },
       execution: {
         entry_zone: idea.entry_zone || '',

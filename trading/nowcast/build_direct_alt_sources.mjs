@@ -189,6 +189,7 @@ async function fetchPageviews(pageTitle, startDate, endDate) {
     headers: {
       'User-Agent': 'playground-trading/1.0 (alt-source-builder)',
     },
+    signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) {
     throw new Error(`Pageviews fetch failed for ${pageTitle}: ${res.status}`);
@@ -208,6 +209,7 @@ async function fetchNewsMentions(query, startDate, endDate) {
     headers: {
       'User-Agent': 'playground-trading/1.0 (news-source-builder)',
     },
+    signal: AbortSignal.timeout(20000),
   });
   if (!res.ok) {
     throw new Error(`News mentions fetch failed for ${query}: ${res.status}`);
@@ -252,13 +254,16 @@ export async function run() {
   const fallbackNewsRows = await loadFallbackNewsRows();
   const newsProvenanceFile = path.join(altDir, 'news_mentions_provenance.csv');
 
-  for (const ticker of universe) {
+  console.log(`Fetching Wikipedia pageviews for ${universe.length} tickers...`);
+  for (let i = 0; i < universe.length; i += 1) {
+    const ticker = universe[i];
     const pageTitle = wikiMap[ticker];
     if (!pageTitle) {
       unresolved.push(ticker);
       continue;
     }
 
+    process.stdout.write(`  [${i + 1}/${universe.length}] ${ticker} (${pageTitle})... `);
     try {
       const items = await fetchPageviews(pageTitle, startDate, endDate);
       for (const item of items) {
@@ -268,7 +273,9 @@ export async function run() {
           value: item.value,
         });
       }
-    } catch {
+      process.stdout.write(`${items.length} rows\n`);
+    } catch (err) {
+      process.stdout.write(`skipped (${err.message.includes('abort') || err.name === 'TimeoutError' ? 'timeout' : err.message})\n`);
       unresolved.push(ticker);
     }
   }
@@ -283,6 +290,7 @@ export async function run() {
   } catch {}
 
   if (!reuseNews) {
+    console.log(`Fetching GDELT news mentions for ${newsUniverse.length} tickers...`);
     for (let idx = 0; idx < newsUniverse.length; idx += 1) {
       const ticker = newsUniverse[idx];
       const query = newsMap[ticker] || titleToQuery(wikiMap[ticker]);
@@ -291,6 +299,7 @@ export async function run() {
         continue;
       }
 
+      process.stdout.write(`  [${idx + 1}/${newsUniverse.length}] ${ticker}... `);
       try {
         const items = await fetchNewsMentionsWithRetry(query, startDate, endDate);
         for (const item of items) {
@@ -300,7 +309,9 @@ export async function run() {
             value: item.value,
           });
         }
-      } catch {
+        process.stdout.write(`${items.length} rows\n`);
+      } catch (err) {
+        process.stdout.write(`skipped (${err.message.includes('abort') || err.name === 'TimeoutError' ? 'timeout' : err.message})\n`);
         unresolvedNews.push(ticker);
       }
 

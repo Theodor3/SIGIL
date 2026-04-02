@@ -9,18 +9,21 @@ const tradingDir = path.join(root, 'trading');
 
 const DEFAULT_ALPHA_MODEL = {
   weights: {
-    quality: 0.30,
-    growth: 0.25,
-    alt_momentum: 0.15,
+    quality: 0.27,
+    growth: 0.22,
+    alt_momentum: 0.13,
     peer_relative: 0.12,
     value: 0.10,
     proxy_inferred: 0.08,
+    pead: 0.08,
   },
   gates: {
     min_confidence: 0.58,
     max_debt_to_ebitda: 3.0,
     earnings_event_window_days: 10,
     weak_signal_confidence: 0.64,
+    pead_min_samples: 2,
+    pead_max_days_to_earnings: 45,
   },
 };
 
@@ -147,6 +150,7 @@ function strongestDrivers(row) {
     ['peer_relative', row.peer_relative_score],
     ['value', row.value_score],
     ['proxy_inferred', row.proxy_inferred_score],
+    ['pead', row.pead_score],
   ];
 
   return parts
@@ -162,6 +166,78 @@ function daysBetweenUtc(fromDate, toDate) {
   const to = new Date(`${toDate}T00:00:00Z`);
   if (Number.isNaN(from.valueOf()) || Number.isNaN(to.valueOf())) return null;
   return Math.round((to - from) / 86400000);
+}
+
+/**
+ * Build a per-ticker PEAD (Post-Earnings Announcement Drift) stats index
+ * from the earnings_outcomes.csv rows.
+ *
+ * Returns a Map: ticker → { sampleN, avgReturn5d, hitRate }
+ * where:
+ *   avgReturn5d – mean 5-day post-earnings return across all historical events
+ *   hitRate     – fraction of events where the stock was up after 5 days
+ */
+function buildPeadIndex(outcomesRows) {
+  const grouped = new Map();
+  const today = new Date().toISOString().slice(0, 10);
+
+  for (const row of (outcomesRows || [])) {
+    const ticker = String(row.ticker || '').toUpperCase();
+    const ret = asNum(row.post_earnings_return_5d);
+    const reportDate = String(row.report_date || '');
+    // Only use genuine past data (guard against stale synthetic future rows)
+    if (!ticker || ret == null || !reportDate || reportDate > today) continue;
+    const list = grouped.get(ticker) || [];
+    list.push(ret);
+    grouped.set(ticker, list);
+  }
+
+  const index = new Map();
+  for (const [ticker, returns] of grouped) {
+    if (!returns.length) continue;
+    const avg = returns.reduce((a, b) => a + b, 0) / returns.length;
+    const hits = returns.filter((r) => r > 0).length;
+    index.set(ticker, {
+      sampleN: returns.length,
+      avgReturn5d: avg,
+      hitRate: hits / returns.length,
+    });
+  }
+  return index;
+}
+
+/**
+ * Compute the raw PEAD score for a single ticker.
+ *
+ * Logic:
+ *   - Only active when earnings are within `maxDays` calendar days
+ *   - Proximity ramps from 0 (at maxDays) to 1 (≤ 5 days out)
+ *   - Expected drift = max(avgReturn5d, 0) × hitRate  (long-only signal)
+ *   - Beat probability from nowcast, default 0.5 if unknown
+ *   - Returns null if no PEAD history or no upcoming earnings
+ */
+function computePeadRaw(ticker, peadIndex, daysToEarnings, probabilityOutperform, gates) {
+  const maxDays = Number(gates?.pead_max_days_to_earnings ?? 45);
+  const minSamples = Number(gates?.pead_min_samples ?? 2);
+
+  if (daysToEarnings == null || daysToEarnings < 0 || daysToEarnings > maxDays) return null;
+
+  const stats = peadIndex.get(ticker);
+  if (!stats || stats.sampleN < minSamples) return null;
+
+  // Proximity: ramps from 0.2 (at maxDays) up to 1.0 (≤5 days out)
+  const proximityRaw = Math.max(0, (maxDays - daysToEarnings) / (maxDays - 5));
+  const proximity = Math.min(1, Math.max(0.2, proximityRaw));
+
+  // Historical expected drift (long-only: floor at 0)
+  const expectedDrift = Math.max(0, stats.avgReturn5d) * stats.hitRate;
+  // Cap extreme historical returns to prevent outlier domination
+  const cappedDrift = Math.min(expectedDrift, 0.12);
+
+  // Beat probability from nowcast (default 0.5 = coin flip)
+  const beatProb = Math.max(0.35, Math.min(0.95, probabilityOutperform ?? 0.5));
+
+  return cappedDrift * beatProb * proximity;
 }
 
 async function loadLatestCsvRows(dir, pattern) {
@@ -206,6 +282,7 @@ export async function run() {
   try {
     await runModule('scripts/run_growth_scan.mjs');
     await runModule('trading/providers/build_event_data.mjs');
+    await runModule('trading/providers/build_earnings_history.mjs');
     await runModule('trading/nowcast/build_direct_alt_sources.mjs');
     await runModule('trading/nowcast/build_market_proxy_sources.mjs');
     await runModule('trading/nowcast/run_alt_nowcast.mjs');
@@ -249,6 +326,17 @@ export async function run() {
       earningsCalendar = [];
     }
     const earningsByTicker = new Map(earningsCalendar.map((r) => [(r.ticker || '').toUpperCase(), r.report_date || '']));
+
+    let peadIndex = new Map();
+    try {
+      const outcomesRows = parseCsv(
+        await fs.readFile(path.join(tradingDir, 'data', 'alt', 'earnings_outcomes.csv'), 'utf8'),
+      );
+      peadIndex = buildPeadIndex(outcomesRows);
+      console.log(`PEAD index loaded: ${peadIndex.size} tickers with historical earnings data`);
+    } catch {
+      console.log('PEAD index: earnings_outcomes.csv not found — run trading:earnings-history to seed it');
+    }
 
     let cryptoAlertText = '';
     try {
@@ -399,6 +487,13 @@ export async function run() {
 
       const nextEarningsDate = earningsByTicker.get(ticker) || '';
       const daysToEarnings = daysBetweenUtc(asOfDate, nextEarningsDate);
+      const peadRaw = computePeadRaw(
+        ticker,
+        peadIndex,
+        daysToEarnings,
+        now?.probabilityOutperform ?? null,
+        alphaModel.gates,
+      );
 
       return {
         as_of_date: asOfDate,
@@ -409,6 +504,7 @@ export async function run() {
         peer_raw: peerRaw,
         proxy_inferred_raw: proxyInferredRaw,
         value_raw: valueRaw,
+        pead_raw: peadRaw,
         risk_penalty: riskPenalty,
         liquidity_penalty: 0,
         confidence,
@@ -447,6 +543,7 @@ export async function run() {
     normalizeScores(baseRows, 'peer_raw');
     normalizeScores(baseRows, 'proxy_inferred_raw');
     normalizeScores(baseRows, 'value_raw');
+    normalizeScores(baseRows, 'pead_raw');
 
     const w = alphaModel.weights;
     const g = alphaModel.gates;
@@ -458,6 +555,8 @@ export async function run() {
       r.peer_relative_score = r.peer_raw_norm;
       r.proxy_inferred_score = r.proxy_inferred_raw_norm;
       r.value_score = r.value_raw_norm;
+      // PEAD: zero-out if no active PEAD signal (no earnings approaching or no history)
+      r.pead_score = r.pead_raw != null ? r.pead_raw_norm : 0;
 
       if (r.nowcast_source_mix !== 'direct' && r.nowcast_source_mix !== 'hybrid') {
         r.alt_momentum_score = 0;
@@ -473,7 +572,8 @@ export async function run() {
         (w.alt_momentum * r.alt_momentum_score) +
         (w.peer_relative * r.peer_relative_score) +
         ((w.proxy_inferred ?? 0) * r.proxy_inferred_score) +
-        (w.value * r.value_score) -
+        (w.value * r.value_score) +
+        ((w.pead ?? 0) * r.pead_score) -
         (r.risk_penalty ?? 0) -
         (r.liquidity_penalty ?? 0);
 
@@ -509,12 +609,12 @@ export async function run() {
 
     const featureHeaders = [
       'as_of_date', 'ticker', 'value_score', 'quality_score', 'growth_score',
-      'alt_momentum_score', 'peer_relative_score', 'proxy_inferred_score', 'risk_penalty', 'liquidity_penalty',
+      'alt_momentum_score', 'peer_relative_score', 'proxy_inferred_score', 'pead_score', 'risk_penalty', 'liquidity_penalty',
       'final_alpha_score', 'confidence', 'fundamental_confidence', 'value_confidence', 'alt_confidence', 'peer_confidence', 'proxy_confidence', 'structural_anomaly_penalty', 'valuation_context_strength', 'valuation_method_strength', 'strongest_drivers', 'revenue_cagr_3y',
       'fcf_cagr_3y', 'roic', 'fcf_margin', 'asset_turnover', 'debt_to_ebitda',
       'valuation_score_raw', 'nowcast_source_mix', 'nowcast_direct_source_count', 'nowcast_proxy_source_count', 'nowcast_proxy_share',
       'expected_kpi_surprise', 'probability_post_earnings_outperform', 'deviation_vs_consensus', 'expected_stock_reaction',
-      'historical_backtest', 'next_earnings_date', 'days_to_earnings', 'gate_confidence',
+      'historical_backtest', 'pead_raw', 'next_earnings_date', 'days_to_earnings', 'gate_confidence',
       'gate_leverage', 'gate_event_risk', 'eligible', 'gate_reason',
     ];
 

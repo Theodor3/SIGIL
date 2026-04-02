@@ -1,9 +1,9 @@
 {
-  "as_of_date": "2026-03-25",
+  "as_of_date": "2026-04-02",
   "freeze_days": 7,
   "freeze_violation": false,
-  "last_change_date": "2026-03-16",
-  "change_count": 2,
+  "last_change_date": "2026-04-02",
+  "change_count": 3,
   "promotion_policy": {
     "min_backtest_sample_n": 40,
     "min_forward_closed_trades": 5,
@@ -13,7 +13,7 @@
   },
   "promotion_gate": {
     "winner": "CHAMPION",
-    "sample_n": 120,
+    "sample_n": 415,
     "min_sample": 40,
     "forward_closed_trades": 0,
     "min_forward_closed_trades": 5,
@@ -27,14 +27,14 @@
   "champion": {
     "name": "Champion v1",
     "id": "alpha_v1",
-    "alpha_vs_benchmark": 0.05617358526106485,
-    "avg_trade_return": 0.07300745916666672
+    "alpha_vs_benchmark": 0.16848161892621752,
+    "avg_trade_return": 0.18885336500000016
   },
   "challenger": {
     "name": "Challenger v1",
     "id": "alpha_v1_regime_tilt",
-    "alpha_vs_benchmark": 0.05617358526106485,
-    "avg_trade_return": 0.07300745916666672
+    "alpha_vs_benchmark": 0.12285240868993573,
+    "avg_trade_return": 0.1395025766756054
   },
   "last_promotion": {}
 }

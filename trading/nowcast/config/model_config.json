@@ -1,7 +1,7 @@
 {
   "run": {
     "as_of_date": "auto",
-    "top_n": 20,
+    "top_n": 50,
     "signal_lookback_days": 21,
     "minimum_source_coverage": 2
   },

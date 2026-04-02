@@ -90,6 +90,18 @@ Current outputs:
 
 This exists so the rest of the pipeline can keep consuming local contracts instead of needing to know about remote APIs.
 
+### `build_earnings_history.mjs`
+
+Builds `trading/data/alt/earnings_outcomes.csv` for the nowcast and dashboard.
+
+Current behavior:
+
+- prefers `Finnhub /stock/earnings` when `FINNHUB_API_KEY` is available
+- treats Finnhub's `period` field as a fiscal quarter-end, not a real release timestamp
+- shifts those period dates by about 35 calendar days to approximate the earnings announcement date
+- falls back to Yahoo Finance `earningsHistory` with the same quarter-end plus offset heuristic
+- filters out stale quarter-end rows created by the older raw-period implementation before writing merged output
+
 ## Local Secrets
 
 Provider keys live in:
