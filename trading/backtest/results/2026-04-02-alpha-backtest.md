@@ -4,12 +4,12 @@
 - Hold days: 20
 - Benchmark mode: QQQ
 - Min sample for promotion: 20
-- Matched events: 415
+- Matched events: 374
 
 ## Champion
 
 - Name: Champion v1
-- Trades: 24/415 (5.78%)
+- Trades: 24/374 (6.42%)
 - Hit rate: 83.33%
 - CAGR: 294.44%
 - Sharpe: 3.404
@@ -19,28 +19,28 @@
 - Avg alpha per trade: 16.85%
 
 ### Champion Alpha Buckets
-- Q1: n=6, avg alpha=41.02%, score range=0.545..0.545
-- Q2: n=6, avg alpha=15.14%, score range=0.545..0.545
-- Q3: n=6, avg alpha=8.44%, score range=0.688..0.688
-- Q4: n=6, avg alpha=2.80%, score range=0.688..0.688
+- Q1: n=6, avg alpha=41.02%, score range=0.546..0.546
+- Q2: n=6, avg alpha=15.14%, score range=0.546..0.546
+- Q3: n=6, avg alpha=8.44%, score range=0.690..0.690
+- Q4: n=6, avg alpha=2.80%, score range=0.690..0.690
 
 ## Challenger
 
 - Name: Challenger v1
-- Trades: 16/415 (3.86%)
-- Hit rate: 87.50%
-- CAGR: 90.67%
-- Sharpe: 2.978
-- Max drawdown: -3.94%
-- Avg trade return (20d): 13.95%
-- Avg benchmark return (20d): 1.67%
-- Avg alpha per trade: 12.29%
+- Trades: 20/374 (5.35%)
+- Hit rate: 70.00%
+- CAGR: 21.83%
+- Sharpe: 1.127
+- Max drawdown: -41.67%
+- Avg trade return (20d): 3.79%
+- Avg benchmark return (20d): 1.65%
+- Avg alpha per trade: 2.14%
 
 ### Challenger Alpha Buckets
-- Q1: n=4, avg alpha=32.29%, score range=0.509..0.509
-- Q2: n=4, avg alpha=9.83%, score range=0.739..0.739
-- Q3: n=4, avg alpha=2.55%, score range=0.739..0.739
-- Q4: n=4, avg alpha=4.47%, score range=0.739..0.739
+- Q1: n=5, avg alpha=-7.91%, score range=0.501..0.507
+- Q2: n=5, avg alpha=7.98%, score range=0.507..0.740
+- Q3: n=5, avg alpha=4.09%, score range=0.740..0.740
+- Q4: n=5, avg alpha=4.40%, score range=0.740..0.740
 
 ## Decision
 

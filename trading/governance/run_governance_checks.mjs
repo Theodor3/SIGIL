@@ -259,12 +259,24 @@ export async function run() {
       alpha_vs_benchmark: asNum(backtest?.champion?.alpha_vs_benchmark),
       avg_trade_return: asNum(backtest?.champion?.avg_trade_return),
     },
+    // Best challenger (used for promotion decisions)
     challenger: {
-      name: modelVariants?.challenger?.name || 'challenger',
-      id: requestedChampionId,
+      name: backtest?.challenger?.name || 'challenger',
+      id: backtest?.challenger?.id || requestedChampionId,
       alpha_vs_benchmark: asNum(backtest?.challenger?.alpha_vs_benchmark),
       avg_trade_return: asNum(backtest?.challenger?.avg_trade_return),
     },
+    // All challengers with individual metrics
+    challengers: Object.fromEntries(
+      Object.entries(backtest?.challengers || {}).map(([id, metrics]) => [id, {
+        name: metrics?.name || id,
+        id,
+        alpha_vs_benchmark: asNum(metrics?.alpha_vs_benchmark),
+        avg_trade_return: asNum(metrics?.avg_trade_return),
+        cagr: asNum(metrics?.cagr),
+        sharpe: asNum(metrics?.sharpe),
+      }])
+    ),
     last_promotion: {
       date: state.last_promotion_date,
       from: state.last_promotion_from,
@@ -305,12 +317,14 @@ export async function run() {
     `- Last weight change date: ${state.last_change_date || 'n/a'}`,
     `- Last promotion: ${state.last_promotion_date ? `${state.last_promotion_date} (${state.last_promotion_from} -> ${state.last_promotion_to})` : 'n/a'}`,
     '',
-    '## Champion vs Challenger',
+    '## Champion vs Challengers',
     '',
-    '| Model | Avg Trade Return | Alpha vs Benchmark |',
-    '|---|---:|---:|',
-    `| ${governance.champion.id || governance.champion.name} | ${governance.champion.avg_trade_return ?? 'n/a'} | ${governance.champion.alpha_vs_benchmark ?? 'n/a'} |`,
-    `| ${governance.challenger.id || governance.challenger.name} | ${governance.challenger.avg_trade_return ?? 'n/a'} | ${governance.challenger.alpha_vs_benchmark ?? 'n/a'} |`,
+    '| Model | Role | Avg Trade Return | Alpha vs Benchmark |',
+    '|---|---|---:|---:|',
+    `| ${governance.champion.id || governance.champion.name} | champion | ${governance.champion.avg_trade_return ?? 'n/a'} | ${governance.champion.alpha_vs_benchmark ?? 'n/a'} |`,
+    ...Object.values(governance.challengers || {}).map((ch) =>
+      `| ${ch.id || ch.name} | challenger | ${ch.avg_trade_return ?? 'n/a'} | ${ch.alpha_vs_benchmark ?? 'n/a'} |`
+    ),
     '',
     '## Promotion Gate',
     '',

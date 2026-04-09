@@ -1,4 +1,4 @@
 as_of_date,model_id,model_name,role,status,cagr,sharpe,max_drawdown,alpha_vs_benchmark,sample_n,promotion_candidate,decision_reason
-2026-04-02,alpha_v1,Alpha V1,champion,ACTIVE,2.9444364047921567,3.4044123575887975,-0.07763184000000012,0.16848161892621752,415,false,Champion remains better on simulated portfolio returns
-2026-04-02,alpha_v1_regime_tilt,Alpha V1 Regime Tilt,challenger,ACTIVE,0.9067326452467603,2.9780923440143634,-0.039403990000000166,0.12285240868993573,415,false,Champion remains better on simulated portfolio returns
-2026-04-02,alpha_v1_quality_heavy,Alpha V1 Quality Heavy,challenger,ACTIVE,0.9067326452467603,2.9780923440143634,-0.039403990000000166,0.12285240868993573,415,false,Champion remains better on simulated portfolio returns
+2026-04-04,alpha_v1,Alpha V1,champion,ACTIVE,23.122176362311457,2.030415530316837,-0.852665729591493,0.08066921314351597,374,false,Alpha V1 Quality Heavy has higher simulated CAGR on matched out-of-sample events
+2026-04-04,alpha_v1_regime_tilt,Alpha V1 Regime Tilt,challenger,ACTIVE,19.07003332728718,1.9450377188722252,-0.8543864745955613,0.07495380823344114,374,false,Alpha V1 Quality Heavy has higher simulated CAGR on matched out-of-sample events
+2026-04-04,alpha_v1_quality_heavy,Alpha V1 Quality Heavy,challenger,ACTIVE,26.68544962841496,2.037416051573857,-0.852665729591493,0.0854488135696368,374,false,Alpha V1 Quality Heavy has higher simulated CAGR on matched out-of-sample events

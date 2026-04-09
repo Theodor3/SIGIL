@@ -101,6 +101,29 @@ function structuralPenalty({ sector, industry, roic, fcfMargin, assetTurnover, d
   return clamp(penalty, 0, 0.55);
 }
 
+/**
+ * Compute liquidity penalty based on average daily dollar volume (price x ADV).
+ *
+ * Tiers are read from portfolio_constraints.json → liquidity_thresholds.
+ * Tiers must be sorted descending by min_adv_dollars.
+ * Returns the penalty for the first tier whose min_adv_dollars <= advDollars,
+ * or the configured fallback_penalty when ADV data is unavailable.
+ */
+function computeLiquidityPenalty(advDollars, liquidityConfig) {
+  if (advDollars == null || !Number.isFinite(advDollars) || !liquidityConfig) {
+    return liquidityConfig?.fallback_penalty ?? 0.05;
+  }
+  const tiers = liquidityConfig.tiers || [];
+  // Walk tiers from highest threshold downward
+  for (const tier of tiers) {
+    if (advDollars >= Number(tier.min_adv_dollars)) {
+      return Number(tier.penalty);
+    }
+  }
+  // If no tier matched (shouldn't happen if tiers include 0), use fallback
+  return liquidityConfig?.fallback_penalty ?? 0.05;
+}
+
 function valuationContextStrength(context) {
   const value = String(context || '').toLowerCase();
   if (!value) return 0.35;
@@ -172,10 +195,12 @@ function daysBetweenUtc(fromDate, toDate) {
  * Build a per-ticker PEAD (Post-Earnings Announcement Drift) stats index
  * from the earnings_outcomes.csv rows.
  *
- * Returns a Map: ticker → { sampleN, avgReturn5d, hitRate }
+ * Returns a Map: ticker → { sampleN, avgReturn5d, hitRate, latestReportDate, reportDates }
  * where:
- *   avgReturn5d – mean 5-day post-earnings return across all historical events
- *   hitRate     – fraction of events where the stock was up after 5 days
+ *   avgReturn5d      – mean 5-day post-earnings return across all historical events
+ *   hitRate          – fraction of events where the stock was up after 5 days
+ *   latestReportDate – most recent historical report date (for inferring next earnings)
+ *   reportDates      – sorted list of all historical report dates
  */
 function buildPeadIndex(outcomesRows) {
   const grouped = new Map();
@@ -187,23 +212,70 @@ function buildPeadIndex(outcomesRows) {
     const reportDate = String(row.report_date || '');
     // Only use genuine past data (guard against stale synthetic future rows)
     if (!ticker || ret == null || !reportDate || reportDate > today) continue;
-    const list = grouped.get(ticker) || [];
-    list.push(ret);
-    grouped.set(ticker, list);
+    const entry = grouped.get(ticker) || { returns: [], dates: [] };
+    entry.returns.push(ret);
+    entry.dates.push(reportDate);
+    grouped.set(ticker, entry);
   }
 
   const index = new Map();
-  for (const [ticker, returns] of grouped) {
+  for (const [ticker, { returns, dates }] of grouped) {
     if (!returns.length) continue;
     const avg = returns.reduce((a, b) => a + b, 0) / returns.length;
     const hits = returns.filter((r) => r > 0).length;
+    const sortedDates = [...dates].sort();
     index.set(ticker, {
       sampleN: returns.length,
       avgReturn5d: avg,
       hitRate: hits / returns.length,
+      latestReportDate: sortedDates[sortedDates.length - 1],
+      reportDates: sortedDates,
     });
   }
   return index;
+}
+
+/**
+ * Infer the next earnings date from historical report-date patterns.
+ *
+ * Uses the median inter-report interval (typically ~91 days for quarterly reporters)
+ * and projects forward from the latest known report date.
+ * Only returns a date if:
+ *   - We have at least 2 historical dates to compute intervals
+ *   - The inferred date is in the future relative to asOfDate
+ *   - The inferred date is not unreasonably far out (within 120 days of last report)
+ */
+function inferNextEarningsDate(peadStats, asOfDate) {
+  if (!peadStats || !peadStats.reportDates || peadStats.reportDates.length < 2) return null;
+
+  const dates = peadStats.reportDates;
+  // Compute intervals between consecutive report dates
+  const intervals = [];
+  for (let i = 1; i < dates.length; i++) {
+    const gap = daysBetweenUtc(dates[i - 1], dates[i]);
+    if (gap != null && gap > 30 && gap < 200) intervals.push(gap); // filter outliers
+  }
+  if (!intervals.length) return null;
+
+  // Use median interval (robust to outliers)
+  intervals.sort((a, b) => a - b);
+  const medianInterval = intervals[Math.floor(intervals.length / 2)];
+
+  // Project from the latest report date
+  const latest = new Date(`${peadStats.latestReportDate}T00:00:00Z`);
+  const projected = new Date(latest.getTime() + medianInterval * 86400000);
+  const projectedStr = projected.toISOString().slice(0, 10);
+
+  // Only use if the inferred date is in the future and within a reasonable window
+  if (projectedStr <= asOfDate) {
+    // If the projected date already passed, try one more interval ahead
+    const nextProjected = new Date(projected.getTime() + medianInterval * 86400000);
+    const nextStr = nextProjected.toISOString().slice(0, 10);
+    if (nextStr > asOfDate) return nextStr;
+    return null;
+  }
+
+  return projectedStr;
 }
 
 /**
@@ -280,15 +352,23 @@ export async function run() {
   process.env.TRADING_EMBEDDED = '1';
 
   try {
+    // ── Phase 1: Universe scan (must run first — produces growth bucket) ──
     await runModule('scripts/run_growth_scan.mjs');
-    await runModule('trading/providers/build_event_data.mjs');
-    await runModule('trading/providers/build_earnings_history.mjs');
-    await runModule('trading/nowcast/build_direct_alt_sources.mjs');
-    await runModule('trading/nowcast/build_market_proxy_sources.mjs');
+
+    // ── Phase 2: Data fetch + context modules (all independent after scan) ──
+    console.log('\n── Parallel data-fetch + context phase ──');
+    await Promise.all([
+      runModule('trading/providers/build_event_data.mjs'),
+      runModule('trading/providers/build_earnings_history.mjs'),
+      runModule('trading/nowcast/build_direct_alt_sources.mjs'),
+      runModule('trading/nowcast/build_market_proxy_sources.mjs'),
+      runModule('trading/scripts/run_risk_board.mjs'),
+      runModule('trading/scripts/run_crypto_alerts.mjs'),
+      runModule('trading/regime/run_daily_market_context.mjs'),
+    ]);
+
+    // ── Phase 3: Nowcast (depends on alt sources + proxy sources) ──
     await runModule('trading/nowcast/run_alt_nowcast.mjs');
-    await runModule('trading/scripts/run_risk_board.mjs');
-    await runModule('trading/scripts/run_crypto_alerts.mjs');
-    await runModule('trading/regime/run_daily_market_context.mjs');
 
     const profile = await readJson(path.join(tradingDir, 'config', 'profile.json'));
     const alphaModel = await loadAlphaModelConfig();
@@ -336,6 +416,36 @@ export async function run() {
       console.log(`PEAD index loaded: ${peadIndex.size} tickers with historical earnings data`);
     } catch {
       console.log('PEAD index: earnings_outcomes.csv not found — run trading:earnings-history to seed it');
+    }
+
+    // Supplement the earnings calendar with inferred dates from historical patterns.
+    // Many providers (Finnhub free tier) don't populate Q1 earnings dates until 2-4 weeks
+    // before the announcement, leaving a gap where PEAD goes dark for the entire universe.
+    // This fallback uses the median historical inter-report interval to project forward.
+    const maxDaysGate = Number(alphaModel.gates.pead_max_days_to_earnings ?? 45);
+    let inferredCount = 0;
+    for (const [ticker, stats] of peadIndex) {
+      const calDate = earningsByTicker.get(ticker) || '';
+      const calDays = calDate ? daysBetweenUtc(asOfDate, calDate) : null;
+
+      // Use calendar date if it's within the PEAD gate window
+      if (calDays != null && calDays >= 0 && calDays <= maxDaysGate) continue;
+
+      // Otherwise, try to infer from historical pattern
+      const inferred = inferNextEarningsDate(stats, asOfDate);
+      if (inferred) {
+        const inferredDays = daysBetweenUtc(asOfDate, inferred);
+        // Only use if it falls within the PEAD gate and is closer than the calendar date
+        if (inferredDays != null && inferredDays >= 0 && inferredDays <= maxDaysGate) {
+          if (!calDate || calDays == null || calDays < 0 || inferredDays < calDays) {
+            earningsByTicker.set(ticker, inferred);
+            inferredCount++;
+          }
+        }
+      }
+    }
+    if (inferredCount > 0) {
+      console.log(`PEAD: inferred ${inferredCount} next-earnings dates from historical patterns (calendar gap fill)`);
     }
 
     let cryptoAlertText = '';
@@ -506,7 +616,8 @@ export async function run() {
         value_raw: valueRaw,
         pead_raw: peadRaw,
         risk_penalty: riskPenalty,
-        liquidity_penalty: 0,
+        liquidity_penalty: null,
+        avg_daily_dollar_volume: null,
         confidence,
         fundamental_confidence: fundamentalConfidence,
         value_confidence: valueConfidence,
@@ -536,6 +647,73 @@ export async function run() {
         days_to_earnings: daysToEarnings,
       };
     });
+
+    // ── Liquidity penalty: compute from pipeline's own volume+price proxy CSVs ──
+    let liquidityConfig = null;
+    try {
+      const constraints = await readJson(path.join(tradingDir, 'config', 'portfolio_constraints.json'));
+      liquidityConfig = constraints?.liquidity_thresholds ?? null;
+    } catch {
+      console.log('Liquidity: portfolio_constraints.json not found — using fallback penalty');
+    }
+
+    // Build ADV map from market_volume_proxy.csv + market_price_proxy.csv (already generated this run)
+    const advMap = new Map(); // ticker → avg daily dollar volume
+    try {
+      const volRows = parseCsv(await fs.readFile(path.join(tradingDir, 'data', 'alt', 'market_volume_proxy.csv'), 'utf8'));
+      const priceRows = parseCsv(await fs.readFile(path.join(tradingDir, 'data', 'alt', 'market_price_proxy.csv'), 'utf8'));
+
+      // Group by ticker, compute average volume and latest price
+      const volByTicker = new Map();
+      for (const row of volRows) {
+        const t = String(row.ticker || '').toUpperCase();
+        const v = asNum(row.value);
+        if (!t || v == null) continue;
+        const arr = volByTicker.get(t) || [];
+        arr.push(v);
+        volByTicker.set(t, arr);
+      }
+      const priceByTicker = new Map();
+      for (const row of priceRows) {
+        const t = String(row.ticker || '').toUpperCase();
+        const p = asNum(row.value);
+        if (!t || p == null) continue;
+        priceByTicker.set(t, p); // last row wins (most recent date)
+      }
+
+      for (const [ticker, volumes] of volByTicker) {
+        const avgVol = volumes.reduce((a, b) => a + b, 0) / volumes.length;
+        const price = priceByTicker.get(ticker);
+        if (price != null && avgVol > 0) {
+          advMap.set(ticker, price * avgVol);
+        }
+      }
+      console.log(`Liquidity: computed ADV$ from proxy data for ${advMap.size} tickers`);
+    } catch (err) {
+      console.log(`Liquidity: proxy CSV read failed (${err instanceof Error ? err.message : String(err)}) — applying fallback penalties`);
+    }
+
+    let liqPenalizedCount = 0;
+    const liqSummary = [];
+    for (const r of baseRows) {
+      const advDollars = advMap.get(r.ticker) ?? null;
+      r.avg_daily_dollar_volume = advDollars;
+      r.liquidity_penalty = computeLiquidityPenalty(advDollars, liquidityConfig);
+      if (r.liquidity_penalty > 0) {
+        liqPenalizedCount++;
+        liqSummary.push({ ticker: r.ticker, advDollars, penalty: r.liquidity_penalty });
+      }
+    }
+
+    console.log(`Liquidity penalties applied: ${liqPenalizedCount}/${baseRows.length} tickers penalized`);
+    if (liqSummary.length > 0) {
+      const top = liqSummary
+        .sort((a, b) => b.penalty - a.penalty)
+        .slice(0, 10)
+        .map((s) => `  ${s.ticker}: penalty=${s.penalty.toFixed(2)}, ADV$=${s.advDollars != null ? `$${(s.advDollars / 1e6).toFixed(1)}M` : 'n/a'}`)
+        .join('\n');
+      console.log(`Liquidity penalty breakdown (top ${Math.min(10, liqSummary.length)}):\n${top}`);
+    }
 
     normalizeScores(baseRows, 'quality_raw');
     normalizeScores(baseRows, 'growth_raw');
@@ -609,7 +787,7 @@ export async function run() {
 
     const featureHeaders = [
       'as_of_date', 'ticker', 'value_score', 'quality_score', 'growth_score',
-      'alt_momentum_score', 'peer_relative_score', 'proxy_inferred_score', 'pead_score', 'risk_penalty', 'liquidity_penalty',
+      'alt_momentum_score', 'peer_relative_score', 'proxy_inferred_score', 'pead_score', 'risk_penalty', 'liquidity_penalty', 'avg_daily_dollar_volume',
       'final_alpha_score', 'confidence', 'fundamental_confidence', 'value_confidence', 'alt_confidence', 'peer_confidence', 'proxy_confidence', 'structural_anomaly_penalty', 'valuation_context_strength', 'valuation_method_strength', 'strongest_drivers', 'revenue_cagr_3y',
       'fcf_cagr_3y', 'roic', 'fcf_margin', 'asset_turnover', 'debt_to_ebitda',
       'valuation_score_raw', 'nowcast_source_mix', 'nowcast_direct_source_count', 'nowcast_proxy_source_count', 'nowcast_proxy_share',
@@ -623,16 +801,27 @@ export async function run() {
     await fs.writeFile(featuresPath, toCsv(baseRows, featureHeaders), 'utf8');
     await fs.writeFile(ranksPath, toCsv(ranks, rankHeaders), 'utf8');
 
+    // ── Phase 5: Regime → signal quality → portfolio (serial chain) ──
     await runModule('trading/regime/run_regime_model.mjs');
     await runModule('trading/quality/run_signal_quality.mjs');
     await runModule('trading/portfolio/run_portfolio_constructor.mjs');
 
-    await runModule('trading/scripts/run_daily_top5.mjs');
-    await runModule('trading/execution/run_execution_playbook.mjs');
-    await runModule('trading/execution/run_execution_simulator.mjs');
-    await runModule('trading/forward/run_forward_monitor.mjs');
-    await runModule('trading/backtest/run_benchmark_returns.mjs');
-    await runModule('trading/backtest/run_alpha_backtest.mjs');
+    // ── Phase 6a: Top-5 ideas, execution playbook, benchmark returns (independent) ──
+    console.log('\n── Parallel post-portfolio phase ──');
+    await Promise.all([
+      runModule('trading/scripts/run_daily_top5.mjs'),
+      runModule('trading/execution/run_execution_playbook.mjs'),
+      runModule('trading/backtest/run_benchmark_returns.mjs'),
+    ]);
+
+    // ── Phase 6b: Execution sim, forward monitor, backtest (depend on 6a outputs) ──
+    await Promise.all([
+      runModule('trading/execution/run_execution_simulator.mjs'),
+      runModule('trading/forward/run_forward_monitor.mjs'),
+      runModule('trading/backtest/run_alpha_backtest.mjs'),
+    ]);
+
+    // ── Phase 7: Governance chain + dashboard (serial) ──
     await runModule('trading/governance/run_governance_checks.mjs');
     await runModule('trading/governance/run_model_scorecard.mjs');
     await runModule('trading/dashboard/generate_dashboard_data.mjs');

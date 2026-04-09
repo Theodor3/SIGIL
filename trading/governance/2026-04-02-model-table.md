@@ -9,13 +9,13 @@
 
 | Model | Avg Trade Return | Alpha vs Benchmark |
 |---|---:|---:|
-| alpha_v1 | 0.18885336500000016 | 0.16848161892621752 |
-| alpha_v1_regime_tilt | 0.1395025766756054 | 0.12285240868993573 |
+| alpha_v1 | 0.18885336500000016 | 0.16848160915750288 |
+| alpha_v1_regime_tilt | 0.03794971576541945 | 0.021409724935895 |
 
 ## Promotion Gate
 
 - Winner: CHAMPION
-- Backtest sample: 415 / 40
+- Backtest sample: 374 / 40
 - Forward closed trades: 0 / 5
 - Forward alpha vs expected: n/a / 0
 - Promote challenger (gate): NO

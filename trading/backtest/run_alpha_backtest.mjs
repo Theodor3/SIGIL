@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { asNum, n, parseCsv, pct, readJson, toCsv, todayDate } from '../scripts/lib.mjs';
@@ -91,7 +91,7 @@ function yearsCovered(rows, holdDays) {
 }
 
 function computePortfolioMetrics(name, rows, threshold, holdDays, benchmarkMode) {
-  const selected = rows.filter((r) => r.score >= threshold);
+  const selected = rows.filter((r) => r.selected != null ? r.selected : r.score >= threshold);
   const sampleN = rows.length;
   const tradesN = selected.length;
 
@@ -166,25 +166,39 @@ function computePortfolioMetrics(name, rows, threshold, holdDays, benchmarkMode)
   };
 }
 
-function pickWinner(champion, challenger, minSample) {
-  if (champion.sample_n < minSample || challenger.sample_n < minSample) {
+function pickWinner(championMetrics, challengerMetricsList, minSample) {
+  let bestChallenger = null;
+  let bestChallengerCagr = -Infinity;
+
+  for (const ch of challengerMetricsList) {
+    if (ch.sample_n < minSample) continue;
+    const cagr = ch.cagr ?? -Infinity;
+    if (cagr > bestChallengerCagr) {
+      bestChallengerCagr = cagr;
+      bestChallenger = ch;
+    }
+  }
+
+  if (!bestChallenger || championMetrics.sample_n < minSample) {
     return {
       winner: 'INSUFFICIENT_SAMPLE',
       reason: `Need >= ${minSample} matched events for robust promotion`,
     };
   }
 
-  if ((challenger.cagr ?? -Infinity) > (champion.cagr ?? -Infinity)) {
+  if (bestChallengerCagr > (championMetrics.cagr ?? -Infinity)) {
     return {
       winner: 'CHALLENGER',
-      reason: 'Higher simulated CAGR on matched out-of-sample events',
+      challenger_id: bestChallenger._id,
+      reason: `${bestChallenger.name} has higher simulated CAGR on matched out-of-sample events`,
     };
   }
 
-  if ((challenger.avg_trade_return ?? -Infinity) > (champion.avg_trade_return ?? -Infinity)) {
+  if ((bestChallenger.avg_trade_return ?? -Infinity) > (championMetrics.avg_trade_return ?? -Infinity)) {
     return {
       winner: 'CHALLENGER',
-      reason: 'Tie on CAGR, higher average trade return',
+      challenger_id: bestChallenger._id,
+      reason: `${bestChallenger.name} has higher average trade return`,
     };
   }
 
@@ -229,6 +243,12 @@ export async function run() {
 
   const benchmarkMap = buildBenchmarkMap(benchmarkRows, holdDays);
 
+  // Normalize challengers — support both old single-challenger and new array format
+  const challengers = Array.isArray(cfg.challengers)
+    ? cfg.challengers
+    : cfg.challenger ? [cfg.challenger] : [];
+
+  // Score each event for champion + all challengers
   const baseEvents = outcomes
     .map((o) => {
       const ticker = (o.ticker || '').toUpperCase();
@@ -243,15 +263,20 @@ export async function run() {
       const benchPreferred = benchmarkPref === 'SPY' ? bench?.spy : bench?.qqq;
       const benchmarkReturn = benchPreferred ?? null;
 
-      return {
+      const row = {
         ticker,
         report_date: o.report_date || '',
         realized_return_5d: r5,
         trade_return: tradeReturn,
         benchmark_return: benchmarkReturn,
         champion_score: modelScore(feat, cfg.champion.weights),
-        challenger_score: modelScore(feat, cfg.challenger.weights),
       };
+
+      for (const ch of challengers) {
+        row[`score_${ch.id}`] = modelScore(feat, ch.weights);
+      }
+
+      return row;
     })
     .filter(Boolean);
 
@@ -266,21 +291,56 @@ export async function run() {
     benchmark_return: r.benchmark_return ?? crossSectionBench,
   }));
 
-  const championEvents = eventRows.map((r) => ({
-    ...r,
-    score: r.champion_score,
-    selected: r.champion_score >= threshold,
-  }));
+  // Group events by report_date period for rank-based selection.
+  // Each model selects its top-N per period by score, so weight differences
+  // actually change which trades get picked (unlike a flat threshold that
+  // can select identical trades when scores cluster above the cutoff).
+  const topNPerPeriod = Number(cfg?.selection?.top_n_per_period ?? 5);
 
-  const challengerEvents = eventRows.map((r) => ({
-    ...r,
-    score: r.challenger_score,
-    selected: r.challenger_score >= threshold,
-  }));
+  function selectByRank(events, scoreKey) {
+    // Group by report_date (quarterly period)
+    const byPeriod = new Map();
+    for (const r of events) {
+      const period = (r.report_date || '').slice(0, 7); // YYYY-MM
+      const arr = byPeriod.get(period) || [];
+      arr.push(r);
+      byPeriod.set(period, arr);
+    }
+    // Within each period, rank by score and select top N
+    const selected = new Set();
+    for (const [, group] of byPeriod) {
+      const sorted = [...group].sort((a, b) => (b[scoreKey] ?? 0) - (a[scoreKey] ?? 0));
+      for (let i = 0; i < Math.min(topNPerPeriod, sorted.length); i++) {
+        selected.add(sorted[i]);
+      }
+    }
+    return events.map((r) => ({
+      ...r,
+      score: r[scoreKey] ?? 0,
+      selected: selected.has(r),
+    }));
+  }
 
-  const championMetrics = computePortfolioMetrics(cfg.champion.name, championEvents, threshold, holdDays, benchmarkMode);
-  const challengerMetrics = computePortfolioMetrics(cfg.challenger.name, challengerEvents, threshold, holdDays, benchmarkMode);
-  const decision = pickWinner(championMetrics, challengerMetrics, minSample);
+  // Champion metrics
+  const championEvents = selectByRank(eventRows, 'champion_score');
+  const championMetrics = computePortfolioMetrics(cfg.champion.name, championEvents, -Infinity, holdDays, benchmarkMode);
+
+  // Per-challenger metrics
+  const challengerResults = {};
+  const challengerMetricsList = [];
+  for (const ch of challengers) {
+    const chEvents = selectByRank(eventRows, `score_${ch.id}`);
+    const metrics = computePortfolioMetrics(ch.name, chEvents, -Infinity, holdDays, benchmarkMode);
+    metrics._id = ch.id;
+    challengerResults[ch.id] = metrics;
+    challengerMetricsList.push(metrics);
+  }
+
+  const decision = pickWinner(championMetrics, challengerMetricsList, minSample);
+
+  // Build output — backward-compatible: keep top-level `champion` and `challenger` (best challenger)
+  const bestChallengerId = decision.challenger_id || challengers[0]?.id;
+  const bestChallengerMetrics = challengerResults[bestChallengerId] || challengerMetricsList[0] || null;
 
   const asOf = todayDate(profile?.timezone || 'America/New_York');
   const summary = {
@@ -289,8 +349,9 @@ export async function run() {
     hold_days: holdDays,
     benchmark_mode: benchmarkMode,
     min_sample_for_winner: minSample,
-    champion: championMetrics,
-    challenger: challengerMetrics,
+    champion: { ...championMetrics, id: cfg.champion.id },
+    challenger: bestChallengerMetrics ? { ...bestChallengerMetrics, id: bestChallengerId } : null,
+    challengers: challengerResults,
     decision,
   };
 
@@ -303,19 +364,8 @@ export async function run() {
 
   await fs.writeFile(jsonOut, JSON.stringify(summary, null, 2), 'utf8');
 
-  const detailRows = eventRows.map((r) => ({
-    ticker: r.ticker,
-    report_date: r.report_date,
-    realized_return_5d: n(r.realized_return_5d, 4),
-    simulated_return_hold: n(r.trade_return, 4),
-    benchmark_return_hold: n(r.benchmark_return, 4),
-    champion_score: n(r.champion_score, 4),
-    champion_selected: r.champion_score >= threshold,
-    challenger_score: n(r.challenger_score, 4),
-    challenger_selected: r.challenger_score >= threshold,
-  }));
-
-  await fs.writeFile(csvOut, toCsv(detailRows, [
+  // CSV: champion_score + one column per challenger
+  const csvHeaders = [
     'ticker',
     'report_date',
     'realized_return_5d',
@@ -323,14 +373,51 @@ export async function run() {
     'benchmark_return_hold',
     'champion_score',
     'champion_selected',
-    'challenger_score',
-    'challenger_selected',
-  ]), 'utf8');
+    ...challengers.flatMap((ch) => [`${ch.id}_score`, `${ch.id}_selected`]),
+  ];
 
+  const detailRows = eventRows.map((r) => {
+    const row = {
+      ticker: r.ticker,
+      report_date: r.report_date,
+      realized_return_5d: n(r.realized_return_5d, 4),
+      simulated_return_hold: n(r.trade_return, 4),
+      benchmark_return_hold: n(r.benchmark_return, 4),
+      champion_score: n(r.champion_score, 4),
+      champion_selected: r.champion_score >= threshold,
+    };
+    for (const ch of challengers) {
+      row[`${ch.id}_score`] = n(r[`score_${ch.id}`], 4);
+      row[`${ch.id}_selected`] = r[`score_${ch.id}`] >= threshold;
+    }
+    return row;
+  });
+
+  await fs.writeFile(csvOut, toCsv(detailRows, csvHeaders), 'utf8');
+
+  // Markdown report
   const fmtBuckets = (buckets) => {
     if (!buckets?.length) return ['- n/a'];
     return buckets.map((b) => `- ${b.bucket}: n=${b.sample_n}, avg alpha=${pct(b.avg_alpha) || 'n/a'}, score range=${n(b.min_score, 3)}..${n(b.max_score, 3)}`);
   };
+
+  const fmtMetrics = (label, m) => [
+    `## ${label}`,
+    '',
+    `- Name: ${m.name}`,
+    `- Trades: ${m.trades_n}/${m.sample_n} (${pct(m.participation_rate) || 'n/a'})`,
+    `- Hit rate: ${pct(m.hit_rate) || 'n/a'}`,
+    `- CAGR: ${pct(m.cagr) || 'n/a'}`,
+    `- Sharpe: ${n(m.sharpe, 3) || 'n/a'}`,
+    `- Max drawdown: ${pct(m.max_drawdown) || 'n/a'}`,
+    `- Avg trade return (${holdDays}d): ${pct(m.avg_trade_return) || 'n/a'}`,
+    `- Avg benchmark return (${holdDays}d): ${pct(m.avg_benchmark_return) || 'n/a'}`,
+    `- Avg alpha per trade: ${pct(m.avg_alpha_per_trade) || 'n/a'}`,
+    '',
+    `### ${label} Alpha Buckets`,
+    ...fmtBuckets(m.alpha_buckets),
+    '',
+  ];
 
   const md = [
     `# Alpha Backtest - ${asOf}`,
@@ -340,37 +427,10 @@ export async function run() {
     `- Benchmark mode: ${benchmarkMode}`,
     `- Min sample for promotion: ${minSample}`,
     `- Matched events: ${eventRows.length}`,
+    `- Models tested: 1 champion + ${challengers.length} challengers`,
     '',
-    '## Champion',
-    '',
-    `- Name: ${championMetrics.name}`,
-    `- Trades: ${championMetrics.trades_n}/${championMetrics.sample_n} (${pct(championMetrics.participation_rate) || 'n/a'})`,
-    `- Hit rate: ${pct(championMetrics.hit_rate) || 'n/a'}`,
-    `- CAGR: ${pct(championMetrics.cagr) || 'n/a'}`,
-    `- Sharpe: ${n(championMetrics.sharpe, 3) || 'n/a'}`,
-    `- Max drawdown: ${pct(championMetrics.max_drawdown) || 'n/a'}`,
-    `- Avg trade return (${holdDays}d): ${pct(championMetrics.avg_trade_return) || 'n/a'}`,
-    `- Avg benchmark return (${holdDays}d): ${pct(championMetrics.avg_benchmark_return) || 'n/a'}`,
-    `- Avg alpha per trade: ${pct(championMetrics.avg_alpha_per_trade) || 'n/a'}`,
-    '',
-    '### Champion Alpha Buckets',
-    ...fmtBuckets(championMetrics.alpha_buckets),
-    '',
-    '## Challenger',
-    '',
-    `- Name: ${challengerMetrics.name}`,
-    `- Trades: ${challengerMetrics.trades_n}/${challengerMetrics.sample_n} (${pct(challengerMetrics.participation_rate) || 'n/a'})`,
-    `- Hit rate: ${pct(challengerMetrics.hit_rate) || 'n/a'}`,
-    `- CAGR: ${pct(challengerMetrics.cagr) || 'n/a'}`,
-    `- Sharpe: ${n(challengerMetrics.sharpe, 3) || 'n/a'}`,
-    `- Max drawdown: ${pct(challengerMetrics.max_drawdown) || 'n/a'}`,
-    `- Avg trade return (${holdDays}d): ${pct(challengerMetrics.avg_trade_return) || 'n/a'}`,
-    `- Avg benchmark return (${holdDays}d): ${pct(challengerMetrics.avg_benchmark_return) || 'n/a'}`,
-    `- Avg alpha per trade: ${pct(challengerMetrics.avg_alpha_per_trade) || 'n/a'}`,
-    '',
-    '### Challenger Alpha Buckets',
-    ...fmtBuckets(challengerMetrics.alpha_buckets),
-    '',
+    ...fmtMetrics('Champion', championMetrics),
+    ...challengers.flatMap((ch) => fmtMetrics(`Challenger: ${ch.name}`, challengerResults[ch.id])),
     '## Decision',
     '',
     `- Winner: ${decision.winner}`,

@@ -1,113 +1,223 @@
 {
-  "as_of_date": "2026-04-02",
+  "as_of_date": "2026-04-04",
   "threshold": 0.5,
   "hold_days": 20,
   "benchmark_mode": "QQQ",
   "min_sample_for_winner": 20,
   "champion": {
-    "name": "Champion v1",
+    "name": "Alpha V1",
     "hold_days": 20,
     "benchmark_mode": "QQQ",
-    "sample_n": 415,
-    "trades_n": 24,
-    "participation_rate": 0.05783132530120482,
-    "hit_rate": 0.8333333333333334,
-    "avg_trade_return": 0.18885336500000016,
-    "avg_benchmark_return": 0.020371746073782643,
-    "alpha_vs_benchmark": 0.16848161892621752,
-    "avg_alpha_per_trade": 0.16848161892621752,
-    "cumulative_return": 45.692529190262206,
-    "benchmark_cumulative_return": 0.567182055982359,
-    "cagr": 2.9444364047921567,
-    "benchmark_cagr": 0.17399185100193582,
-    "sharpe": 3.4044123575887975,
-    "info_ratio": 3.0310333817971062,
-    "max_drawdown": -0.07763184000000012,
-    "benchmark_max_drawdown": -0.19171740902351875,
+    "sample_n": 374,
+    "trades_n": 126,
+    "participation_rate": 0.33689839572192515,
+    "hit_rate": 0.7619047619047619,
+    "avg_trade_return": 0.10064496584965554,
+    "avg_benchmark_return": 0.01997575270613957,
+    "alpha_vs_benchmark": 0.08066921314351597,
+    "avg_alpha_per_trade": 0.08066921314351602,
+    "cumulative_return": 25441.833882033487,
+    "benchmark_cumulative_return": 9.479354881380617,
+    "cagr": 23.122176362311457,
+    "benchmark_cagr": 1.090111286015591,
+    "sharpe": 2.030415530316837,
+    "info_ratio": 1.5803658907587639,
+    "max_drawdown": -0.852665729591493,
+    "benchmark_max_drawdown": -0.34310163340718236,
     "alpha_buckets": [
       {
         "bucket": "Q1",
-        "sample_n": 6,
-        "avg_alpha": 0.41016806135206774,
-        "min_score": 0.5451912285906936,
-        "max_score": 0.5451912285906936
+        "sample_n": 32,
+        "avg_alpha": 0.012771850953467511,
+        "min_score": -0.005059908331638524,
+        "max_score": 0.2209488309501792
       },
       {
         "bucket": "Q2",
-        "sample_n": 6,
-        "avg_alpha": 0.15141119971533648,
-        "min_score": 0.5451912285906936,
-        "max_score": 0.5451912285906936
+        "sample_n": 32,
+        "avg_alpha": 0.0401783729853779,
+        "min_score": 0.2209488309501792,
+        "max_score": 0.3047186424760448
       },
       {
         "bucket": "Q3",
-        "sample_n": 6,
-        "avg_alpha": 0.084362753429973,
-        "min_score": 0.687826959984903,
-        "max_score": 0.687826959984903
+        "sample_n": 32,
+        "avg_alpha": 0.114708298546528,
+        "min_score": 0.3047186424760448,
+        "max_score": 0.4177291957943992
       },
       {
         "bucket": "Q4",
-        "sample_n": 6,
-        "avg_alpha": 0.027984461207492928,
-        "min_score": 0.687826959984903,
-        "max_score": 0.687826959984903
+        "sample_n": 30,
+        "avg_alpha": 0.1599749378850356,
+        "min_score": 0.4177291957943992,
+        "max_score": 0.5907187607229433
       }
-    ]
+    ],
+    "id": "alpha_v1"
   },
   "challenger": {
-    "name": "Challenger v1",
+    "name": "Alpha V1 Quality Heavy",
     "hold_days": 20,
     "benchmark_mode": "QQQ",
-    "sample_n": 415,
-    "trades_n": 16,
-    "participation_rate": 0.03855421686746988,
-    "hit_rate": 0.875,
-    "avg_trade_return": 0.1395025766756054,
-    "avg_benchmark_return": 0.016650167985669664,
-    "alpha_vs_benchmark": 0.12285240868993573,
-    "avg_alpha_per_trade": 0.12285240868993574,
-    "cumulative_return": 5.972097142073604,
-    "benchmark_cumulative_return": 0.26690849779063,
-    "cagr": 0.9067326452467603,
-    "benchmark_cagr": 0.08180039534356687,
-    "sharpe": 2.9780923440143634,
-    "info_ratio": 2.5870844022129953,
-    "max_drawdown": -0.039403990000000166,
-    "benchmark_max_drawdown": -0.12379677689400315,
+    "sample_n": 374,
+    "trades_n": 126,
+    "participation_rate": 0.33689839572192515,
+    "hit_rate": 0.7619047619047619,
+    "avg_trade_return": 0.10542456627577636,
+    "avg_benchmark_return": 0.01997575270613957,
+    "alpha_vs_benchmark": 0.0854488135696368,
+    "avg_alpha_per_trade": 0.08544881356963686,
+    "cumulative_return": 39467.5748841701,
+    "benchmark_cumulative_return": 9.479354881380617,
+    "cagr": 26.68544962841496,
+    "benchmark_cagr": 1.090111286015591,
+    "sharpe": 2.037416051573857,
+    "info_ratio": 1.6038501186971195,
+    "max_drawdown": -0.852665729591493,
+    "benchmark_max_drawdown": -0.34310163340718236,
     "alpha_buckets": [
       {
         "bucket": "Q1",
-        "sample_n": 4,
-        "avg_alpha": 0.3228888128035441,
-        "min_score": 0.5094758494712734,
-        "max_score": 0.5094758494712734
+        "sample_n": 32,
+        "avg_alpha": 0.012771850953467511,
+        "min_score": -0.012366038207679564,
+        "max_score": 0.24448413799126675
       },
       {
         "bucket": "Q2",
-        "sample_n": 4,
-        "avg_alpha": 0.09830277022071368,
-        "min_score": 0.7385709071294236,
-        "max_score": 0.7385709071294236
+        "sample_n": 32,
+        "avg_alpha": 0.05355343028089805,
+        "min_score": 0.24448413799126675,
+        "max_score": 0.32489599167272376
       },
       {
         "bucket": "Q3",
-        "sample_n": 4,
-        "avg_alpha": 0.025490537749628173,
-        "min_score": 0.7385709071294236,
-        "max_score": 0.7385709071294236
+        "sample_n": 32,
+        "avg_alpha": 0.11155701176168689,
+        "min_score": 0.32489599167272376,
+        "max_score": 0.44507036008074297
       },
       {
         "bucket": "Q4",
-        "sample_n": 4,
-        "avg_alpha": 0.04472751398585703,
-        "min_score": 0.7385709071294236,
-        "max_score": 0.7385709071294236
+        "sample_n": 30,
+        "avg_alpha": 0.16914390446335212,
+        "min_score": 0.44507036008074297,
+        "max_score": 0.541305933537348
       }
-    ]
+    ],
+    "_id": "alpha_v1_quality_heavy",
+    "id": "alpha_v1_quality_heavy"
+  },
+  "challengers": {
+    "alpha_v1_regime_tilt": {
+      "name": "Alpha V1 Regime Tilt",
+      "hold_days": 20,
+      "benchmark_mode": "QQQ",
+      "sample_n": 374,
+      "trades_n": 126,
+      "participation_rate": 0.33689839572192515,
+      "hit_rate": 0.7619047619047619,
+      "avg_trade_return": 0.09523879323096619,
+      "avg_benchmark_return": 0.020284984997525058,
+      "alpha_vs_benchmark": 0.07495380823344114,
+      "avg_alpha_per_trade": 0.07495380823344126,
+      "cumulative_return": 14158.118763801458,
+      "benchmark_cumulative_return": 9.917619184077784,
+      "cagr": 19.07003332728718,
+      "benchmark_cagr": 1.117155589849375,
+      "sharpe": 1.9450377188722252,
+      "info_ratio": 1.4937553601603664,
+      "max_drawdown": -0.8543864745955613,
+      "benchmark_max_drawdown": -0.31767309991832227,
+      "alpha_buckets": [
+        {
+          "bucket": "Q1",
+          "sample_n": 32,
+          "avg_alpha": 0.012771850953467511,
+          "min_score": -0.02849431115911287,
+          "max_score": 0.16032245174235238
+        },
+        {
+          "bucket": "Q2",
+          "sample_n": 32,
+          "avg_alpha": 0.09262835083930486,
+          "min_score": 0.16032245174235238,
+          "max_score": 0.33737275071903483
+        },
+        {
+          "bucket": "Q3",
+          "sample_n": 32,
+          "avg_alpha": 0.12189171215045215,
+          "min_score": 0.33737275071903483,
+          "max_score": 0.4094947002684224
+        },
+        {
+          "bucket": "Q4",
+          "sample_n": 30,
+          "avg_alpha": 0.07236128637434693,
+          "min_score": 0.4094947002684224,
+          "max_score": 0.6578890703525684
+        }
+      ],
+      "_id": "alpha_v1_regime_tilt"
+    },
+    "alpha_v1_quality_heavy": {
+      "name": "Alpha V1 Quality Heavy",
+      "hold_days": 20,
+      "benchmark_mode": "QQQ",
+      "sample_n": 374,
+      "trades_n": 126,
+      "participation_rate": 0.33689839572192515,
+      "hit_rate": 0.7619047619047619,
+      "avg_trade_return": 0.10542456627577636,
+      "avg_benchmark_return": 0.01997575270613957,
+      "alpha_vs_benchmark": 0.0854488135696368,
+      "avg_alpha_per_trade": 0.08544881356963686,
+      "cumulative_return": 39467.5748841701,
+      "benchmark_cumulative_return": 9.479354881380617,
+      "cagr": 26.68544962841496,
+      "benchmark_cagr": 1.090111286015591,
+      "sharpe": 2.037416051573857,
+      "info_ratio": 1.6038501186971195,
+      "max_drawdown": -0.852665729591493,
+      "benchmark_max_drawdown": -0.34310163340718236,
+      "alpha_buckets": [
+        {
+          "bucket": "Q1",
+          "sample_n": 32,
+          "avg_alpha": 0.012771850953467511,
+          "min_score": -0.012366038207679564,
+          "max_score": 0.24448413799126675
+        },
+        {
+          "bucket": "Q2",
+          "sample_n": 32,
+          "avg_alpha": 0.05355343028089805,
+          "min_score": 0.24448413799126675,
+          "max_score": 0.32489599167272376
+        },
+        {
+          "bucket": "Q3",
+          "sample_n": 32,
+          "avg_alpha": 0.11155701176168689,
+          "min_score": 0.32489599167272376,
+          "max_score": 0.44507036008074297
+        },
+        {
+          "bucket": "Q4",
+          "sample_n": 30,
+          "avg_alpha": 0.16914390446335212,
+          "min_score": 0.44507036008074297,
+          "max_score": 0.541305933537348
+        }
+      ],
+      "_id": "alpha_v1_quality_heavy"
+    }
   },
   "decision": {
-    "winner": "CHAMPION",
-    "reason": "Champion remains better on simulated portfolio returns"
+    "winner": "CHALLENGER",
+    "challenger_id": "alpha_v1_quality_heavy",
+    "reason": "Alpha V1 Quality Heavy has higher simulated CAGR on matched out-of-sample events"
   }
 }

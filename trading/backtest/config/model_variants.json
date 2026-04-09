@@ -1,32 +1,56 @@
-﻿{
+{
   "selection": {
     "score_threshold": 0.5,
+    "top_n_per_period": 5,
     "min_sample_for_winner": 20,
     "hold_days": 20,
     "benchmark": "QQQ"
   },
   "champion": {
-    "name": "Champion v1",
+    "id": "alpha_v1",
+    "name": "Alpha V1",
     "weights": {
-      "quality_score": 0.30,
-      "growth_score": 0.25,
-      "alt_momentum_score": 0.20,
-      "peer_relative_score": 0.15,
+      "quality_score": 0.27,
+      "growth_score": 0.22,
+      "alt_momentum_score": 0.13,
+      "peer_relative_score": 0.12,
       "value_score": 0.10,
+      "proxy_inferred_score": 0.08,
+      "pead_score": 0.08,
       "risk_penalty": -1.00,
       "liquidity_penalty": -1.00
     }
   },
-  "challenger": {
-    "name": "Challenger v1",
-    "weights": {
-      "quality_score": 0.22,
-      "growth_score": 0.20,
-      "alt_momentum_score": 0.30,
-      "peer_relative_score": 0.18,
-      "value_score": 0.10,
-      "risk_penalty": -1.10,
-      "liquidity_penalty": -0.90
+  "challengers": [
+    {
+      "id": "alpha_v1_regime_tilt",
+      "name": "Alpha V1 Regime Tilt",
+      "weights": {
+        "quality_score": 0.22,
+        "growth_score": 0.20,
+        "alt_momentum_score": 0.30,
+        "peer_relative_score": 0.18,
+        "value_score": 0.10,
+        "proxy_inferred_score": 0.00,
+        "pead_score": 0.00,
+        "risk_penalty": -1.10,
+        "liquidity_penalty": -0.90
+      }
+    },
+    {
+      "id": "alpha_v1_quality_heavy",
+      "name": "Alpha V1 Quality Heavy",
+      "weights": {
+        "quality_score": 0.35,
+        "growth_score": 0.20,
+        "alt_momentum_score": 0.08,
+        "peer_relative_score": 0.10,
+        "value_score": 0.12,
+        "proxy_inferred_score": 0.05,
+        "pead_score": 0.10,
+        "risk_penalty": -1.20,
+        "liquidity_penalty": -1.00
+      }
     }
-  }
+  ]
 }

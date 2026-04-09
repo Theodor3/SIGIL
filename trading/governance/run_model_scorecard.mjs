@@ -42,9 +42,25 @@ export async function run() {
   const winner = String(backtest?.decision?.winner || 'N/A');
   const reason = String(backtest?.decision?.reason || 'No backtest decision available');
 
+  // Look up per-model backtest results by ID.
+  // The backtest outputs: champion (keyed by ID), challengers map (keyed by ID),
+  // plus a legacy top-level `challenger` for the best challenger.
+  const challengersMap = backtest?.challengers || {};
+  const promotionChallengerId = backtest?.decision?.challenger_id || null;
+
   const rows = (registry.models || []).map((model) => {
     const role = model.role || (model.id === registry.champion_id ? 'champion' : 'challenger');
-    const side = role === 'champion' ? backtest?.champion : backtest?.challenger;
+
+    // Match this model to its specific backtest results by ID
+    let side = null;
+    if (role === 'champion') {
+      side = backtest?.champion;
+    } else {
+      // Try per-challenger map first, fall back to legacy top-level challenger if IDs match
+      side = challengersMap[model.id]
+        || (backtest?.challenger?.id === model.id ? backtest.challenger : null);
+    }
+
     return {
       as_of_date: asOf,
       model_id: model.id,
@@ -56,7 +72,7 @@ export async function run() {
       max_drawdown: asNum(side?.max_drawdown),
       alpha_vs_benchmark: asNum(side?.alpha_vs_benchmark),
       sample_n: asNum(side?.sample_n),
-      promotion_candidate: winner === 'challenger' && role === 'challenger',
+      promotion_candidate: winner === 'challenger' && model.id === promotionChallengerId,
       decision_reason: reason,
     };
   });

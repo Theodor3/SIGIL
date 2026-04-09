@@ -8,7 +8,7 @@ const tradingDir = path.join(root, 'trading');
 const altDir = path.join(tradingDir, 'data', 'alt');
 const configDir = path.join(tradingDir, 'nowcast', 'config');
 const DAY_MS = 24 * 60 * 60 * 1000;
-const NEWS_WAIT_MS = 5500;
+const NEWS_WAIT_MS = 1500;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -222,14 +222,22 @@ async function fetchNewsMentions(query, startDate, endDate) {
   }));
 }
 
-async function fetchNewsMentionsWithRetry(query, startDate, endDate, attempts = 2) {
+async function fetchNewsMentionsWithRetry(query, startDate, endDate, attempts = 3) {
   let lastError = null;
+  let backoffMs = NEWS_WAIT_MS;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
       return await fetchNewsMentions(query, startDate, endDate);
     } catch (err) {
       lastError = err;
-      await sleep(NEWS_WAIT_MS);
+      const is429 = err.message && err.message.includes('429');
+      if (is429) {
+        // Exponential backoff on rate-limit: double the wait each retry
+        await sleep(backoffMs);
+        backoffMs *= 2;
+      } else {
+        await sleep(NEWS_WAIT_MS);
+      }
     }
   }
   throw lastError;

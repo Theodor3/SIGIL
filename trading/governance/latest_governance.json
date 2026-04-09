@@ -1,5 +1,5 @@
 {
-  "as_of_date": "2026-04-02",
+  "as_of_date": "2026-04-04",
   "freeze_days": 7,
   "freeze_violation": false,
   "last_change_date": "2026-04-02",
@@ -12,8 +12,8 @@
     "require_challenger_winner": true
   },
   "promotion_gate": {
-    "winner": "CHAMPION",
-    "sample_n": 415,
+    "winner": "CHALLENGER",
+    "sample_n": 374,
     "min_sample": 40,
     "forward_closed_trades": 0,
     "min_forward_closed_trades": 5,
@@ -22,19 +22,37 @@
     "promote_challenger": false,
     "promotion_executed": false,
     "promotion_target": null,
-    "reason": "Promotion blocked: Backtest winner is not challenger; Forward closed trades below minimum (0/5); Forward alpha_vs_expected below minimum (n/a/0)"
+    "reason": "Promotion blocked: Forward closed trades below minimum (0/5); Forward alpha_vs_expected below minimum (n/a/0)"
   },
   "champion": {
-    "name": "Champion v1",
+    "name": "Alpha V1",
     "id": "alpha_v1",
-    "alpha_vs_benchmark": 0.16848161892621752,
-    "avg_trade_return": 0.18885336500000016
+    "alpha_vs_benchmark": 0.08066921314351597,
+    "avg_trade_return": 0.10064496584965554
   },
   "challenger": {
-    "name": "Challenger v1",
-    "id": "alpha_v1_regime_tilt",
-    "alpha_vs_benchmark": 0.12285240868993573,
-    "avg_trade_return": 0.1395025766756054
+    "name": "Alpha V1 Quality Heavy",
+    "id": "alpha_v1_quality_heavy",
+    "alpha_vs_benchmark": 0.0854488135696368,
+    "avg_trade_return": 0.10542456627577636
+  },
+  "challengers": {
+    "alpha_v1_regime_tilt": {
+      "name": "Alpha V1 Regime Tilt",
+      "id": "alpha_v1_regime_tilt",
+      "alpha_vs_benchmark": 0.07495380823344114,
+      "avg_trade_return": 0.09523879323096619,
+      "cagr": 19.07003332728718,
+      "sharpe": 1.9450377188722252
+    },
+    "alpha_v1_quality_heavy": {
+      "name": "Alpha V1 Quality Heavy",
+      "id": "alpha_v1_quality_heavy",
+      "alpha_vs_benchmark": 0.0854488135696368,
+      "avg_trade_return": 0.10542456627577636,
+      "cagr": 26.68544962841496,
+      "sharpe": 2.037416051573857
+    }
   },
   "last_promotion": {}
 }

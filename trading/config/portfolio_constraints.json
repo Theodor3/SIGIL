@@ -56,5 +56,14 @@
     "ANET": "TECH",
     "BTC-USD": "CRYPTO",
     "ETH-USD": "CRYPTO"
+  },
+  "liquidity_thresholds": {
+    "tiers": [
+      { "min_adv_dollars": 10000000, "penalty": 0.00 },
+      { "min_adv_dollars":  5000000, "penalty": 0.03 },
+      { "min_adv_dollars":  1000000, "penalty": 0.08 },
+      { "min_adv_dollars":        0, "penalty": 0.15 }
+    ],
+    "fallback_penalty": 0.05
   }
 }

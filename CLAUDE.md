@@ -124,13 +124,13 @@ API keys live in `trading/.env.local` (never commit this file):
 - GDELT API rate-limits aggressively — many "skipped" entries are normal
 - Finnhub `period` field = fiscal quarter-end date (not announcement date) — we add ~35 days to approximate
 - Wikipedia coverage: 92% of universe (69/75), some small-caps return 0 rows
-- `liquidity_penalty` hardcoded to 0 (data provider migration incomplete)
+- `liquidity_penalty` computed from ADV dollar volume via reference_data.mjs quotes (thresholds in portfolio_constraints.json)
 
 ---
 
 ## Universe
 
-75 tickers in the growth bucket (screened by `run_growth_scan.mjs`). Alt data covers ~92%. Config maps for Wikipedia and GDELT are in `trading/nowcast/config/`.
+75 tickers in the growth bucket (screened by `run_growth_scan.mjs`). Alt data covers ~97% (107 wiki mappings, 106 news mappings). Config maps for Wikipedia and GDELT are in `trading/nowcast/config/`.
 
 ---
 
@@ -153,28 +153,25 @@ Or double-click `launch-dashboard.bat` for the guided menu.
 
 ## Pipeline execution order (run_alpha_pipeline.mjs)
 
-1. `run_growth_scan.mjs` — screen universe
-2. `build_event_data.mjs` — earnings calendar + news (Finnhub)
-3. `build_earnings_history.mjs` — PEAD historical returns
-4. `build_direct_alt_sources.mjs` — Wikipedia + GDELT (slow, ~10 min)
-5. `build_market_proxy_sources.mjs`
-6. `run_alt_nowcast.mjs`
-7. `run_risk_board.mjs`, `run_crypto_alerts.mjs`, `run_daily_market_context.mjs`
-8. Alpha scoring: quality, growth, alt_momentum, peer_relative, proxy_inferred, value, PEAD
-9. `run_regime_model.mjs`, `run_signal_quality.mjs`, `run_portfolio_constructor.mjs`
-10. `run_daily_top5.mjs`, `run_execution_playbook.mjs`, `run_execution_simulator.mjs`
-11. `run_forward_monitor.mjs`, `run_benchmark_returns.mjs`, `run_alpha_backtest.mjs`
-12. `run_governance_checks.mjs`, `run_model_scorecard.mjs`
-13. `generate_dashboard_data.mjs` — writes `dashboard_data.json`
+**Phase 1** (serial): `run_growth_scan.mjs` — screen universe
+**Phase 2** (parallel): `build_event_data`, `build_earnings_history`, `build_direct_alt_sources`, `build_market_proxy_sources`, `run_risk_board`, `run_crypto_alerts`, `run_daily_market_context`
+**Phase 3** (serial): `run_alt_nowcast` — depends on Phase 2 alt + proxy sources
+**Phase 4** (inline): Alpha scoring — quality, growth, alt_momentum, peer_relative, proxy_inferred, value, PEAD, liquidity penalty
+**Phase 5** (serial chain): `run_regime_model` → `run_signal_quality` → `run_portfolio_constructor`
+**Phase 6a** (parallel): `run_daily_top5`, `run_execution_playbook`, `run_benchmark_returns`
+**Phase 6b** (parallel): `run_execution_simulator`, `run_forward_monitor`, `run_alpha_backtest`
+**Phase 7** (serial): `run_governance_checks` → `run_model_scorecard` → `generate_dashboard_data`
 
 ---
 
 ## Known bugs / open work
 
-- [ ] **liquidity_penalty** hardcoded to 0 — needs real volume/spread data
-- [ ] **champion/challenger backtest** shows identical results — governance comparison not differentiating
-- [ ] **MTX Wikipedia** only returns 1 row (wrong page mapping?)
-- [ ] **PEAD date approximation** — using quarter-end + 35 days; would be more precise with SEC EDGAR filing dates or a dedicated earnings announcement calendar API
+- [x] **liquidity_penalty** — now computed from ADV dollar volume via pipeline proxy CSVs, configurable tiers in portfolio_constraints.json
+- [x] **champion/challenger backtest** — fixed: multi-challenger support, rank-based selection, scorecard keyed by model ID. Three distinct models now produce genuinely different results.
+- [x] **MTX Wikipedia** — mapping is correct (Minerals_Technologies), low traffic is inherent to the company
+- [x] **PEAD date approximation** — added `inferNextEarningsDate()` using median historical inter-report intervals when Finnhub calendar has gaps
+- [x] **Pipeline performance** — parallelized independent modules (Phase 2: 7 concurrent, Phase 6: 3+3), reduced GDELT sleep 5.5s→1.5s with exponential backoff. Target: ~13 min → ~4-5 min.
+- [x] **Alt data coverage** — added 11 missing ticker mappings (AMAT, BBY, DG, EXPE, HPQ, HWM, INTU, NOW, NTAP, PTC, WSM). Coverage now ~97%.
 - [ ] **Scheduled daily run** — not yet set up; Theodore wants 24/7 operation
 
 ## Planned signals (not yet implemented)

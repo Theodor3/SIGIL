@@ -198,7 +198,11 @@ export async function run() {
 
   requireColumns(ranks, ['ticker', 'as_of_date', 'final_alpha_score', 'confidence', 'risk_penalty', 'liquidity_penalty', 'eligible', 'quality_score', 'growth_score', 'alt_momentum_score', 'peer_relative_score', 'value_score'], 'latest_ranks.csv');
   requireColumns(quality, ['ticker', 'effective_confidence'], 'latest_signal_quality.csv');
-  requireColumns(regimeRows, ['regime_id', 'recommended_gross_exposure'], 'latest_regime.csv');
+  if (regimeRows.length > 0) {
+    requireColumns(regimeRows, ['regime_id', 'recommended_gross_exposure'], 'latest_regime.csv');
+  } else {
+    console.warn('[portfolio] latest_regime.csv empty or missing — using safe defaults (risk_on, 0.75 gross).');
+  }
 
   const constraints = await loadConstraints(tradingDir);
   const multipliers = await loadRegimeMultipliers(tradingDir);
@@ -208,15 +212,22 @@ export async function run() {
   const qualityMap = new Map(quality.map((r) => [String(r.ticker || '').toUpperCase(), r]));
   const bucketMap = new Map(bucketRows.map((r) => [String(r.symbol || '').toUpperCase(), r]));
 
-  const regimeId = String(regimeRows[0].regime_id || 'risk_on');
-  const sectorLeadershipState = String(regimeRows[0].sector_leadership_state || 'unknown');
+  const regimeRow = regimeRows.length > 0 ? regimeRows[0] : {
+    regime_id: 'risk_on',
+    recommended_gross_exposure: 0.75,
+    sector_leadership_state: 'unknown',
+    top_sector_leaders_20d: '',
+    top_sector_laggards_20d: '',
+  };
+  const regimeId = String(regimeRow.regime_id || 'risk_on');
+  const sectorLeadershipState = String(regimeRow.sector_leadership_state || 'unknown');
   const regimeMultiplier = Number(multipliers[regimeId] ?? 1);
   const activeTilt = factorTilts[regimeId] || DEFAULT_FACTOR_TILTS.risk_on;
   const activeLeadershipTilt = leadershipConfig.tilts[sectorLeadershipState] || DEFAULT_LEADERSHIP_FACTOR_TILTS.unknown;
   const combinedTilt = combineTilts(activeTilt, activeLeadershipTilt);
-  const leaderSectors = parseSectorList(regimeRows[0].top_sector_leaders_20d);
-  const laggardSectors = parseSectorList(regimeRows[0].top_sector_laggards_20d);
-  const recommendedGross = clamp(asNum(regimeRows[0].recommended_gross_exposure) ?? 0.75, 0.2, 1);
+  const leaderSectors = parseSectorList(regimeRow.top_sector_leaders_20d);
+  const laggardSectors = parseSectorList(regimeRow.top_sector_laggards_20d);
+  const recommendedGross = clamp(asNum(regimeRow.recommended_gross_exposure) ?? 0.75, 0.2, 1);
   const investableWeight = clamp((1 - Number(constraints.min_cash_buffer)) * recommendedGross, 0.1, 0.95);
 
   const pool = ranks

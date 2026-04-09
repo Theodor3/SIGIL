@@ -163,7 +163,9 @@ function chooseRegime(last, policy) {
   ].join(' ');
 
   const vixSignal = vixClose != null ? Math.max(0, (vixClose - 15) / 20) : 0;
-  const realizedVolSignal = Math.max(0, realizedVol20d / 0.35);
+  const realizedVolSignal = (realizedVol20d != null && Number.isFinite(realizedVol20d))
+    ? Math.max(0, realizedVol20d / 0.35)
+    : 0;
   const breadthSignal = breadthPositive ? 0.2 : breadthNegative ? 0.25 : 0.1;
   const confidenceBase = clamp(
     Math.abs(avg20) * 7 +
