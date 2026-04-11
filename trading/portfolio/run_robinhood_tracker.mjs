@@ -13,6 +13,10 @@ const yahooFinance = new YahooFinance({ suppressNotices: ['ripHistorical', 'yaho
 import { asNum, ensureDir, parseCsv, readJson, todayDate } from '../scripts/lib.mjs';
 import { loadLocalEnv } from '../providers/env.mjs';
 
+const ETF_LABEL = 'ETF — no individual signal';
+const OTC_LABEL = 'OTC/Foreign — no coverage';
+const BANKRUPT_LABEL = 'Bankrupt/delisted';
+
 const root = process.cwd();
 const tradingDir = path.join(root, 'trading');
 
@@ -59,8 +63,11 @@ function loadSignalIndex(features) {
   return idx;
 }
 
-function sigilAction(signal, gainPct, trimRules) {
-  if (!signal) return { action: 'NO_COVERAGE', reason: 'Not in SIGIL universe' };
+function sigilAction(signal, gainPct, trimRules, assetType = 'stock') {
+  if (assetType === 'etf') return { action: 'ETF', reason: ETF_LABEL };
+  if (assetType === 'otc') return { action: 'OTC', reason: OTC_LABEL };
+  if (assetType === 'bankrupt') return { action: 'WORTHLESS', reason: BANKRUPT_LABEL };
+  if (!signal) return { action: 'PENDING', reason: 'Not yet in SIGIL universe — will score after next pipeline run' };
 
   const alpha = signal.final_alpha_score ?? 0;
   const confidence = signal.confidence ?? 0;
@@ -87,7 +94,18 @@ export async function run() {
 
   const portfolio = await readJson(path.join(tradingDir, 'config', 'robinhood_portfolio.json'));
   const profile = await readJson(path.join(tradingDir, 'config', 'profile.json'));
+  const watchlist = await readJson(path.join(tradingDir, 'config', 'watchlist.json')).catch(() => ({}));
   const trimRules = profile?.trim_rules || {};
+
+  const etfSet = new Set((watchlist.etfs || []).map((t) => t.toUpperCase()));
+  const otcSet = new Set((watchlist.otc_or_unscorable || []).map((t) => t.toUpperCase()));
+
+  function assetType(ticker) {
+    if (ticker === 'SEELQ') return 'bankrupt';
+    if (etfSet.has(ticker)) return 'etf';
+    if (otcSet.has(ticker)) return 'otc';
+    return 'stock';
+  }
 
   // Load SIGIL features for signal overlay
   let features = [];
@@ -128,7 +146,8 @@ export async function run() {
     const gainPct = costBasis > 0 && unrealizedPL != null ? unrealizedPL / costBasis : null;
 
     const signal = signalIndex.get(ticker) || null;
-    const action = sigilAction(signal, gainPct ?? 0, trimRules);
+    const type = assetType(ticker);
+    const action = sigilAction(signal, gainPct ?? 0, trimRules, type);
 
     if (currentValue != null) totalEquityUsd += currentValue;
     totalCostBasis += costBasis;

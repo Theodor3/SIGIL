@@ -1,0 +1,29 @@
+{
+  "_note": "Tickers that always get scored by the pipeline regardless of growth screen thresholds. Used for positions Theodore holds in Robinhood. ETFs and OTC names are excluded — they have no individual fundamentals.",
+  "forced_inclusions": [
+    "TSM",
+    "LLY",
+    "MRK",
+    "RTX",
+    "XOM",
+    "INTC",
+    "CVS",
+    "TTWO",
+    "FSLR",
+    "EBAY",
+    "GOLD",
+    "DAL",
+    "KO",
+    "MO",
+    "ATI",
+    "BHP",
+    "CRSP",
+    "HPE",
+    "BTU",
+    "CHEF",
+    "WOR",
+    "BXC"
+  ],
+  "etfs": ["XME", "ARKK", "ARGT", "EEM", "LIT", "TQQQ", "INDA", "XOVR"],
+  "otc_or_unscorable": ["BACHY", "OTGLY", "SEELQ", "GAU", "CLMT", "WS"]
+}

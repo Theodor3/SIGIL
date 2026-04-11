@@ -4,6 +4,15 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createFundamentalsDataClient } from '../trading/providers/fundamentals_data.mjs';
 
+async function loadWatchlist(root) {
+  try {
+    const text = await fs.readFile(path.join(root, 'trading', 'config', 'watchlist.json'), 'utf8');
+    return JSON.parse(text)?.forced_inclusions || [];
+  } catch {
+    return [];
+  }
+}
+
 const TZ = 'America/New_York';
 const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: TZ });
 const outDir = path.join(process.cwd(), 'trading', 'buckets');
@@ -462,20 +471,43 @@ export async function run() {
   const fundamentalsClient = await createFundamentalsDataClient(process.cwd());
 
   console.log('Fetching S&P 500 universe...');
-  const symbols = await fetchSp500Symbols();
-  console.log(`Universe loaded: ${symbols.length} symbols`);
+  const sp500 = await fetchSp500Symbols();
+  const watchlist = await loadWatchlist(process.cwd());
+
+  // Merge S&P 500 + watchlist, deduplicate. Watchlist tickers always get scored
+  // (bypasses growth threshold filter) so held Robinhood positions are always covered.
+  const sp500Set = new Set(sp500);
+  const watchlistOnly = watchlist.filter((t) => !sp500Set.has(t));
+  const symbols = [...sp500, ...watchlistOnly];
+
+  console.log(`Universe loaded: ${sp500.length} S&P500 + ${watchlistOnly.length} watchlist-only = ${symbols.length} total`);
+  console.log(`Watchlist forced inclusions: ${watchlist.join(', ')}`);
   console.log(`Fundamentals provider order: ${fundamentalsClient.providerOrder.join(' -> ')}`);
 
   console.log('Running scan...');
   const results = await runWithConcurrency(symbols, CONCURRENCY, (symbol) => fetchFundamentals(fundamentalsClient, symbol));
 
+  const watchlistSet = new Set(watchlist.map((t) => t.toUpperCase()));
   const evaluated = results.filter((r) => r && !r.error);
   assignValuationScores(evaluated);
   const errors = results.filter((r) => r && r.error);
+
+  // Watchlist tickers bypass hardRejected — they're held positions that should always be scored
   const candidates = evaluated
-    .filter((r) => !r.hardRejected)
-    .sort((a, b) => (b.preselectionScore ?? 0) - (a.preselectionScore ?? 0));
-  const bucketRows = candidates.slice(0, TARGET_BUCKET_SIZE);
+    .filter((r) => !r.hardRejected || watchlistSet.has((r.symbol || '').toUpperCase()))
+    .sort((a, b) => {
+      // Watchlist tickers that failed growth screen sort to the end (after scored candidates)
+      const aForced = watchlistSet.has((a.symbol || '').toUpperCase()) && !a.passed;
+      const bForced = watchlistSet.has((b.symbol || '').toUpperCase()) && !b.passed;
+      if (aForced && !bForced) return 1;
+      if (!aForced && bForced) return -1;
+      return (b.preselectionScore ?? 0) - (a.preselectionScore ?? 0);
+    });
+
+  // Ensure watchlist tickers are included even if bucket is full
+  const watchlistRows = candidates.filter((r) => watchlistSet.has((r.symbol || '').toUpperCase()));
+  const nonWatchlist = candidates.filter((r) => !watchlistSet.has((r.symbol || '').toUpperCase()));
+  const bucketRows = [...nonWatchlist.slice(0, TARGET_BUCKET_SIZE), ...watchlistRows.filter((r) => !nonWatchlist.slice(0, TARGET_BUCKET_SIZE).some((n) => n.symbol === r.symbol))];
   const passed = bucketRows.filter((r) => r.passed);
 
   const missingCount = new Map();
