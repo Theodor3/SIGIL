@@ -113,11 +113,25 @@ function computePortfolioMetrics(name, rows, threshold, holdDays, benchmarkMode)
     : null;
 
   const selectedSorted = [...selected].sort((a, b) => String(a.report_date).localeCompare(String(b.report_date)));
+
+  // Build equity curve by period (YYYY-MM), not by trade sequence.
+  // Multiple trades opening in the same month are equal-weighted within
+  // that month, then monthly returns are chained. This prevents the
+  // sequential-compounding bug where 200 trades at +10% each = 1.10^200.
+  const byPeriod = new Map();
+  for (const r of selectedSorted) {
+    const period = (r.report_date || '').slice(0, 7);
+    if (!byPeriod.has(period)) byPeriod.set(period, []);
+    byPeriod.get(period).push(r);
+  }
+  const periods = [...byPeriod.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   const equityCurve = [1];
   const benchCurve = [1];
-  for (const r of selectedSorted) {
-    equityCurve.push(equityCurve[equityCurve.length - 1] * (1 + (asNum(r.trade_return) ?? 0)));
-    benchCurve.push(benchCurve[benchCurve.length - 1] * (1 + (asNum(r.benchmark_return) ?? 0)));
+  for (const [, trades] of periods) {
+    const avgRet = trades.reduce((a, b) => a + (asNum(b.trade_return) ?? 0), 0) / trades.length;
+    const avgBnch = trades.reduce((a, b) => a + (asNum(b.benchmark_return) ?? 0), 0) / trades.length;
+    equityCurve.push(equityCurve[equityCurve.length - 1] * (1 + avgRet));
+    benchCurve.push(benchCurve[benchCurve.length - 1] * (1 + avgBnch));
   }
 
   const cumulative = equityCurve[equityCurve.length - 1] - 1;
@@ -126,6 +140,7 @@ function computePortfolioMetrics(name, rows, threshold, holdDays, benchmarkMode)
   const cagr = years && years > 0 ? Math.pow(1 + cumulative, 1 / years) - 1 : null;
   const benchmarkCagr = years && years > 0 ? Math.pow(1 + benchmarkCumulative, 1 / years) - 1 : null;
 
+  // Sharpe/IR use individual trade returns (cross-sectional dispersion)
   const periodScale = Math.sqrt(252 / Math.max(1, holdDays));
   const retStd = stddev(selectedSorted.map((r) => asNum(r.trade_return) ?? 0));
   const alphaStd = stddev(tradeAlphas);
