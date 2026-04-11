@@ -384,6 +384,7 @@ async function loadRecentMatchingCsvs(dir, regex, limit = 2) {
 async function loadBacktestSummary() {
   try {
     const bt = await readJson(path.join(tradingDir, 'backtest', 'results', 'latest_backtest.json'));
+    const dq = bt?.data_quality || {};
     return {
       winner: bt?.decision?.winner || 'N/A',
       reason: bt?.decision?.reason || '',
@@ -400,6 +401,17 @@ async function loadBacktestSummary() {
       hold_days: asNum(bt?.hold_days),
       benchmark_mode: bt?.benchmark_mode || 'N/A',
       as_of_date: bt?.as_of_date || null,
+      // Data quality — tracks look-ahead bias elimination progress
+      pit_events: dq.pit_events ?? 0,
+      simulated_events: dq.simulated_events ?? 0,
+      pit_coverage_pct: asNum(dq.pit_coverage_pct) ?? 0,
+      snapshots_available: dq.snapshots_available ?? 0,
+      data_quality_note: dq.note || '',
+      // PEAD point-in-time backtest — zero look-ahead bias
+      pead_pit_cagr: asNum(bt?.pead_pit?.cagr),
+      pead_pit_hit_rate: asNum(bt?.pead_pit?.hit_rate),
+      pead_pit_events_n: asNum(bt?.pead_pit?.events_n) ?? 0,
+      pead_pit_note: bt?.pead_pit?.note || '',
     };
   } catch {
     return {
@@ -418,6 +430,15 @@ async function loadBacktestSummary() {
       hold_days: null,
       benchmark_mode: 'N/A',
       as_of_date: null,
+      pit_events: 0,
+      simulated_events: 0,
+      pit_coverage_pct: 0,
+      snapshots_available: 0,
+      data_quality_note: 'Backtest not available',
+      pead_pit_cagr: null,
+      pead_pit_hit_rate: null,
+      pead_pit_events_n: 0,
+      pead_pit_note: '',
     };
   }
 }

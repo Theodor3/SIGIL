@@ -48,6 +48,12 @@ export async function run() {
   const challengersMap = backtest?.challengers || {};
   const promotionChallengerId = backtest?.decision?.challenger_id || null;
 
+  const dq = backtest?.data_quality || {};
+  const pitCoverage = asNum(dq.pit_coverage_pct) ?? 0;
+  const backtestQuality = pitCoverage === 0
+    ? 'SIMULATED'
+    : pitCoverage < 0.5 ? 'PARTIAL_PIT' : 'PIT';
+
   const rows = (registry.models || []).map((model) => {
     const role = model.role || (model.id === registry.champion_id ? 'champion' : 'challenger');
 
@@ -74,6 +80,10 @@ export async function run() {
       sample_n: asNum(side?.sample_n),
       promotion_candidate: winner === 'challenger' && model.id === promotionChallengerId,
       decision_reason: reason,
+      backtest_quality: backtestQuality,
+      pit_coverage_pct: pitCoverage,
+      pit_events: dq.pit_events ?? 0,
+      simulated_events: dq.simulated_events ?? 0,
     };
   });
 
@@ -94,9 +104,22 @@ export async function run() {
     'sample_n',
     'promotion_candidate',
     'decision_reason',
+    'backtest_quality',
+    'pit_coverage_pct',
+    'pit_events',
+    'simulated_events',
   ]), 'utf8');
 
   console.log(`Wrote: ${outFile}`);
+  console.log(`Backtest quality: ${backtestQuality} (${dq.pit_events ?? 0}/${(dq.pit_events ?? 0) + (dq.simulated_events ?? 0)} PIT events, ${dq.snapshots_available ?? 0} snapshots)`);
+
+  // PEAD PIT summary — the one backtest signal with zero look-ahead bias
+  const peadPit = backtest?.pead_pit;
+  if (peadPit?.cagr != null) {
+    console.log(`PEAD PIT backtest: CAGR=${(peadPit.cagr * 100).toFixed(1)}%, hit rate=${(peadPit.hit_rate * 100).toFixed(1)}%, n=${peadPit.events_n ?? peadPit.sample_n}`);
+  } else {
+    console.log(`PEAD PIT backtest: ${peadPit?.note || 'no data'}`);
+  }
 }
 
 if (process.env.TRADING_EMBEDDED !== '1') {

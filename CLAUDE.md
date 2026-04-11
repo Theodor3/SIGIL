@@ -146,7 +146,7 @@ npm run trading:backtest          # backtest only
 npm run trading:governance        # governance checks only
 ```
 
-Run from `C:\Users\Theodore\OneDrive\Documents\Playground\`.
+Run from `C:\Users\Theodore\Documents\Playground\`.
 Or double-click `launch-dashboard.bat` for the guided menu.
 
 ---
@@ -172,6 +172,7 @@ Or double-click `launch-dashboard.bat` for the guided menu.
 - [x] **PEAD date approximation** — added `inferNextEarningsDate()` using median historical inter-report intervals when Finnhub calendar has gaps
 - [x] **Pipeline performance** — parallelized independent modules (Phase 2: 7 concurrent, Phase 6: 3+3), reduced GDELT sleep 5.5s→1.5s with exponential backoff. Target: ~13 min → ~4-5 min.
 - [x] **Alt data coverage** — added 11 missing ticker mappings (AMAT, BBY, DG, EXPE, HPQ, HWM, INTU, NOW, NTAP, PTC, WSM). Coverage now ~97%.
+- [x] **Backtest look-ahead bias** — pipeline now archives dated feature snapshots (`data/features/YYYY-MM-DD_features.csv`) each run. Backtest scores each event with the most recent prior snapshot; events with no prior snapshot are flagged `pit: false` (simulated/biased). PEAD rolling backtest added: pure point-in-time via rolling train/test split on earnings history, zero look-ahead bias. PIT coverage metric surfaced in scorecard and dashboard. Full PIT coverage improves automatically as daily snapshots accumulate.
 - [ ] **Scheduled daily run** — not yet set up; Theodore wants 24/7 operation
 
 ## Planned signals (not yet implemented)

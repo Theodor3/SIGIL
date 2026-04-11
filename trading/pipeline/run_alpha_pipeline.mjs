@@ -801,6 +801,12 @@ export async function run() {
     await fs.writeFile(featuresPath, toCsv(baseRows, featureHeaders), 'utf8');
     await fs.writeFile(ranksPath, toCsv(ranks, rankHeaders), 'utf8');
 
+    // Archive a dated snapshot for point-in-time backtest.
+    // Backtest uses the most recent snapshot that predates each earnings event,
+    // so the model is never scored with future information.
+    const snapshotPath = path.join(tradingDir, 'data', 'features', `${asOfDate}_features.csv`);
+    await fs.copyFile(featuresPath, snapshotPath);
+
     // ── Phase 5: Regime → signal quality → portfolio (serial chain) ──
     await runModule('trading/regime/run_regime_model.mjs');
     await runModule('trading/quality/run_signal_quality.mjs');

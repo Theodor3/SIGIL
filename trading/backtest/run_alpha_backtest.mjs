@@ -222,19 +222,127 @@ function buildBenchmarkMap(rows, holdDays) {
   return out;
 }
 
+// ── Point-in-time feature snapshots ──────────────────────────────────────────
+// Each pipeline run saves `data/features/YYYY-MM-DD_features.csv`.
+// For each earnings event, we look up the most recent snapshot that was
+// produced BEFORE the event's report_date. This eliminates look-ahead bias:
+// the model can only use information that existed on that date.
+//
+// Events with no prior snapshot are scored with latest_features.csv and
+// flagged as `pit: false` (biased). As pipeline runs accumulate these events
+// will naturally migrate to `pit: true`.
+
+async function loadFeatureSnapshots(featuresDir) {
+  let files;
+  try {
+    files = await fs.readdir(featuresDir);
+  } catch {
+    return [];
+  }
+
+  const snapshots = [];
+  for (const f of files) {
+    const m = f.match(/^(\d{4}-\d{2}-\d{2})_features\.csv$/);
+    if (!m) continue;
+    const snapshotDate = m[1];
+    try {
+      const text = await fs.readFile(path.join(featuresDir, f), 'utf8');
+      const rows = parseCsv(text);
+      const map = new Map(rows.map((r) => [(r.ticker || '').toUpperCase(), r]));
+      snapshots.push({ date: snapshotDate, features: map });
+    } catch {
+      // skip unreadable snapshot
+    }
+  }
+
+  // Sort ascending so we can binary-search for the most recent prior snapshot
+  snapshots.sort((a, b) => a.date.localeCompare(b.date));
+  return snapshots;
+}
+
+// Returns the features map from the most recent snapshot strictly before eventDate,
+// or null if no prior snapshot exists.
+function findPriorSnapshot(snapshots, eventDate) {
+  // Walk backwards to find the latest snapshot whose date < eventDate
+  for (let i = snapshots.length - 1; i >= 0; i--) {
+    if (snapshots[i].date < eventDate) {
+      return snapshots[i].features;
+    }
+  }
+  return null;
+}
+
+// ── PEAD point-in-time rolling backtest ──────────────────────────────────────
+// Computes PEAD signal for each historical earnings event using ONLY prior
+// events for that ticker (rolling window). This is the cleanest signal we have:
+// no external features required, zero look-ahead bias by construction.
+//
+// Signal: pead_pit_score = max(avg_prior_return, 0) * hit_rate * beat_prob
+// Same formula as the live PEAD signal, but trained on prior-only data.
+
+function computePeadPitBacktest(outcomes, holdDays, benchmarkMap, benchmarkPref) {
+  const sorted = [...outcomes]
+    .map((o) => ({
+      ticker: (o.ticker || '').toUpperCase(),
+      report_date: o.report_date || '',
+      r5: asNum(o.post_earnings_return_5d),
+      rev_surprise: asNum(o.revenue_surprise_pct),
+    }))
+    .filter((o) => o.ticker && o.report_date && o.r5 != null)
+    .sort((a, b) => a.report_date.localeCompare(b.report_date));
+
+  const events = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const ev = sorted[i];
+    const prior = sorted.slice(0, i).filter((e) => e.ticker === ev.ticker);
+    if (prior.length < 2) continue; // need at least 2 prior samples
+
+    const returns = prior.map((e) => e.r5);
+    const avgReturn = returns.reduce((a, b) => a + b, 0) / returns.length;
+    const hitRate = returns.filter((r) => r > 0).length / returns.length;
+
+    const beats = prior.map((e) => e.rev_surprise).filter((v) => v != null);
+    const beatProb = beats.length ? beats.filter((b) => b > 0).length / beats.length : 0.5;
+
+    const peadScore = Math.max(avgReturn, 0) * hitRate * beatProb;
+
+    const bench = benchmarkMap.get(ev.report_date);
+    const benchVal = (benchmarkPref === 'SPY' ? bench?.spy : bench?.qqq) ?? null;
+
+    events.push({
+      ticker: ev.ticker,
+      report_date: ev.report_date,
+      pead_pit_score: peadScore,
+      prior_samples: prior.length,
+      avg_prior_return: avgReturn,
+      hit_rate: hitRate,
+      beat_prob: beatProb,
+      trade_return: toHoldReturn(ev.r5, holdDays),
+      benchmark_return: benchVal,
+      score: peadScore,
+      selected: peadScore > 0,
+    });
+  }
+
+  return events;
+}
+
 export async function run() {
   const cfg = await readJson(path.join(tradingDir, 'backtest', 'config', 'model_variants.json'));
   const profile = await readJson(path.join(tradingDir, 'config', 'profile.json'));
 
-  const featuresPath = path.join(tradingDir, 'data', 'features', 'latest_features.csv');
+  const featuresDir = path.join(tradingDir, 'data', 'features');
+  const featuresPath = path.join(featuresDir, 'latest_features.csv');
   const outcomesPath = path.join(tradingDir, 'data', 'alt', 'earnings_outcomes.csv');
   const benchmarkPath = path.join(tradingDir, 'data', 'alt', 'benchmark_returns.csv');
 
-  const features = await readCsvSafe(featuresPath);
+  const latestFeatures = await readCsvSafe(featuresPath);
   const outcomes = await readCsvSafe(outcomesPath);
   const benchmarkRows = await readCsvSafe(benchmarkPath, []);
 
-  const featureByTicker = new Map(features.map((f) => [(f.ticker || '').toUpperCase(), f]));
+  // Load all dated feature snapshots for point-in-time scoring
+  const snapshots = await loadFeatureSnapshots(featuresDir);
+  const latestFeatureMap = new Map(latestFeatures.map((f) => [(f.ticker || '').toUpperCase(), f]));
 
   const threshold = asNum(cfg?.selection?.score_threshold) ?? 0.5;
   const minSample = Number(cfg?.selection?.min_sample_for_winner ?? 20);
@@ -248,27 +356,41 @@ export async function run() {
     ? cfg.challengers
     : cfg.challenger ? [cfg.challenger] : [];
 
-  // Score each event for champion + all challengers
+  let pitCount = 0;
+  let simulatedCount = 0;
+
+  // Score each event for champion + all challengers.
+  // For each event, use the most recent feature snapshot that predates the event.
+  // If no prior snapshot exists, fall back to latest features and mark as simulated.
   const baseEvents = outcomes
     .map((o) => {
       const ticker = (o.ticker || '').toUpperCase();
-      const feat = featureByTicker.get(ticker);
-      if (!feat) return null;
+      const reportDate = o.report_date || '';
+      if (!ticker || !reportDate) return null;
 
       const r5 = asNum(o.post_earnings_return_5d);
       if (r5 == null) return null;
       const tradeReturn = toHoldReturn(r5, holdDays);
 
-      const bench = benchmarkMap.get(o.report_date || '');
+      // Point-in-time feature lookup
+      const priorSnapshot = findPriorSnapshot(snapshots, reportDate);
+      const featureMap = priorSnapshot ?? latestFeatureMap;
+      const feat = featureMap.get(ticker);
+      if (!feat) return null;
+
+      const pit = priorSnapshot != null;
+      if (pit) pitCount++; else simulatedCount++;
+
+      const bench = benchmarkMap.get(reportDate);
       const benchPreferred = benchmarkPref === 'SPY' ? bench?.spy : bench?.qqq;
-      const benchmarkReturn = benchPreferred ?? null;
 
       const row = {
         ticker,
-        report_date: o.report_date || '',
+        report_date: reportDate,
         realized_return_5d: r5,
         trade_return: tradeReturn,
-        benchmark_return: benchmarkReturn,
+        benchmark_return: benchPreferred ?? null,
+        pit, // true = point-in-time (clean), false = scored with latest features (biased)
         champion_score: modelScore(feat, cfg.champion.weights),
       };
 
@@ -291,14 +413,14 @@ export async function run() {
     benchmark_return: r.benchmark_return ?? crossSectionBench,
   }));
 
+  // Separate PIT events from simulated events for honest reporting
+  const pitEventRows = eventRows.filter((r) => r.pit);
+  const simEventRows = eventRows.filter((r) => !r.pit);
+
   // Group events by report_date period for rank-based selection.
-  // Each model selects its top-N per period by score, so weight differences
-  // actually change which trades get picked (unlike a flat threshold that
-  // can select identical trades when scores cluster above the cutoff).
   const topNPerPeriod = Number(cfg?.selection?.top_n_per_period ?? 5);
 
   function selectByRank(events, scoreKey) {
-    // Group by report_date (quarterly period)
     const byPeriod = new Map();
     for (const r of events) {
       const period = (r.report_date || '').slice(0, 7); // YYYY-MM
@@ -306,7 +428,6 @@ export async function run() {
       arr.push(r);
       byPeriod.set(period, arr);
     }
-    // Within each period, rank by score and select top N
     const selected = new Set();
     for (const [, group] of byPeriod) {
       const sorted = [...group].sort((a, b) => (b[scoreKey] ?? 0) - (a[scoreKey] ?? 0));
@@ -321,15 +442,21 @@ export async function run() {
     }));
   }
 
+  // Run multi-factor backtest on all events.
+  // PIT events are clean; simulated events use today's features (look-ahead bias).
+  // When we have enough PIT snapshots (6+ months of pipeline runs), we can
+  // restrict to pitEventRows only. For now, all events are used and labeled.
+  const eventsForBacktest = eventRows; // TODO: switch to pitEventRows once sufficient coverage
+
   // Champion metrics
-  const championEvents = selectByRank(eventRows, 'champion_score');
+  const championEvents = selectByRank(eventsForBacktest, 'champion_score');
   const championMetrics = computePortfolioMetrics(cfg.champion.name, championEvents, -Infinity, holdDays, benchmarkMode);
 
   // Per-challenger metrics
   const challengerResults = {};
   const challengerMetricsList = [];
   for (const ch of challengers) {
-    const chEvents = selectByRank(eventRows, `score_${ch.id}`);
+    const chEvents = selectByRank(eventsForBacktest, `score_${ch.id}`);
     const metrics = computePortfolioMetrics(ch.name, chEvents, -Infinity, holdDays, benchmarkMode);
     metrics._id = ch.id;
     challengerResults[ch.id] = metrics;
@@ -338,7 +465,13 @@ export async function run() {
 
   const decision = pickWinner(championMetrics, challengerMetricsList, minSample);
 
-  // Build output — backward-compatible: keep top-level `champion` and `challenger` (best challenger)
+  // PEAD point-in-time backtest — cleanest signal, zero look-ahead bias
+  const peadPitEvents = computePeadPitBacktest(outcomes, holdDays, benchmarkMap, benchmarkPref);
+  const peadPitMetrics = peadPitEvents.length >= 2
+    ? computePortfolioMetrics('PEAD PIT', peadPitEvents, -Infinity, holdDays, benchmarkMode)
+    : null;
+
+  // Build output
   const bestChallengerId = decision.challenger_id || challengers[0]?.id;
   const bestChallengerMetrics = challengerResults[bestChallengerId] || challengerMetricsList[0] || null;
 
@@ -349,10 +482,23 @@ export async function run() {
     hold_days: holdDays,
     benchmark_mode: benchmarkMode,
     min_sample_for_winner: minSample,
+    data_quality: {
+      total_events: eventRows.length,
+      pit_events: pitCount,
+      simulated_events: simulatedCount,
+      pit_coverage_pct: eventRows.length > 0 ? pitCount / eventRows.length : 0,
+      snapshots_available: snapshots.length,
+      note: pitCount === 0
+        ? 'All events scored with current features (look-ahead bias). PIT coverage improves automatically as daily pipeline runs accumulate snapshots.'
+        : `${pitCount}/${eventRows.length} events scored point-in-time (${Math.round(pitCount / eventRows.length * 100)}% clean).`,
+    },
     champion: { ...championMetrics, id: cfg.champion.id },
     challenger: bestChallengerMetrics ? { ...bestChallengerMetrics, id: bestChallengerId } : null,
     challengers: challengerResults,
     decision,
+    pead_pit: peadPitMetrics
+      ? { ...peadPitMetrics, events_n: peadPitEvents.length, note: 'Rolling train/test split — zero look-ahead bias' }
+      : { note: 'Insufficient data for PEAD PIT backtest' },
   };
 
   const outDir = path.join(tradingDir, 'backtest', 'results');
@@ -364,10 +510,11 @@ export async function run() {
 
   await fs.writeFile(jsonOut, JSON.stringify(summary, null, 2), 'utf8');
 
-  // CSV: champion_score + one column per challenger
+  // CSV: champion_score + one column per challenger + pit flag
   const csvHeaders = [
     'ticker',
     'report_date',
+    'pit',
     'realized_return_5d',
     'simulated_return_hold',
     'benchmark_return_hold',
@@ -380,6 +527,7 @@ export async function run() {
     const row = {
       ticker: r.ticker,
       report_date: r.report_date,
+      pit: r.pit,
       realized_return_5d: n(r.realized_return_5d, 4),
       simulated_return_hold: n(r.trade_return, 4),
       benchmark_return_hold: n(r.benchmark_return, 4),
@@ -419,6 +567,7 @@ export async function run() {
     '',
   ];
 
+  const dq = summary.data_quality;
   const md = [
     `# Alpha Backtest - ${asOf}`,
     '',
@@ -429,8 +578,17 @@ export async function run() {
     `- Matched events: ${eventRows.length}`,
     `- Models tested: 1 champion + ${challengers.length} challengers`,
     '',
+    '## Data Quality',
+    '',
+    `- PIT events (clean): ${dq.pit_events}`,
+    `- Simulated events (look-ahead bias): ${dq.simulated_events}`,
+    `- PIT coverage: ${pct(dq.pit_coverage_pct) || '0%'}`,
+    `- Dated snapshots available: ${dq.snapshots_available}`,
+    `- Note: ${dq.note}`,
+    '',
     ...fmtMetrics('Champion', championMetrics),
     ...challengers.flatMap((ch) => fmtMetrics(`Challenger: ${ch.name}`, challengerResults[ch.id])),
+    ...(peadPitMetrics ? fmtMetrics('PEAD Point-in-Time (Clean)', peadPitMetrics) : ['## PEAD PIT', '', `- ${summary.pead_pit.note}`, '']),
     '## Decision',
     '',
     `- Winner: ${decision.winner}`,
@@ -438,8 +596,9 @@ export async function run() {
     '',
     '## Notes',
     '',
-    '- Uses event-based out-of-sample simulation with configurable hold period.',
-    '- If benchmark_returns.csv is absent, benchmark falls back to cross-sectional proxy.',
+    '- Multi-factor backtest uses dated feature snapshots when available (PIT), falls back to latest features (simulated/biased) otherwise.',
+    '- PEAD PIT backtest uses rolling train/test split on earnings_outcomes.csv — zero look-ahead bias by construction.',
+    '- PIT coverage improves automatically as daily pipeline runs accumulate dated snapshots.',
   ].join('\n');
 
   await fs.writeFile(mdOut, md, 'utf8');
@@ -447,7 +606,11 @@ export async function run() {
   console.log(`Wrote: ${jsonOut}`);
   console.log(`Wrote: ${csvOut}`);
   console.log(`Wrote: ${mdOut}`);
+  console.log(`PIT coverage: ${pitCount}/${eventRows.length} events (${snapshots.length} snapshots available)`);
   console.log(`Decision: ${decision.winner} (${decision.reason})`);
+  if (peadPitMetrics) {
+    console.log(`PEAD PIT: ${peadPitEvents.length} events, CAGR=${pct(peadPitMetrics.cagr) || 'n/a'}, hit rate=${pct(peadPitMetrics.hit_rate) || 'n/a'}`);
+  }
 }
 
 if (process.env.TRADING_EMBEDDED !== '1') {
