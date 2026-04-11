@@ -1,10 +1,10 @@
 {
-    "generated_at":  "2026-03-06",
+    "generated_at":  "2026-04-11",
     "timezone":  "America/New_York",
     "investor_profile":  {
                              "age":  27,
                              "style":  "long_term_with_partial_trims",
-                             "account_size_usd":  14508.25,
+                             "account_size_usd":  14798.14,
                              "target_new_ideas_per_day":  5,
                              "valuation_preference":  {
                                                           "pe_soft_cap":  30,
@@ -17,13 +17,13 @@
                                       }
                          },
     "allocation":  {
-                       "equities_usd":  8225.25,
-                       "crypto_usd":  2171.78,
+                       "equities_usd":  8396.60,
+                       "crypto_usd":  2324.60,
                        "crypto_split":  {
-                                            "BTC":  0.31,
-                                            "ETH":  0.69
+                                            "BTC":  0.30,
+                                            "ETH":  0.70
                                         },
-                       "cash_usd":  4111
+                       "cash_usd":  4076.94
                    },
     "trim_rules":  {
                        "gain_20_pct":  0.1,

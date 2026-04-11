@@ -30,7 +30,8 @@
     "trading:portfolio": "node trading/portfolio/run_portfolio_constructor.mjs",
     "trading:broker": "node trading/execution/run_alpaca_broker.mjs",
     "trading:broker:execute": "node trading/execution/run_alpaca_broker.mjs --execute",
-    "trading:broker:status": "node trading/execution/run_alpaca_broker.mjs --status"
+    "trading:broker:status": "node trading/execution/run_alpaca_broker.mjs --status",
+    "trading:robinhood": "node trading/portfolio/run_robinhood_tracker.mjs"
   },
   "dependencies": {
     "yahoo-finance2": "^3.13.2"

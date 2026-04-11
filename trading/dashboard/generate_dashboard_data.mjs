@@ -1076,6 +1076,14 @@ async function buildDataProvenance(asOfDate) {
   };
 }
 
+async function loadRobinhoodSnapshot() {
+  try {
+    return await readJson(path.join(tradingDir, 'data', 'portfolio', 'robinhood_snapshot.json'));
+  } catch {
+    return null;
+  }
+}
+
 export async function run() {
   const asOfDate = todayDate('America/New_York');
   const dataProvenance = await buildDataProvenance(asOfDate);
@@ -2154,6 +2162,7 @@ export async function run() {
     nowcast_top20: nowcastTop,
     backtest,
     governance,
+    robinhood: await loadRobinhoodSnapshot(),
     scripts: scriptCatalog(),
     platform_roadmap: buildPlatformRoadmap(),
     data_provenance: dataProvenance,

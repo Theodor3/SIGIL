@@ -806,6 +806,20 @@
 
     <section class="section grid stats" id="stats"></section>
 
+    <section class="section panel" id="robinhood-section">
+      <h2>📈 Robinhood Portfolio</h2>
+      <div id="robinhood-summary" class="grid stats"></div>
+      <div id="robinhood-alerts" style="margin:8px 0"></div>
+      <div class="section panel">
+        <h2>Positions</h2>
+        <table id="robinhood-positions-table"></table>
+      </div>
+      <div class="section panel">
+        <h2>Crypto Holdings</h2>
+        <table id="robinhood-crypto-table"></table>
+      </div>
+    </section>
+
     <section class="section panel">
       <h2>Platform Roadmap</h2>
       <div id="roadmap-meta" class="status">Waiting for roadmap state...</div>
@@ -2476,6 +2490,7 @@
       setPromotion(data);
       setHealth(data);
       setScripts(data);
+      setRobinhood(data);
     }
 
     async function checkApi() {
@@ -2526,6 +2541,78 @@
       } finally {
         setBusy(false);
       }
+    }
+
+    function setRobinhood(data) {
+      const rh = data.robinhood;
+      if (!rh) {
+        document.getElementById('robinhood-section').innerHTML = '<h2>📈 Robinhood Portfolio</h2><div class="status warn">No snapshot yet — run: node trading/portfolio/run_robinhood_tracker.mjs</div>';
+        return;
+      }
+      const s = rh.summary || {};
+      const fmtD = v => v == null ? '-' : '$' + Number(v).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      const fmtPct = v => v == null ? '-' : (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%';
+
+      // Summary stats
+      const summaryCards = [
+        ['Equity', fmtD(s.total_equity_usd)],
+        ['Total P&L', fmtD(s.total_unrealized_pl) + ' (' + fmtPct(s.overall_gain_pct) + ')'],
+        ['Cash', fmtD(s.cash_usd)],
+        ['Total Portfolio', fmtD(s.total_portfolio_usd)],
+        ['Trim Candidates', s.trim_candidates ?? 0],
+        ['Exit Candidates', s.exit_candidates ?? 0],
+        ['Strong Holds', s.strong_holds ?? 0],
+        ['In SIGIL', (s.in_sigil_universe ?? 0) + '/' + (s.position_count ?? 0)],
+      ];
+      document.getElementById('robinhood-summary').innerHTML = summaryCards.map(([label, value]) =>
+        `<article class="panel"><div class="label">${label}</div><div class="value">${value}</div></article>`
+      ).join('');
+
+      // Alerts
+      const alertEl = document.getElementById('robinhood-alerts');
+      const alerts = rh.alerts || [];
+      alertEl.innerHTML = alerts.length
+        ? alerts.map(a => `<div class="status ${a.level === 'WARN' ? 'warn' : 'ok'}"><b>${a.ticker}</b>: ${a.message}</div>`).join('')
+        : '<div class="status ok">No alerts.</div>';
+
+      // Positions table
+      const actionColor = a => ({
+        TRIM_20: '#f97316', TRIM_15: '#f97316', TRIM_10: '#fb923c',
+        HOLD_STRONG: '#4ade80', HOLD: '#86efac',
+        CONSIDER_EXIT: '#f87171', REVIEW: '#facc15',
+        NO_COVERAGE: '#6b7280',
+      })[a] || '#6b7280';
+
+      const posTable = document.getElementById('robinhood-positions-table');
+      posTable.innerHTML =
+        '<thead><tr><th>Ticker</th><th>Shares</th><th>Avg Cost</th><th>Price</th><th>Value</th><th>P&L</th><th>Gain%</th><th>Alpha</th><th>PEAD</th><th>Earnings</th><th>Action</th></tr></thead><tbody>' +
+        (rh.positions || []).map(p => `<tr>
+          <td><b>${p.ticker}</b></td>
+          <td>${p.shares}</td>
+          <td>${p.avg_cost == null ? '-' : '$' + Number(p.avg_cost).toFixed(2)}</td>
+          <td>${p.current_price == null ? '-' : '$' + Number(p.current_price).toFixed(2)}</td>
+          <td>${p.current_value == null ? '-' : '$' + Number(p.current_value).toFixed(0)}</td>
+          <td>${p.unrealized_pl == null ? '-' : (p.unrealized_pl >= 0 ? '+' : '') + '$' + Math.abs(p.unrealized_pl).toFixed(0)}</td>
+          <td style="color:${p.gain_pct != null && p.gain_pct >= 0 ? '#4ade80' : '#f87171'}">${p.gain_pct == null ? '-' : fmtPct(p.gain_pct)}</td>
+          <td>${p.alpha_score == null ? '-' : Number(p.alpha_score).toFixed(3)}</td>
+          <td>${p.pead_score == null ? '-' : Number(p.pead_score).toFixed(3)}</td>
+          <td>${p.next_earnings_date ? p.next_earnings_date + ' (' + p.days_to_earnings + 'd)' : '-'}</td>
+          <td style="color:${actionColor(p.sigil_action)}" title="${p.sigil_reason}">${p.sigil_action}</td>
+        </tr>`).join('') +
+        '</tbody>';
+
+      // Crypto table
+      const cryptoTable = document.getElementById('robinhood-crypto-table');
+      cryptoTable.innerHTML =
+        '<thead><tr><th>Ticker</th><th>Quantity</th><th>Avg Cost</th><th>Cost Basis</th><th>Notes</th></tr></thead><tbody>' +
+        (rh.crypto || []).map(c => `<tr>
+          <td><b>${c.ticker}</b></td>
+          <td>${c.quantity}</td>
+          <td>${c.avg_cost == null ? '-' : '$' + Number(c.avg_cost).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+          <td>${c.cost_basis == null ? '-' : '$' + Number(c.cost_basis).toFixed(0)}</td>
+          <td>${c.notes}</td>
+        </tr>`).join('') +
+        '</tbody>';
     }
 
     function bindButtons() {
