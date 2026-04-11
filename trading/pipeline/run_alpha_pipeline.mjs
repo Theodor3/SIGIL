@@ -830,6 +830,7 @@ export async function run() {
     // ── Phase 7: Governance chain + dashboard (serial) ──
     await runModule('trading/governance/run_governance_checks.mjs');
     await runModule('trading/governance/run_model_scorecard.mjs');
+    await runModule('trading/portfolio/run_robinhood_tracker.mjs');
     await runModule('trading/dashboard/generate_dashboard_data.mjs');
 
     const preview = ranks.slice(0, targetTopN).map((r) => r.ticker).join(', ');
