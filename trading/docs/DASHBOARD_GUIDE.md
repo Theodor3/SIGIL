@@ -13,9 +13,9 @@ It is meant to answer four questions quickly:
 
 Primary files:
 
-- `C:\Users\Theodore\OneDrive\Documents\Playground\trading\dashboard\index.html`
-- `C:\Users\Theodore\OneDrive\Documents\Playground\trading\dashboard\generate_dashboard_data.mjs`
-- `C:\Users\Theodore\OneDrive\Documents\Playground\trading\dashboard\data\dashboard_data.json`
+- `C:\Users\Theodore\Documents\Playground\trading\dashboard\index.html`
+- `C:\Users\Theodore\Documents\Playground\trading\dashboard\generate_dashboard_data.mjs`
+- `C:\Users\Theodore\Documents\Playground\trading\dashboard\data\dashboard_data.json`
 
 ## How To Refresh
 

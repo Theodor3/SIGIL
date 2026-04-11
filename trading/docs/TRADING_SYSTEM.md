@@ -21,9 +21,9 @@ Secondary objectives:
 
 Trading is expected to run from the workspace root:
 
-- `C:\Users\Theodore\OneDrive\Documents\Playground\package.json`
-- `C:\Users\Theodore\OneDrive\Documents\Playground\scripts\run_growth_scan.mjs`
-- `C:\Users\Theodore\OneDrive\Documents\Playground\trading\...`
+- `C:\Users\Theodore\Documents\Playground\package.json`
+- `C:\Users\Theodore\Documents\Playground\scripts\run_growth_scan.mjs`
+- `C:\Users\Theodore\Documents\Playground\trading\...`
 
 This matters because root npm scripts and shared dependencies are used by the trading pipeline and dashboard refresh flow.
 
@@ -66,7 +66,7 @@ The goal is to replace fragile one-off vendor calls with normalized provider cli
 
 Local provider keys are expected in:
 
-- `C:\Users\Theodore\OneDrive\Documents\Playground\.env.local`
+- `C:\Users\Theodore\Documents\Playground\.env.local`
 
 Current supported variables:
 
@@ -678,7 +678,7 @@ Useful root-level commands:
 
 These should be run from:
 
-- `C:\Users\Theodore\OneDrive\Documents\Playground`
+- `C:\Users\Theodore\Documents\Playground`
 
 ## Current Known Gaps
 

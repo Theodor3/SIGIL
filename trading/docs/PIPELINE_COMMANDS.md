@@ -6,7 +6,7 @@ This is the quick runbook for operating the trading system from the terminal.
 
 Run all commands from:
 
-- `C:\Users\Theodore\OneDrive\Documents\Playground`
+- `C:\Users\Theodore\Documents\Playground`
 
 ## Core Commands
 
@@ -235,10 +235,10 @@ npm run trading:dashboard:data
 
 Core health checks:
 
-- `C:\Users\Theodore\OneDrive\Documents\Playground\trading\dashboard\data\dashboard_data.json`
-- `C:\Users\Theodore\OneDrive\Documents\Playground\trading\data\portfolio\latest_target_weights.csv`
-- `C:\Users\Theodore\OneDrive\Documents\Playground\trading\data\execution\latest_trade_plan.csv`
-- `C:\Users\Theodore\OneDrive\Documents\Playground\trading\governance\latest_governance.json`
+- `C:\Users\Theodore\Documents\Playground\trading\dashboard\data\dashboard_data.json`
+- `C:\Users\Theodore\Documents\Playground\trading\data\portfolio\latest_target_weights.csv`
+- `C:\Users\Theodore\Documents\Playground\trading\data\execution\latest_trade_plan.csv`
+- `C:\Users\Theodore\Documents\Playground\trading\governance\latest_governance.json`
 
 Useful sanity checks:
 
@@ -270,6 +270,6 @@ Stable names do not necessarily mean stale data.
 
 Make sure you are running from:
 
-- `C:\Users\Theodore\OneDrive\Documents\Playground`
+- `C:\Users\Theodore\Documents\Playground`
 
 The trading setup currently expects root-level npm scripts and shared dependencies.

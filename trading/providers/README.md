@@ -26,7 +26,7 @@ This makes it easier to:
 
 Loads local provider configuration from:
 
-- `C:\Users\Theodore\OneDrive\Documents\Playground\.env.local`
+- `C:\Users\Theodore\Documents\Playground\.env.local`
 
 Responsibilities:
 
@@ -106,7 +106,7 @@ Current behavior:
 
 Provider keys live in:
 
-- `C:\Users\Theodore\OneDrive\Documents\Playground\.env.local`
+- `C:\Users\Theodore\Documents\Playground\.env.local`
 
 Supported variables today:
 
