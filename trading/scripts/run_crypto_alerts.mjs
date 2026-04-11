@@ -5,7 +5,7 @@ import YahooFinance from 'yahoo-finance2';
 import { asNum, ensureDir, n, pct, readCsv, readJson, todayDate } from './lib.mjs';
 
 const root = process.cwd();
-const yf = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
+const yf = new YahooFinance({ suppressNotices: ['yahooSurvey'], validation: { logErrors: false, logOptionsErrors: false } });
 
 function toYahooSymbol(symbol) {
   const s = (symbol || '').toUpperCase();

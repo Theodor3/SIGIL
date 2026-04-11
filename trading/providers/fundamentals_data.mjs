@@ -1,7 +1,7 @@
 import YahooFinance from 'yahoo-finance2';
 import { loadLocalEnv } from './env.mjs';
 
-const yahooFinance = new YahooFinance({ suppressNotices: ['ripHistorical', 'yahooSurvey'] });
+const yahooFinance = new YahooFinance({ suppressNotices: ['ripHistorical', 'yahooSurvey'], validation: { logErrors: false, logOptionsErrors: false } });
 
 function asNum(v) {
   if (typeof v !== 'number' || !Number.isFinite(v)) return null;

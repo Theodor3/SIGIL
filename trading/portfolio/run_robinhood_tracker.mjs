@@ -9,7 +9,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import YahooFinance from 'yahoo-finance2';
-const yahooFinance = new YahooFinance({ suppressNotices: ['ripHistorical', 'yahooSurvey'] });
+const yahooFinance = new YahooFinance({ suppressNotices: ['ripHistorical', 'yahooSurvey'], validation: { logErrors: false, logOptionsErrors: false } });
 import { asNum, ensureDir, parseCsv, readJson, todayDate } from '../scripts/lib.mjs';
 import { loadLocalEnv } from '../providers/env.mjs';
 

@@ -4,7 +4,7 @@ import path from 'node:path';
 import YahooFinance from 'yahoo-finance2';
 import { latestFile, parseCsv } from '../scripts/lib.mjs';
 
-const yf = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
+const yf = new YahooFinance({ suppressNotices: ['yahooSurvey'], validation: { logErrors: false, logOptionsErrors: false } });
 const root = process.cwd();
 const tradingDir = path.join(root, 'trading');
 const altDir = path.join(tradingDir, 'data', 'alt');

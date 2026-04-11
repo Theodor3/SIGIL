@@ -24,7 +24,7 @@ import YahooFinance from 'yahoo-finance2';
 import { loadLocalEnv } from './env.mjs';
 import { ensureDir, latestFile, parseCsv, toCsv } from '../scripts/lib.mjs';
 
-const yahooFinance = new YahooFinance({ suppressNotices: ['ripHistorical', 'yahooSurvey'] });
+const yahooFinance = new YahooFinance({ suppressNotices: ['ripHistorical', 'yahooSurvey'], validation: { logErrors: false, logOptionsErrors: false } });
 
 const root = process.cwd();
 const tradingDir = path.join(root, 'trading');
