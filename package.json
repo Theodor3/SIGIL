@@ -27,7 +27,10 @@
     "trading:regime": "node trading/regime/run_regime_model.mjs",
     "trading:scorecard": "node trading/governance/run_model_scorecard.mjs",
     "trading:execution:sim": "node trading/execution/run_execution_simulator.mjs",
-    "trading:portfolio": "node trading/portfolio/run_portfolio_constructor.mjs"
+    "trading:portfolio": "node trading/portfolio/run_portfolio_constructor.mjs",
+    "trading:broker": "node trading/execution/run_alpaca_broker.mjs",
+    "trading:broker:execute": "node trading/execution/run_alpaca_broker.mjs --execute",
+    "trading:broker:status": "node trading/execution/run_alpaca_broker.mjs --status"
   },
   "dependencies": {
     "yahoo-finance2": "^3.13.2"
