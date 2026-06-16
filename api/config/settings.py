@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     finnhub_api_key: str = ""
     alpaca_api_key: str = ""
     alpaca_secret_key: str = ""
+    demo_mode: bool = True
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

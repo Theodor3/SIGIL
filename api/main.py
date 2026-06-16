@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.db import engine
 from api.db.models import Base
 from api.routes.dashboard import router as dashboard_router
+from api.routes.pipeline import router as pipeline_router
 from api.signals.registry import discover_signals
 
 
@@ -21,13 +22,14 @@ app = FastAPI(title="Sigil V2", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(dashboard_router)
+app.include_router(pipeline_router)
 
 
 @app.get("/health")

@@ -1,19 +1,39 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+interface SignalInfo {
+  name: string;
+  version: string;
+  weight: number;
+  description: string;
+  prediction_count: number;
+}
+
+interface TopIdea {
+  rank: number;
+  ticker: string;
+  final_score: number;
+  confidence: number;
+  signal_scores: Record<string, number>;
+}
+
+interface PipelineRun {
+  id: string;
+  started_at: string;
+  finished_at: string | null;
+  status: string;
+  regime_id: string;
+  universe_size: number;
+}
 
 interface DashboardData {
   status: string;
-  signals: Array<{
-    name: string;
-    version: string;
-    weight: number;
-    description: string;
-  }>;
+  signals: SignalInfo[];
   regime: {
     regime_id: string;
     confidence: number;
     exposure: number;
   };
-  top_ideas: unknown[];
+  top_ideas: TopIdea[];
   portfolio: {
     holdings_count: number;
     total_value: number;
@@ -21,7 +41,11 @@ interface DashboardData {
   pipeline: {
     last_run: string | null;
     status: string;
+    run_id: string | null;
+    universe_size: number;
+    duration: number | null;
   };
+  recent_runs: PipelineRun[];
 }
 
 export function useDashboard() {
@@ -29,16 +53,23 @@ export function useDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/dashboard-data")
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then(setData)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+  const fetchData = useCallback(async () => {
+    try {
+      const res = await fetch("/api/dashboard-data");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      setData(json);
+      setError(null);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  return { data, loading, error };
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  return { data, loading, error, refetch: fetchData };
 }
