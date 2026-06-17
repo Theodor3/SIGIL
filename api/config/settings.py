@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     finnhub_api_key: str = ""
     alpaca_api_key: str = ""
     alpaca_secret_key: str = ""
+    fred_api_key: str = ""
     demo_mode: bool = True
     auto_run_pipeline: bool = True
     pipeline_interval_hours: float = 6

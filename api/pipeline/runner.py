@@ -34,9 +34,9 @@ async def run_pipeline(db: AsyncSession) -> dict:
     await db.flush()
 
     try:
-        # Phase 1: Fetch fundamentals
         from api.data.registry import SourceStatus, update_source_status
 
+        # Phase 1: Fetch fundamentals
         yahoo = YahooProvider(demo_mode=settings.demo_mode)
         universe = SEED_UNIVERSE.copy()
         fundamentals = await yahoo.fetch(universe)
@@ -48,27 +48,120 @@ async def run_pipeline(db: AsyncSession) -> dict:
         if not bucket:
             bucket = list(fundamentals.keys())[:75]
 
-        # Phase 3: Build pipeline context
+        # Phase 3: Fetch additional data sources in parallel
+        earnings_calendar: dict[str, date] = {}
+        earnings_history: dict[str, list] = {}
+        market_data: dict[str, dict] = {}
+        macro: dict = {}
+        nowcast: dict[str, dict] = {}
+        benchmarks: dict = {}
+
+        # Finnhub — earnings data for PEAD signal
+        if settings.finnhub_api_key:
+            try:
+                from api.data.finnhub import FinnhubProvider
+                finnhub = FinnhubProvider()
+                fh_data = await finnhub.fetch(bucket)
+                earnings_calendar = fh_data.get("calendar", {})
+                earnings_history = fh_data.get("history", {})
+                update_source_status("finnhub_earnings", SourceStatus.ACTIVE,
+                                     fetch_count=len(earnings_calendar) + len(earnings_history))
+                print(f"[pipeline] Finnhub: {len(earnings_calendar)} calendar, {len(earnings_history)} history")
+            except Exception as e:
+                print(f"[pipeline] Finnhub failed: {e}")
+                update_source_status("finnhub_earnings", SourceStatus.ERROR, error=str(e))
+
+        # Polygon — market data + benchmarks for regime
+        if settings.polygon_api_key:
+            try:
+                from api.data.polygon import PolygonProvider
+                polygon = PolygonProvider()
+                market_data = await polygon.fetch(bucket)
+                benchmarks = await polygon.fetch_benchmarks()
+                update_source_status("polygon_market", SourceStatus.ACTIVE,
+                                     fetch_count=len(market_data))
+                print(f"[pipeline] Polygon: {len(market_data)} tickers, {len(benchmarks)} benchmark fields")
+            except Exception as e:
+                print(f"[pipeline] Polygon failed: {e}")
+                update_source_status("polygon_market", SourceStatus.ERROR, error=str(e))
+
+        # FRED — macro indicators for regime detection
+        if settings.fred_api_key:
+            try:
+                from api.data.fred import FredProvider
+                fred = FredProvider()
+                macro = await fred.fetch()
+                update_source_status("fred_macro", SourceStatus.ACTIVE, fetch_count=len(macro))
+                print(f"[pipeline] FRED: {len(macro)} macro indicators")
+            except Exception as e:
+                print(f"[pipeline] FRED failed: {e}")
+                update_source_status("fred_macro", SourceStatus.ERROR, error=str(e))
+
+        # Wikipedia — pageview alt data
+        try:
+            from api.data.wikipedia import WikipediaProvider
+            wiki = WikipediaProvider()
+            wiki_data = await wiki.fetch(bucket)
+            nowcast.update(wiki_data)
+            update_source_status("wikipedia_pageviews", SourceStatus.ACTIVE, fetch_count=len(wiki_data))
+            print(f"[pipeline] Wikipedia: {len(wiki_data)} tickers with pageview data")
+        except Exception as e:
+            print(f"[pipeline] Wikipedia failed: {e}")
+            update_source_status("wikipedia_pageviews", SourceStatus.ERROR, error=str(e))
+
+        # GDELT — news sentiment (merge with nowcast, preferring wiki for direct + gdelt for proxy)
+        try:
+            from api.data.gdelt import GdeltProvider
+            gdelt = GdeltProvider()
+            gdelt_data = await gdelt.fetch(bucket)
+            for ticker, gd in gdelt_data.items():
+                if ticker in nowcast:
+                    # Merge: upgrade to hybrid if we have both wiki and gdelt
+                    nowcast[ticker]["source_mix"] = "hybrid"
+                    nowcast[ticker]["proxy_source_count"] = 1
+                    nowcast[ticker]["deviation"] = gd.get("deviation", 0)
+                    nowcast[ticker]["news_tone_shift"] = gd.get("tone_shift", 0)
+                else:
+                    nowcast[ticker] = gd
+            update_source_status("gdelt_news", SourceStatus.ACTIVE, fetch_count=len(gdelt_data))
+            print(f"[pipeline] GDELT: {len(gdelt_data)} tickers with news data")
+        except Exception as e:
+            print(f"[pipeline] GDELT failed: {e}")
+            update_source_status("gdelt_news", SourceStatus.ERROR, error=str(e))
+
+        # Build market context for regime detection (merge benchmarks + FRED macro)
+        market_context = {**benchmarks, **macro}
+
+        # Phase 4: Build pipeline context
         ctx = PipelineContext(
             as_of_date=as_of,
             universe=bucket,
             fundamentals={t: fundamentals[t] for t in bucket if t in fundamentals},
+            market_data=market_data,
+            earnings_calendar=earnings_calendar,
+            earnings_history=earnings_history,
+            nowcast=nowcast,
+            macro=macro,
+            benchmarks=benchmarks,
         )
 
-        # Phase 4: Detect regime (placeholder for now)
-        regime = await detect_regime({}, as_of)
+        # Phase 5: Detect regime with real market data
+        regime = await detect_regime(market_context, as_of)
+        print(f"[pipeline] Regime: {regime.regime_id} ({regime.confidence:.0%} confidence)")
 
-        # Phase 5: Run all signals
+        # Phase 6: Run all signals
         registry = get_registry()
         signal_outputs = {}
         for sig_name, signal in registry.items():
             try:
                 outputs = await signal.compute(ctx)
                 signal_outputs[sig_name] = outputs
+                active_count = sum(1 for o in outputs if o.score > 0)
+                print(f"[pipeline] Signal {sig_name}: {active_count}/{len(outputs)} active scores")
             except Exception as e:
                 print(f"Signal {sig_name} failed: {e}")
 
-        # Phase 6: Store predictions
+        # Phase 7: Store predictions
         for sig_name, outputs in signal_outputs.items():
             signal = registry[sig_name]
             for out in outputs:
@@ -84,7 +177,7 @@ async def run_pipeline(db: AsyncSession) -> dict:
                 )
                 db.add(pred)
 
-        # Phase 7: Score universe
+        # Phase 8: Score universe
         weights = {}
         for sig_name, signal in registry.items():
             weights[sig_name] = signal.default_weight

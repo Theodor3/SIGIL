@@ -97,7 +97,7 @@ def init_default_sources():
         description="Daily pageview counts for company pages — alt data signal for retail attention",
         category="alt",
         requires_key=False,
-        status=SourceStatus.PENDING,
+        status=SourceStatus.ACTIVE,
         config={"coverage": "92% of universe (69/75 tickers mapped)"},
     ))
     register_source(DataSource(
@@ -106,7 +106,7 @@ def init_default_sources():
         description="Global news sentiment and volume — alt data signal for media attention shifts",
         category="alt",
         requires_key=False,
-        status=SourceStatus.PENDING,
+        status=SourceStatus.ACTIVE,
         config={"note": "Rate-limited, uses exponential backoff"},
     ))
     register_source(DataSource(
@@ -114,8 +114,9 @@ def init_default_sources():
         provider="FRED (St. Louis Fed)",
         description="Macro indicators — yield curve (T10Y2Y), high-yield spread, dollar index, VIX",
         category="macro",
-        requires_key=False,
-        status=SourceStatus.PENDING,
+        requires_key=True,
+        key_env_var="FRED_API_KEY",
+        status=SourceStatus.ACTIVE if settings.fred_api_key else SourceStatus.NO_KEY,
         config={"series": ["T10Y2Y", "BAMLH0A0HYM2", "DTWEXBGS", "VIXCLS"]},
     ))
     register_source(DataSource(
