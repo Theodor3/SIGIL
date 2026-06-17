@@ -85,7 +85,11 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
         for i, idea in enumerate(top_ideas):
             idea["rank"] = i + 1
 
-    # Signal health stats
+    # Signal health stats with evaluation data
+    from api.tracker.evaluator import get_signal_stats
+
+    eval_stats = await get_signal_stats(db)
+
     signal_health = []
     for sig in signals.values():
         count_q = await db.execute(
@@ -93,12 +97,14 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
             .where(SignalPrediction.signal_name == sig.name)
         )
         pred_count = count_q.scalar() or 0
+        stats = eval_stats.get(sig.name, {})
         signal_health.append({
             "name": sig.name,
             "version": sig.version,
             "weight": sig.default_weight,
             "description": sig.describe(),
             "prediction_count": pred_count,
+            "eval_stats": stats,
         })
 
     # Recent pipeline runs

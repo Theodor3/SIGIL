@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { useDashboard } from "../hooks/useDashboard";
 
 function StatCard({
@@ -41,17 +41,12 @@ function ScoreBar({ score, max = 1 }: { score: number; max?: number }) {
 
 export default function Overview() {
   const { data, loading, error, refetch } = useDashboard();
-  const [running, setRunning] = useState(false);
 
-  async function runPipeline() {
-    setRunning(true);
-    try {
-      await fetch("/api/pipeline/run", { method: "POST" });
-      await refetch();
-    } finally {
-      setRunning(false);
-    }
-  }
+  // Auto-refresh dashboard every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(refetch, 30_000);
+    return () => clearInterval(interval);
+  }, [refetch]);
 
   if (loading)
     return <div className="text-sigil-muted">Loading dashboard...</div>;
@@ -64,14 +59,10 @@ export default function Overview() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Overview</h1>
-        <button
-          onClick={runPipeline}
-          disabled={running}
-          className="px-4 py-2 rounded-lg bg-sigil-accent text-sigil-bg font-semibold text-sm
-                     hover:bg-sigil-accent/90 disabled:opacity-50 transition-all"
-        >
-          {running ? "Running Pipeline..." : "Run Pipeline"}
-        </button>
+        <div className="flex items-center gap-2 text-xs text-sigil-muted">
+          <span className="inline-block w-2 h-2 rounded-full bg-sigil-accent animate-pulse" />
+          Auto-pipeline active
+        </div>
       </div>
 
       <div className="grid grid-cols-4 gap-4">
