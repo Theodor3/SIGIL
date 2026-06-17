@@ -8,6 +8,7 @@ from api.config.settings import settings
 from api.db import engine, async_session
 from api.db.models import Base
 from api.routes.dashboard import router as dashboard_router
+from api.routes.data import router as data_router
 from api.routes.pipeline import router as pipeline_router
 from api.signals.registry import discover_signals
 
@@ -48,6 +49,9 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
     discover_signals()
 
+    from api.data.registry import init_default_sources
+    init_default_sources()
+
     if settings.auto_run_pipeline:
         _scheduler_task = asyncio.create_task(_scheduled_loop())
         print(f"[scheduler] Auto-pipeline enabled (every {settings.pipeline_interval_hours}h)")
@@ -70,6 +74,7 @@ app.add_middleware(
 
 app.include_router(dashboard_router)
 app.include_router(pipeline_router)
+app.include_router(data_router)
 
 
 @app.get("/health")

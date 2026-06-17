@@ -35,9 +35,13 @@ async def run_pipeline(db: AsyncSession) -> dict:
 
     try:
         # Phase 1: Fetch fundamentals
+        from api.data.registry import SourceStatus, update_source_status
+
         yahoo = YahooProvider(demo_mode=settings.demo_mode)
         universe = SEED_UNIVERSE.copy()
         fundamentals = await yahoo.fetch(universe)
+        update_source_status("yahoo_fundamentals", SourceStatus.ACTIVE, fetch_count=len(fundamentals))
+        update_source_status("universe_screener", SourceStatus.ACTIVE, fetch_count=len(universe))
 
         # Phase 2: Screen to growth bucket
         bucket = screen_universe(fundamentals)
