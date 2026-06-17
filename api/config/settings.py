@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     demo_mode: bool = True
     auto_run_pipeline: bool = True
     pipeline_interval_hours: float = 6
+    auth_password: str = ""
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

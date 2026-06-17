@@ -1,3 +1,11 @@
+FROM node:22-alpine AS frontend
+
+WORKDIR /build
+COPY web/package.json web/package-lock.json* ./
+RUN npm install
+COPY web/ .
+RUN npm run build
+
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -6,9 +14,7 @@ COPY api/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY api/ ./api/
-
-# Serve built frontend from FastAPI in production
-COPY web/dist/ ./web/dist/
+COPY --from=frontend /build/dist ./web/dist/
 
 EXPOSE 8000
 

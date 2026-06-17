@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { useWebSocket } from "../hooks/useWebSocket";
 
 const tabs = [
   { to: "/", label: "Overview", icon: "◈" },
@@ -11,6 +12,9 @@ const tabs = [
 ];
 
 export default function Layout() {
+  const { connected, lastMessage } = useWebSocket();
+  const pipelineRunning = lastMessage?.event === "pipeline_status";
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-sigil-border bg-sigil-surface px-6 py-3 flex items-center justify-between">
@@ -22,11 +26,21 @@ export default function Layout() {
             v2
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {pipelineRunning && (
+            <span className="flex items-center gap-1.5 text-xs text-yellow-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+              Pipeline running
+            </span>
+          )}
           <span className="px-2 py-0.5 rounded-full text-xs border border-sigil-accent/30 text-sigil-accent bg-sigil-accent/10">
             risk_on
           </span>
           <span className="text-sigil-muted text-xs">Paper Mode</span>
+          <span
+            className={`w-2 h-2 rounded-full ${connected ? "bg-sigil-accent" : "bg-sigil-danger"}`}
+            title={connected ? "WebSocket connected" : "WebSocket disconnected"}
+          />
         </div>
       </header>
 
