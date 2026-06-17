@@ -1,4 +1,4 @@
-"""Yahoo Finance data provider — fundamentals via yfinance library."""
+"""Yahoo Finance data provider — fundamentals + price data via yfinance."""
 from __future__ import annotations
 
 import asyncio
@@ -87,6 +87,7 @@ def _fetch_one_sync(symbol: str) -> dict | None:
             "market_cap": market_cap,
             "sector": sector,
             "industry": industry,
+            "description": (info.get("longBusinessSummary") or "")[:500],
             "trailing_pe": _num(info.get("trailingPE")),
             "forward_pe": _num(info.get("forwardPE")),
             "price_to_sales": _num(info.get("priceToSalesTrailing12Months")),
@@ -95,6 +96,80 @@ def _fetch_one_sync(symbol: str) -> dict | None:
         }
     except Exception:
         return None
+
+
+def _fetch_prices_batch_sync(tickers: list[str]) -> dict[str, dict]:
+    """Batch-download 35 days of price data for all tickers in ONE yfinance call."""
+    import yfinance as yf
+    try:
+        df = yf.download(tickers, period="35d", group_by="ticker", progress=False, threads=True)
+        if df.empty:
+            return {}
+    except Exception as e:
+        print(f"[yahoo] Batch price download failed: {e}")
+        return {}
+
+    market_data: dict[str, dict] = {}
+
+    for ticker in tickers:
+        try:
+            if len(tickers) == 1:
+                tdf = df
+            else:
+                tdf = df[ticker] if ticker in df.columns.get_level_values(0) else None
+            if tdf is None or tdf.empty:
+                continue
+
+            tdf = tdf.dropna(subset=["Close"])
+            if len(tdf) < 5:
+                continue
+
+            closes = tdf["Close"].values.tolist()
+            volumes = tdf["Volume"].values.tolist()
+            highs = tdf["High"].values.tolist()
+            lows = tdf["Low"].values.tolist()
+
+            current = closes[-1]
+            close_5d_ago = closes[-6] if len(closes) >= 6 else closes[0]
+            close_20d_ago = closes[0] if len(closes) >= 15 else closes[0]
+
+            ret_5d = (current - close_5d_ago) / close_5d_ago if close_5d_ago else 0
+            ret_20d = (current - close_20d_ago) / close_20d_ago if close_20d_ago else 0
+
+            avg_vol_20d = sum(volumes[-20:]) / max(len(volumes[-20:]), 1)
+            recent_vol = volumes[-1] if volumes else 0
+            vol_ratio = recent_vol / avg_vol_20d if avg_vol_20d > 0 else 1.0
+
+            if len(closes) >= 5:
+                daily_returns = [(closes[j] - closes[j-1]) / closes[j-1] for j in range(1, len(closes)) if closes[j-1] != 0]
+                if daily_returns:
+                    mean_ret = sum(daily_returns) / len(daily_returns)
+                    variance = sum((r - mean_ret) ** 2 for r in daily_returns) / len(daily_returns)
+                    realized_vol = (variance ** 0.5) * (252 ** 0.5)
+                else:
+                    realized_vol = 0
+            else:
+                realized_vol = 0
+
+            atr_values = [highs[j] - lows[j] for j in range(max(len(highs) - 14, 0), len(highs))]
+            atr = sum(atr_values) / max(len(atr_values), 1) if atr_values else 0
+
+            market_data[ticker] = {
+                "close": round(float(current), 2),
+                "return_5d": round(float(ret_5d), 5),
+                "return_20d": round(float(ret_20d), 5),
+                "volume": round(float(recent_vol)),
+                "avg_volume_20d": round(float(avg_vol_20d)),
+                "volume_ratio": round(float(vol_ratio), 3),
+                "realized_vol_20d": round(float(realized_vol), 4),
+                "atr_14d": round(float(atr), 2),
+                "high_20d": round(float(max(highs[-20:])), 2) if highs else float(current),
+                "low_20d": round(float(min(lows[-20:])), 2) if lows else float(current),
+            }
+        except Exception:
+            pass
+
+    return market_data
 
 
 def _generate_demo_data(symbol: str, seed: int) -> dict:
@@ -118,6 +193,7 @@ def _generate_demo_data(symbol: str, seed: int) -> dict:
         "market_cap": round(market_cap, 0),
         "sector": sector,
         "industry": f"{sector} Services",
+        "description": f"A leading {sector.lower()} company.",
         "trailing_pe": round(rng.uniform(10, 60), 2),
         "forward_pe": round(rng.uniform(8, 50), 2),
         "price_to_sales": round(rng.uniform(1, 25), 2),
@@ -145,7 +221,6 @@ class YahooProvider(DataProvider):
             data = await loop.run_in_executor(executor, _fetch_one_sync, symbol)
             return symbol, data
 
-        # Batch in groups of 10 to avoid rate limits
         results = {}
         for i in range(0, len(tickers), 10):
             batch = tickers[i:i + 10]
@@ -164,12 +239,18 @@ class YahooProvider(DataProvider):
 
         executor.shutdown(wait=False)
 
-        # If Yahoo returned too few results, fall back to demo mode
         if len(results) < len(tickers) * 0.3:
             print(f"Yahoo returned {len(results)}/{len(tickers)} tickers, falling back to demo data")
             return self._fetch_demo(tickers)
 
         return results
+
+    async def fetch_prices(self, tickers: list[str]) -> dict[str, dict]:
+        """Batch-download price data for all tickers in one call. No rate limits."""
+        if self._demo_mode:
+            return {}
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, _fetch_prices_batch_sync, tickers)
 
     def _fetch_demo(self, tickers: list[str]) -> dict[str, dict]:
         return {

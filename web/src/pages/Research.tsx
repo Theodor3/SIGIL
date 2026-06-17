@@ -28,8 +28,20 @@ interface ScorePoint {
   signals: Record<string, number>;
 }
 
+interface CompanyInfo {
+  name: string;
+  description: string;
+  sector: string;
+  industry: string;
+  market_cap: number | null;
+  price: number | null;
+  fifty_two_week_high: number | null;
+  fifty_two_week_low: number | null;
+}
+
 interface TickerData {
   ticker: string;
+  company: CompanyInfo;
   final_score: number;
   confidence: number;
   signals: SignalBreakdown[];
@@ -150,11 +162,31 @@ export default function Research() {
         <>
           {/* Header */}
           <div className="rounded-xl border border-sigil-border bg-sigil-surface p-5">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-3">
               <div>
-                <h2 className="text-2xl font-bold text-sigil-accent">{data.ticker}</h2>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-2xl font-bold text-sigil-accent">{data.ticker}</h2>
+                  {data.company?.name && data.company.name !== data.ticker && (
+                    <span className="text-lg text-sigil-text">{data.company.name}</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 mt-1">
+                  {data.company?.sector && (
+                    <span className="text-xs px-2 py-0.5 rounded-full border border-sigil-border text-sigil-muted">
+                      {data.company.sector}
+                    </span>
+                  )}
+                  {data.company?.industry && (
+                    <span className="text-xs text-sigil-muted">{data.company.industry}</span>
+                  )}
+                  {data.company?.market_cap && (
+                    <span className="text-xs text-sigil-muted">
+                      Mkt Cap: ${(data.company.market_cap / 1e9).toFixed(1)}B
+                    </span>
+                  )}
+                </div>
                 {data.run_date && (
-                  <span className="text-xs text-sigil-muted">
+                  <span className="text-xs text-sigil-muted block mt-1">
                     Last scored: {new Date(data.run_date).toLocaleString()}
                   </span>
                 )}
@@ -164,8 +196,24 @@ export default function Research() {
                 <div className="text-xs text-sigil-muted">
                   {(data.confidence * 100).toFixed(0)}% confidence
                 </div>
+                {data.company?.price && (
+                  <div className="text-sm font-mono text-sigil-text mt-1">
+                    ${data.company.price.toFixed(2)}
+                  </div>
+                )}
               </div>
             </div>
+            {data.company?.description && (
+              <p className="text-sm text-sigil-muted leading-relaxed mt-3 pt-3 border-t border-sigil-border">
+                {data.company.description}
+              </p>
+            )}
+            {data.company?.fifty_two_week_high && data.company?.fifty_two_week_low && (
+              <div className="flex gap-4 mt-2 text-xs text-sigil-muted">
+                <span>52w Low: <span className="font-mono text-sigil-danger">${data.company.fifty_two_week_low.toFixed(2)}</span></span>
+                <span>52w High: <span className="font-mono text-sigil-accent">${data.company.fifty_two_week_high.toFixed(2)}</span></span>
+              </div>
+            )}
           </div>
 
           {/* Signal attribution */}

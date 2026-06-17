@@ -1,10 +1,10 @@
 """Pipeline runner — orchestrates data fetch → signals → scoring → storage."""
 from __future__ import annotations
 
+import asyncio
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config.settings import settings
@@ -14,8 +14,44 @@ from api.data.yahoo import YahooProvider
 from api.db.models import PipelineRun, SignalPrediction
 from api.model.scorer import score_universe
 from api.regime.detector import detect_regime
-from api.regime.models import RegimeSnapshot
 from api.signals.registry import get_registry
+
+
+async def _fetch_finnhub(bucket: list[str]) -> dict:
+    if not settings.finnhub_api_key:
+        return {"calendar": {}, "history": {}}
+    from api.data.finnhub import FinnhubProvider
+    fh = FinnhubProvider()
+    return await fh.fetch(bucket)
+
+
+async def _fetch_benchmarks() -> dict:
+    if not settings.polygon_api_key:
+        return {}
+    from api.data.polygon import PolygonProvider
+    pg = PolygonProvider()
+    return await pg.fetch_benchmarks()
+
+
+async def _fetch_fred() -> dict:
+    if not settings.fred_api_key:
+        return {}
+    from api.data.fred import FredProvider
+    return await FredProvider().fetch()
+
+
+async def _fetch_wikipedia(bucket: list[str]) -> dict:
+    from api.data.wikipedia import WikipediaProvider
+    return await WikipediaProvider().fetch(bucket)
+
+
+async def _fetch_gdelt(bucket: list[str]) -> dict:
+    from api.data.gdelt import GdeltProvider
+    return await GdeltProvider().fetch(bucket)
+
+
+async def _fetch_yahoo_prices(yahoo: YahooProvider, bucket: list[str]) -> dict:
+    return await yahoo.fetch_prices(bucket)
 
 
 async def run_pipeline(db: AsyncSession) -> dict:
@@ -24,19 +60,14 @@ async def run_pipeline(db: AsyncSession) -> dict:
     started_at = datetime.utcnow()
     as_of = date.today()
 
-    # Record the run
-    run = PipelineRun(
-        id=run_id,
-        started_at=started_at,
-        status="running",
-    )
+    run = PipelineRun(id=run_id, started_at=started_at, status="running")
     db.add(run)
     await db.flush()
 
     try:
         from api.data.registry import SourceStatus, update_source_status
 
-        # Phase 1: Fetch fundamentals
+        # Phase 1: Fetch fundamentals (must complete before screening)
         yahoo = YahooProvider(demo_mode=settings.demo_mode)
         universe = SEED_UNIVERSE.copy()
         fundamentals = await yahoo.fetch(universe)
@@ -47,76 +78,73 @@ async def run_pipeline(db: AsyncSession) -> dict:
         bucket = screen_universe(fundamentals)
         if not bucket:
             bucket = list(fundamentals.keys())[:75]
+        print(f"[pipeline] Universe: {len(bucket)} tickers after screening")
 
-        # Phase 3: Fetch additional data sources in parallel
-        earnings_calendar: dict[str, date] = {}
-        earnings_history: dict[str, list] = {}
-        market_data: dict[str, dict] = {}
-        macro: dict = {}
+        # Phase 3: Fetch ALL other data sources IN PARALLEL
+        t0 = datetime.utcnow()
+        results = await asyncio.gather(
+            _fetch_yahoo_prices(yahoo, bucket),
+            _fetch_finnhub(bucket),
+            _fetch_benchmarks(),
+            _fetch_fred(),
+            _fetch_wikipedia(bucket),
+            _fetch_gdelt(bucket),
+            return_exceptions=True,
+        )
+        fetch_time = (datetime.utcnow() - t0).total_seconds()
+        print(f"[pipeline] Parallel fetch completed in {fetch_time:.1f}s")
+
+        # Unpack results with graceful fallbacks
+        market_data = results[0] if not isinstance(results[0], Exception) else {}
+        fh_data = results[1] if not isinstance(results[1], Exception) else {"calendar": {}, "history": {}}
+        benchmarks = results[2] if not isinstance(results[2], Exception) else {}
+        macro = results[3] if not isinstance(results[3], Exception) else {}
+        wiki_data = results[4] if not isinstance(results[4], Exception) else {}
+        gdelt_data = results[5] if not isinstance(results[5], Exception) else {}
+
+        # Log errors from any failed providers
+        provider_names = ["yahoo_prices", "finnhub", "polygon_benchmarks", "fred", "wikipedia", "gdelt"]
+        for i, name in enumerate(provider_names):
+            if isinstance(results[i], Exception):
+                print(f"[pipeline] {name} failed: {results[i]}")
+
+        # Update source statuses
+        if not isinstance(results[0], Exception):
+            update_source_status("polygon_market", SourceStatus.ACTIVE, fetch_count=len(market_data))
+            print(f"[pipeline] Yahoo prices: {len(market_data)} tickers")
+        else:
+            update_source_status("polygon_market", SourceStatus.ERROR, error=str(results[0]))
+
+        earnings_calendar = fh_data.get("calendar", {})
+        earnings_history = fh_data.get("history", {})
+        if not isinstance(results[1], Exception):
+            update_source_status("finnhub_earnings", SourceStatus.ACTIVE,
+                                 fetch_count=len(earnings_calendar) + len(earnings_history))
+            print(f"[pipeline] Finnhub: {len(earnings_calendar)} calendar, {len(earnings_history)} history")
+        else:
+            update_source_status("finnhub_earnings", SourceStatus.ERROR, error=str(results[1]))
+
+        if not isinstance(results[2], Exception):
+            print(f"[pipeline] Polygon benchmarks: {len(benchmarks)} fields")
+
+        if not isinstance(results[3], Exception):
+            update_source_status("fred_macro", SourceStatus.ACTIVE, fetch_count=len(macro))
+            print(f"[pipeline] FRED: {len(macro)} macro indicators")
+        else:
+            update_source_status("fred_macro", SourceStatus.ERROR, error=str(results[3]))
+
+        # Merge Wikipedia + GDELT into nowcast
         nowcast: dict[str, dict] = {}
-        benchmarks: dict = {}
-
-        # Finnhub — earnings data for PEAD signal
-        if settings.finnhub_api_key:
-            try:
-                from api.data.finnhub import FinnhubProvider
-                finnhub = FinnhubProvider()
-                fh_data = await finnhub.fetch(bucket)
-                earnings_calendar = fh_data.get("calendar", {})
-                earnings_history = fh_data.get("history", {})
-                update_source_status("finnhub_earnings", SourceStatus.ACTIVE,
-                                     fetch_count=len(earnings_calendar) + len(earnings_history))
-                print(f"[pipeline] Finnhub: {len(earnings_calendar)} calendar, {len(earnings_history)} history")
-            except Exception as e:
-                print(f"[pipeline] Finnhub failed: {e}")
-                update_source_status("finnhub_earnings", SourceStatus.ERROR, error=str(e))
-
-        # Polygon — market data + benchmarks for regime
-        if settings.polygon_api_key:
-            try:
-                from api.data.polygon import PolygonProvider
-                polygon = PolygonProvider()
-                market_data = await polygon.fetch(bucket)
-                benchmarks = await polygon.fetch_benchmarks()
-                update_source_status("polygon_market", SourceStatus.ACTIVE,
-                                     fetch_count=len(market_data))
-                print(f"[pipeline] Polygon: {len(market_data)} tickers, {len(benchmarks)} benchmark fields")
-            except Exception as e:
-                print(f"[pipeline] Polygon failed: {e}")
-                update_source_status("polygon_market", SourceStatus.ERROR, error=str(e))
-
-        # FRED — macro indicators for regime detection
-        if settings.fred_api_key:
-            try:
-                from api.data.fred import FredProvider
-                fred = FredProvider()
-                macro = await fred.fetch()
-                update_source_status("fred_macro", SourceStatus.ACTIVE, fetch_count=len(macro))
-                print(f"[pipeline] FRED: {len(macro)} macro indicators")
-            except Exception as e:
-                print(f"[pipeline] FRED failed: {e}")
-                update_source_status("fred_macro", SourceStatus.ERROR, error=str(e))
-
-        # Wikipedia — pageview alt data
-        try:
-            from api.data.wikipedia import WikipediaProvider
-            wiki = WikipediaProvider()
-            wiki_data = await wiki.fetch(bucket)
+        if not isinstance(results[4], Exception):
             nowcast.update(wiki_data)
             update_source_status("wikipedia_pageviews", SourceStatus.ACTIVE, fetch_count=len(wiki_data))
-            print(f"[pipeline] Wikipedia: {len(wiki_data)} tickers with pageview data")
-        except Exception as e:
-            print(f"[pipeline] Wikipedia failed: {e}")
-            update_source_status("wikipedia_pageviews", SourceStatus.ERROR, error=str(e))
+            print(f"[pipeline] Wikipedia: {len(wiki_data)} tickers")
+        else:
+            update_source_status("wikipedia_pageviews", SourceStatus.ERROR, error=str(results[4]))
 
-        # GDELT — news sentiment (merge with nowcast, preferring wiki for direct + gdelt for proxy)
-        try:
-            from api.data.gdelt import GdeltProvider
-            gdelt = GdeltProvider()
-            gdelt_data = await gdelt.fetch(bucket)
+        if not isinstance(results[5], Exception):
             for ticker, gd in gdelt_data.items():
                 if ticker in nowcast:
-                    # Merge: upgrade to hybrid if we have both wiki and gdelt
                     nowcast[ticker]["source_mix"] = "hybrid"
                     nowcast[ticker]["proxy_source_count"] = 1
                     nowcast[ticker]["deviation"] = gd.get("deviation", 0)
@@ -124,12 +152,11 @@ async def run_pipeline(db: AsyncSession) -> dict:
                 else:
                     nowcast[ticker] = gd
             update_source_status("gdelt_news", SourceStatus.ACTIVE, fetch_count=len(gdelt_data))
-            print(f"[pipeline] GDELT: {len(gdelt_data)} tickers with news data")
-        except Exception as e:
-            print(f"[pipeline] GDELT failed: {e}")
-            update_source_status("gdelt_news", SourceStatus.ERROR, error=str(e))
+            print(f"[pipeline] GDELT: {len(gdelt_data)} tickers")
+        else:
+            update_source_status("gdelt_news", SourceStatus.ERROR, error=str(results[5]))
 
-        # Build market context for regime detection (merge benchmarks + FRED macro)
+        # Build market context for regime detection
         market_context = {**benchmarks, **macro}
 
         # Phase 4: Build pipeline context
@@ -145,7 +172,7 @@ async def run_pipeline(db: AsyncSession) -> dict:
             benchmarks=benchmarks,
         )
 
-        # Phase 5: Detect regime with real market data
+        # Phase 5: Detect regime
         regime = await detect_regime(market_context, as_of)
         print(f"[pipeline] Regime: {regime.regime_id} ({regime.confidence:.0%} confidence)")
 
@@ -178,19 +205,19 @@ async def run_pipeline(db: AsyncSession) -> dict:
                 db.add(pred)
 
         # Phase 8: Score universe
-        weights = {}
-        for sig_name, signal in registry.items():
-            weights[sig_name] = signal.default_weight
-
+        weights = {sig_name: signal.default_weight for sig_name, signal in registry.items()}
         scored = score_universe(signal_outputs, weights, regime)
 
-        # Update run record
+        # Finalize run
         run.finished_at = datetime.utcnow()
         run.status = "completed"
         run.regime_id = regime.regime_id
         run.regime_confidence = regime.confidence
         run.universe_size = len(bucket)
         await db.commit()
+
+        duration = (datetime.utcnow() - started_at).total_seconds()
+        print(f"[pipeline] Completed in {duration:.1f}s total")
 
         top_ideas = [
             {
@@ -213,7 +240,7 @@ async def run_pipeline(db: AsyncSession) -> dict:
             "signals_run": list(signal_outputs.keys()),
             "regime": regime.regime_id,
             "top_ideas": top_ideas,
-            "duration_seconds": (datetime.utcnow() - started_at).total_seconds(),
+            "duration_seconds": duration,
         }
 
     except Exception as e:

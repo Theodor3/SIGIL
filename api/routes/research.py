@@ -123,8 +123,28 @@ async def ticker_drilldown(ticker: str, db: AsyncSession = Depends(get_db)):
         for t in trades_q.scalars().all()
     ]
 
+    # Fetch company info from Yahoo (description, sector, industry)
+    company_info = {}
+    try:
+        import yfinance as yf
+        t_obj = yf.Ticker(ticker)
+        info = t_obj.info or {}
+        company_info = {
+            "name": info.get("shortName") or info.get("longName", ticker),
+            "description": (info.get("longBusinessSummary") or "")[:600],
+            "sector": info.get("sector", ""),
+            "industry": info.get("industry", ""),
+            "market_cap": info.get("marketCap"),
+            "price": info.get("regularMarketPrice"),
+            "fifty_two_week_high": info.get("fiftyTwoWeekHigh"),
+            "fifty_two_week_low": info.get("fiftyTwoWeekLow"),
+        }
+    except Exception:
+        pass
+
     return {
         "ticker": ticker,
+        "company": company_info,
         "final_score": round(final_score, 6),
         "confidence": round(avg_confidence, 4),
         "signals": current_signals,

@@ -84,12 +84,11 @@ def init_default_sources():
     ))
     register_source(DataSource(
         name="polygon_market",
-        provider="Polygon.io",
-        description="Real-time and historical market data — OHLCV, technicals, reference data",
+        provider="Yahoo Finance + Polygon.io",
+        description="Market data — Yahoo batch download for per-ticker OHLCV, Polygon for benchmarks only",
         category="market",
-        requires_key=True,
-        key_env_var="POLYGON_API_KEY",
-        status=SourceStatus.ACTIVE if settings.polygon_api_key else SourceStatus.NO_KEY,
+        requires_key=False,
+        status=SourceStatus.ACTIVE,
     ))
     register_source(DataSource(
         name="wikipedia_pageviews",
