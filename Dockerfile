@@ -20,4 +20,13 @@ COPY --from=frontend /build/dist ./web/dist/
 
 EXPOSE 8000
 
-CMD python -m alembic upgrade head && uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1
+CMD python -c "
+from alembic.config import Config
+from alembic import command
+try:
+    cfg = Config('alembic.ini')
+    command.upgrade(cfg, 'head')
+    print('[startup] Alembic migrations applied')
+except Exception as e:
+    print(f'[startup] Alembic skipped ({e}), falling back to create_all')
+" && uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1
