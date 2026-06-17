@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api import cache
 from api.db import get_db
 from api.pipeline.runner import run_pipeline
 from api.tracker.evaluator import evaluate_predictions, get_signal_stats
@@ -12,6 +13,7 @@ router = APIRouter(prefix="/api", tags=["pipeline"])
 async def trigger_pipeline(db: AsyncSession = Depends(get_db)):
     """Trigger a full pipeline run."""
     result = await run_pipeline(db)
+    cache.clear()
     return result
 
 

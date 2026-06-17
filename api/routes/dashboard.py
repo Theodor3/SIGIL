@@ -2,15 +2,23 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api import cache
 from api.db import get_db
 from api.db.models import PipelineRun, SignalPrediction, Trade
 
 router = APIRouter(prefix="/api", tags=["dashboard"])
 
+DASHBOARD_CACHE_KEY = "dashboard_data"
+DASHBOARD_CACHE_TTL = 30
+
 
 @router.get("/dashboard-data")
 async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
     """Main dashboard payload — consumed by the React frontend."""
+    cached = cache.get(DASHBOARD_CACHE_KEY)
+    if cached is not None:
+        return cached
+
     from api.signals.registry import get_registry
 
     signals = get_registry()
@@ -191,7 +199,7 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
         "is_demo": broker.is_demo,
     }
 
-    return {
+    payload = {
         "status": "ok",
         "signals": signal_health,
         "regime": regime,
@@ -200,6 +208,8 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
         "pipeline": pipeline_status,
         "recent_runs": recent_runs,
     }
+    cache.set(DASHBOARD_CACHE_KEY, payload, ttl=DASHBOARD_CACHE_TTL)
+    return payload
 
 
 @router.get("/signals")

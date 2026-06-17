@@ -24,6 +24,7 @@ _scheduler_task: asyncio.Task | None = None
 
 async def _scheduled_loop():
     """Run pipeline automatically on a timer."""
+    from api import cache
     from api.pipeline.runner import run_pipeline
     from api.routes.ws import broadcast
     from api.tracker.evaluator import evaluate_predictions
@@ -36,6 +37,7 @@ async def _scheduled_loop():
             async with async_session() as db:
                 print("[scheduler] Starting automatic pipeline run...")
                 result = await run_pipeline(db)
+                cache.clear()
                 print(f"[scheduler] Pipeline completed: {result['universe_size']} tickers, "
                       f"{len(result['signals_run'])} signals, regime={result['regime']}")
 
