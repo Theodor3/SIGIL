@@ -230,3 +230,67 @@ async def execute_targets(db: AsyncSession = Depends(get_db)):
 
     await db.commit()
     return {"message": f"Executed {len(results)} trades", "is_demo": _broker.is_demo, "trades": results}
+
+
+@router.post("/close/{trade_id}")
+async def close_trade(trade_id: int, db: AsyncSession = Depends(get_db)):
+    """Close an open trade — fetch current price, compute P&L, update DB."""
+    trade = await db.get(Trade, trade_id)
+    if not trade:
+        return {"error": "Trade not found"}
+    if trade.status != "open":
+        return {"error": f"Trade already {trade.status}"}
+
+    prices = await _broker.get_prices([trade.ticker])
+    exit_price = prices.get(trade.ticker)
+    if not exit_price:
+        return {"error": f"Could not get price for {trade.ticker}"}
+
+    entry = trade.entry_price or exit_price
+    if trade.side == "long":
+        realized_pnl = (exit_price - entry) * trade.shares
+    else:
+        realized_pnl = (entry - exit_price) * trade.shares
+
+    trade.exit_price = exit_price
+    trade.realized_pnl = round(realized_pnl, 2)
+    trade.closed_at = datetime.utcnow()
+    trade.status = "closed"
+    await db.commit()
+
+    return {
+        "trade_id": trade.id,
+        "ticker": trade.ticker,
+        "exit_price": exit_price,
+        "realized_pnl": trade.realized_pnl,
+        "status": "closed",
+    }
+
+
+@router.post("/close-all")
+async def close_all_trades(db: AsyncSession = Depends(get_db)):
+    """Close all open trades at current market prices."""
+    open_q = await db.execute(select(Trade).where(Trade.status == "open"))
+    open_trades = open_q.scalars().all()
+    if not open_trades:
+        return {"message": "No open trades", "closed": 0}
+
+    tickers = list({t.ticker for t in open_trades})
+    prices = await _broker.get_prices(tickers)
+    closed = []
+    for trade in open_trades:
+        exit_price = prices.get(trade.ticker)
+        if not exit_price:
+            continue
+        entry = trade.entry_price or exit_price
+        if trade.side == "long":
+            trade.realized_pnl = round((exit_price - entry) * trade.shares, 2)
+        else:
+            trade.realized_pnl = round((entry - exit_price) * trade.shares, 2)
+        trade.exit_price = exit_price
+        trade.closed_at = datetime.utcnow()
+        trade.status = "closed"
+        closed.append({"ticker": trade.ticker, "pnl": trade.realized_pnl})
+
+    await db.commit()
+    return {"message": f"Closed {len(closed)} trades", "closed": len(closed), "trades": closed}

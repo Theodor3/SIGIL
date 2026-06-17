@@ -15,6 +15,7 @@ from api.routes.dashboard import router as dashboard_router
 from api.routes.data import router as data_router
 from api.routes.pipeline import router as pipeline_router
 from api.routes.portfolio import router as portfolio_router
+from api.routes.research import router as research_router
 from api.routes.ws import router as ws_router
 from api.signals.registry import discover_signals
 
@@ -102,6 +103,7 @@ app.include_router(dashboard_router)
 app.include_router(pipeline_router)
 app.include_router(data_router)
 app.include_router(portfolio_router)
+app.include_router(research_router)
 app.include_router(ws_router)
 
 

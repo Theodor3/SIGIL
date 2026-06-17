@@ -132,6 +132,20 @@ export default function Portfolio() {
     }
   }
 
+  async function closeTrade(tradeId: number) {
+    try {
+      await fetch(`/api/portfolio/close/${tradeId}`, { method: "POST" });
+      await fetchPortfolio();
+    } catch {}
+  }
+
+  async function closeAllTrades() {
+    try {
+      await fetch("/api/portfolio/close-all", { method: "POST" });
+      await fetchPortfolio();
+    } catch {}
+  }
+
   async function executeTargets() {
     setExecuting(true);
     setExecResult(null);
@@ -292,8 +306,14 @@ export default function Portfolio() {
           {/* DB-tracked open trades */}
           {(data?.open_trades?.length ?? 0) > 0 ? (
             <div className="rounded-xl border border-sigil-border bg-sigil-surface overflow-hidden">
-              <div className="px-4 py-3 border-b border-sigil-border">
+              <div className="px-4 py-3 border-b border-sigil-border flex items-center justify-between">
                 <span className="text-sm font-semibold">Open Trades</span>
+                <button
+                  onClick={closeAllTrades}
+                  className="text-xs px-3 py-1 rounded-lg border border-sigil-danger/50 text-sigil-danger hover:bg-sigil-danger/10 transition-colors"
+                >
+                  Close All
+                </button>
               </div>
               <table className="w-full text-sm">
                 <thead>
@@ -304,6 +324,7 @@ export default function Portfolio() {
                     <th className="text-right px-4 py-2">Entry</th>
                     <th className="text-left px-4 py-2">Regime</th>
                     <th className="text-left px-4 py-2">Opened</th>
+                    <th className="text-right px-4 py-2"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -337,6 +358,14 @@ export default function Portfolio() {
                       </td>
                       <td className="px-4 py-2.5 text-sigil-muted text-xs">
                         {new Date(t.opened_at).toLocaleString()}
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <button
+                          onClick={() => closeTrade(t.id)}
+                          className="text-xs px-2 py-1 rounded border border-sigil-danger/40 text-sigil-danger hover:bg-sigil-danger/10 transition-colors"
+                        >
+                          Close
+                        </button>
                       </td>
                     </tr>
                   ))}
