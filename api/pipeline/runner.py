@@ -5,6 +5,7 @@ import asyncio
 import uuid
 from datetime import date, datetime
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config.settings import settings
@@ -176,43 +177,37 @@ async def run_pipeline(db: AsyncSession) -> dict:
         regime = await detect_regime(market_context, as_of)
         print(f"[pipeline] Regime: {regime.regime_id} ({regime.confidence:.0%} confidence)")
 
-        # Store regime snapshot in history
+        # Store regime snapshot in history (upsert by as_of_date)
         from api.db.models import RegimeHistory
-        from sqlalchemy.dialects.postgresql import insert as pg_insert
-        rh_stmt = pg_insert(RegimeHistory).values(
-            as_of_date=as_of,
-            regime_id=regime.regime_id,
-            confidence=regime.confidence,
-            spy_20d_return=regime.metadata.get("spy_20d"),
-            vix_level=regime.metadata.get("vix"),
-            breadth_state=regime.breadth_state,
-            metadata_={
-                "vol_state": regime.vol_state,
-                "spy_20d": regime.metadata.get("spy_20d"),
-                "qqq_20d": regime.metadata.get("qqq_20d"),
-                "vix": regime.metadata.get("vix"),
-                "exposure": regime.recommended_gross_exposure,
-                "factor_tilts": regime.factor_tilts,
-            },
-        ).on_conflict_do_update(
-            index_elements=["as_of_date"],
-            set_={
-                "regime_id": regime.regime_id,
-                "confidence": regime.confidence,
-                "spy_20d_return": regime.metadata.get("spy_20d"),
-                "vix_level": regime.metadata.get("vix"),
-                "breadth_state": regime.breadth_state,
-                "metadata_": {
-                    "vol_state": regime.vol_state,
-                    "spy_20d": regime.metadata.get("spy_20d"),
-                    "qqq_20d": regime.metadata.get("qqq_20d"),
-                    "vix": regime.metadata.get("vix"),
-                    "exposure": regime.recommended_gross_exposure,
-                    "factor_tilts": regime.factor_tilts,
-                },
-            },
+        existing_rh = await db.execute(
+            select(RegimeHistory).where(RegimeHistory.as_of_date == as_of)
         )
-        await db.execute(rh_stmt)
+        rh_row = existing_rh.scalar_one_or_none()
+        rh_meta = {
+            "vol_state": regime.vol_state,
+            "spy_20d": regime.metadata.get("spy_20d"),
+            "qqq_20d": regime.metadata.get("qqq_20d"),
+            "vix": regime.metadata.get("vix"),
+            "exposure": regime.recommended_gross_exposure,
+            "factor_tilts": regime.factor_tilts,
+        }
+        if rh_row:
+            rh_row.regime_id = regime.regime_id
+            rh_row.confidence = regime.confidence
+            rh_row.spy_20d_return = regime.metadata.get("spy_20d")
+            rh_row.vix_level = regime.metadata.get("vix")
+            rh_row.breadth_state = regime.breadth_state
+            rh_row.metadata_ = rh_meta
+        else:
+            db.add(RegimeHistory(
+                as_of_date=as_of,
+                regime_id=regime.regime_id,
+                confidence=regime.confidence,
+                spy_20d_return=regime.metadata.get("spy_20d"),
+                vix_level=regime.metadata.get("vix"),
+                breadth_state=regime.breadth_state,
+                metadata_=rh_meta,
+            ))
 
         # Phase 6: Run all signals
         registry = get_registry()
