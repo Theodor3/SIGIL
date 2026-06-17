@@ -40,10 +40,50 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
         ),
     }
 
+    # Build rich regime data
+    from api.regime.detector import DEFAULTS as REGIME_DEFAULTS
+    regime_id = latest_run.regime_id if latest_run else "risk_on"
+    regime_conf = latest_run.regime_confidence if latest_run else 0.5
+    exposure_map = REGIME_DEFAULTS["exposure"]
+    tilt_map = REGIME_DEFAULTS["factor_tilts"]
+
+    # Pull regime history for sparkline (last 14 completed runs)
+    regime_history_q = await db.execute(
+        select(PipelineRun)
+        .where(PipelineRun.status == "completed", PipelineRun.regime_id.isnot(None))
+        .order_by(PipelineRun.started_at.desc())
+        .limit(14)
+    )
+    regime_history_runs = list(reversed(regime_history_q.scalars().all()))
+    regime_history = [
+        {
+            "date": r.started_at.strftime("%m/%d"),
+            "regime_id": r.regime_id,
+            "confidence": r.regime_confidence,
+        }
+        for r in regime_history_runs
+    ]
+
+    # Get latest regime snapshot metadata from the most recent run
+    from api.db.models import RegimeHistory
+    latest_rh_q = await db.execute(
+        select(RegimeHistory).order_by(RegimeHistory.as_of_date.desc()).limit(1)
+    )
+    latest_rh = latest_rh_q.scalar_one_or_none()
+
     regime = {
-        "regime_id": latest_run.regime_id if latest_run else "risk_on",
-        "confidence": latest_run.regime_confidence if latest_run else 0.5,
-        "exposure": 0.75,
+        "regime_id": regime_id,
+        "confidence": regime_conf,
+        "exposure": exposure_map.get(regime_id, 0.75),
+        "factor_tilts": tilt_map.get(regime_id, {}),
+        "vol_state": (latest_rh.metadata_ or {}).get("vol_state", "normal") if latest_rh else "normal",
+        "breadth_state": latest_rh.breadth_state if latest_rh else "mixed",
+        "indicators": {
+            "spy_20d": (latest_rh.metadata_ or {}).get("spy_20d") if latest_rh else None,
+            "qqq_20d": (latest_rh.metadata_ or {}).get("qqq_20d") if latest_rh else None,
+            "vix": latest_rh.vix_level if latest_rh else None,
+        },
+        "history": regime_history,
     }
 
     # Get top ideas from latest run

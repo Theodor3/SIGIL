@@ -176,6 +176,44 @@ async def run_pipeline(db: AsyncSession) -> dict:
         regime = await detect_regime(market_context, as_of)
         print(f"[pipeline] Regime: {regime.regime_id} ({regime.confidence:.0%} confidence)")
 
+        # Store regime snapshot in history
+        from api.db.models import RegimeHistory
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+        rh_stmt = pg_insert(RegimeHistory).values(
+            as_of_date=as_of,
+            regime_id=regime.regime_id,
+            confidence=regime.confidence,
+            spy_20d_return=regime.metadata.get("spy_20d"),
+            vix_level=regime.metadata.get("vix"),
+            breadth_state=regime.breadth_state,
+            metadata_={
+                "vol_state": regime.vol_state,
+                "spy_20d": regime.metadata.get("spy_20d"),
+                "qqq_20d": regime.metadata.get("qqq_20d"),
+                "vix": regime.metadata.get("vix"),
+                "exposure": regime.recommended_gross_exposure,
+                "factor_tilts": regime.factor_tilts,
+            },
+        ).on_conflict_do_update(
+            index_elements=["as_of_date"],
+            set_={
+                "regime_id": regime.regime_id,
+                "confidence": regime.confidence,
+                "spy_20d_return": regime.metadata.get("spy_20d"),
+                "vix_level": regime.metadata.get("vix"),
+                "breadth_state": regime.breadth_state,
+                "metadata_": {
+                    "vol_state": regime.vol_state,
+                    "spy_20d": regime.metadata.get("spy_20d"),
+                    "qqq_20d": regime.metadata.get("qqq_20d"),
+                    "vix": regime.metadata.get("vix"),
+                    "exposure": regime.recommended_gross_exposure,
+                    "factor_tilts": regime.factor_tilts,
+                },
+            },
+        )
+        await db.execute(rh_stmt)
+
         # Phase 6: Run all signals
         registry = get_registry()
         signal_outputs = {}

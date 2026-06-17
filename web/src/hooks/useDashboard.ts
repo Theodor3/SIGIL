@@ -32,6 +32,19 @@ interface DashboardData {
     regime_id: string;
     confidence: number;
     exposure: number;
+    factor_tilts: Record<string, number>;
+    vol_state: string;
+    breadth_state: string;
+    indicators: {
+      spy_20d: number | null;
+      qqq_20d: number | null;
+      vix: number | null;
+    };
+    history: Array<{
+      date: string;
+      regime_id: string;
+      confidence: number;
+    }>;
   };
   top_ideas: TopIdea[];
   portfolio: {
