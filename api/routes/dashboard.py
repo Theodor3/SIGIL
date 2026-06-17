@@ -3,7 +3,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db import get_db
-from api.db.models import PipelineRun, SignalPrediction
+from api.db.models import PipelineRun, SignalPrediction, Trade
 
 router = APIRouter(prefix="/api", tags=["dashboard"])
 
@@ -62,7 +62,8 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
             if p.ticker not in by_ticker:
                 by_ticker[p.ticker] = {"scores": {}, "confidences": []}
             by_ticker[p.ticker]["scores"][p.signal_name] = p.score
-            by_ticker[p.ticker]["confidences"].append(p.confidence)
+            if p.confidence > 0:
+                by_ticker[p.ticker]["confidences"].append(p.confidence)
 
         # Score each ticker
         weights = {s.name: s.default_weight for s in signals.values()}
@@ -72,7 +73,7 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
                 data["scores"].get(sig, 0) * w
                 for sig, w in weights.items()
             )
-            avg_conf = sum(data["confidences"]) / max(len(data["confidences"]), 1)
+            avg_conf = sum(data["confidences"]) / max(len(data["confidences"]), 1) if data["confidences"] else 0.6
             scored.append({
                 "ticker": ticker,
                 "final_score": round(weighted_sum, 6),
@@ -123,12 +124,39 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
         for r in runs_q.scalars().all()
     ]
 
+    # Portfolio summary
+    from api.execution.alpaca_broker import AlpacaBroker
+    broker = AlpacaBroker()
+    account = await broker.get_account()
+    positions = await broker.get_positions()
+
+    open_trades_q = await db.execute(
+        select(func.count(Trade.id)).where(Trade.status == "open")
+    )
+    open_trade_count = open_trades_q.scalar() or 0
+
+    closed_trades_q = await db.execute(
+        select(func.sum(Trade.realized_pnl)).where(Trade.status == "closed")
+    )
+    total_pnl = closed_trades_q.scalar() or 0.0
+
+    portfolio_summary = {
+        "holdings_count": len(positions) + open_trade_count,
+        "total_value": account.portfolio_value,
+        "equity": account.equity,
+        "cash": account.cash,
+        "buying_power": account.buying_power,
+        "unrealized_pnl": sum(p.unrealized_pnl for p in positions),
+        "realized_pnl": total_pnl,
+        "is_demo": broker.is_demo,
+    }
+
     return {
         "status": "ok",
         "signals": signal_health,
         "regime": regime,
         "top_ideas": top_ideas,
-        "portfolio": {"holdings_count": 0, "total_value": 0},
+        "portfolio": portfolio_summary,
         "pipeline": pipeline_status,
         "recent_runs": recent_runs,
     }

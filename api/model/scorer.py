@@ -55,10 +55,11 @@ def score_universe(
                 weighted_sum += out.score * weight * tilt
                 total_weight += weight
                 signal_scores[sig_name] = round(out.score, 4)
-                confidences.append(out.confidence)
+                if out.confidence > 0:
+                    confidences.append(out.confidence)
 
         final = weighted_sum / max(total_weight, 0.01)
-        avg_conf = sum(confidences) / max(len(confidences), 1)
+        avg_conf = sum(confidences) / max(len(confidences), 1) if confidences else 0.6
         eligible = avg_conf >= min_confidence
 
         results.append(ScoredTicker(

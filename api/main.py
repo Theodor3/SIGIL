@@ -10,6 +10,7 @@ from api.db.models import Base
 from api.routes.dashboard import router as dashboard_router
 from api.routes.data import router as data_router
 from api.routes.pipeline import router as pipeline_router
+from api.routes.portfolio import router as portfolio_router
 from api.signals.registry import discover_signals
 
 _scheduler_task: asyncio.Task | None = None
@@ -75,6 +76,7 @@ app.add_middleware(
 app.include_router(dashboard_router)
 app.include_router(pipeline_router)
 app.include_router(data_router)
+app.include_router(portfolio_router)
 
 
 @app.get("/health")
