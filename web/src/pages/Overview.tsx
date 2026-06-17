@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useDashboard } from "../hooks/useDashboard";
 
 function StatCard({
@@ -41,6 +41,7 @@ function ScoreBar({ score, max = 1 }: { score: number; max?: number }) {
 
 export default function Overview() {
   const { data, loading, error, refetch } = useDashboard();
+  const [pipelineRunning, setPipelineRunning] = useState(false);
 
   // Auto-refresh dashboard every 30 seconds
   useEffect(() => {
@@ -48,20 +49,49 @@ export default function Overview() {
     return () => clearInterval(interval);
   }, [refetch]);
 
+  // Poll faster while pipeline is running
+  useEffect(() => {
+    if (!pipelineRunning) return;
+    const interval = setInterval(refetch, 5_000);
+    return () => clearInterval(interval);
+  }, [pipelineRunning, refetch]);
+
+  const triggerPipeline = async () => {
+    setPipelineRunning(true);
+    try {
+      await fetch("/api/pipeline/run", { method: "POST" });
+      await refetch();
+    } catch {
+      // will show in pipeline status
+    } finally {
+      setPipelineRunning(false);
+    }
+  };
+
   if (loading)
     return <div className="text-sigil-muted">Loading dashboard...</div>;
   if (error) return <div className="text-sigil-danger">Error: {error}</div>;
   if (!data) return null;
 
   const duration = data.pipeline.duration;
+  const isRunning = pipelineRunning || data.pipeline.status === "running";
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">Overview</h1>
-        <div className="flex items-center gap-2 text-xs text-sigil-muted">
-          <span className="inline-block w-2 h-2 rounded-full bg-sigil-accent animate-pulse" />
-          Auto-pipeline active
+        <div className="flex items-center gap-3">
+          <button
+            onClick={triggerPipeline}
+            disabled={isRunning}
+            className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+              isRunning
+                ? "border-sigil-border text-sigil-muted cursor-not-allowed"
+                : "border-sigil-accent text-sigil-accent hover:bg-sigil-accent/10 cursor-pointer"
+            }`}
+          >
+            {isRunning ? "Pipeline running…" : "Run Pipeline"}
+          </button>
         </div>
       </div>
 
