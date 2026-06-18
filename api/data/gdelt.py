@@ -8,22 +8,36 @@ import httpx
 from api.data.base import DataProvider
 
 COMPANY_NAMES = {
-    "AAPL": "Apple", "MSFT": "Microsoft", "NVDA": "Nvidia", "GOOGL": "Google",
-    "AMZN": "Amazon", "META": "Meta", "TSLA": "Tesla", "AVGO": "Broadcom",
-    "ADBE": "Adobe", "CRM": "Salesforce", "AMD": "AMD", "NFLX": "Netflix",
-    "INTC": "Intel", "ORCL": "Oracle", "CSCO": "Cisco", "QCOM": "Qualcomm",
-    "NOW": "ServiceNow", "INTU": "Intuit", "PANW": "Palo Alto Networks",
-    "PLTR": "Palantir", "CRWD": "CrowdStrike", "SHOP": "Shopify",
-    "SQ": "Block Square", "NET": "Cloudflare", "DDOG": "Datadog",
-    "SNOW": "Snowflake", "DELL": "Dell", "COIN": "Coinbase",
-    "ROKU": "Roku", "EA": "Electronic Arts", "PAYC": "Paycom",
-    "ADP": "ADP payroll", "WDAY": "Workday", "TTD": "Trade Desk",
-    "ZM": "Zoom Video", "OKTA": "Okta identity",
-    "V": "Visa payment", "MA": "Mastercard", "JPM": "JPMorgan",
-    "GS": "Goldman Sachs", "MS": "Morgan Stanley", "BLK": "BlackRock",
-    "UNH": "UnitedHealth", "JNJ": "Johnson Johnson", "LLY": "Eli Lilly",
-    "ABBV": "AbbVie", "TMO": "Thermo Fisher", "ABT": "Abbott Labs",
-    "CAT": "Caterpillar", "DE": "John Deere", "HON": "Honeywell",
+    "AAPL": "Apple", "ABNB": "Airbnb", "ADBE": "Adobe", "ADI": "Analog Devices",
+    "ADP": "ADP payroll", "ADSK": "Autodesk", "AMAT": "Applied Materials",
+    "AMD": "AMD", "AMZN": "Amazon", "ANSS": "Ansys", "APH": "Amphenol",
+    "AVGO": "Broadcom", "AXP": "American Express", "BAH": "Booz Allen",
+    "BBY": "Best Buy", "BLK": "BlackRock", "BLDR": "Builders FirstSource",
+    "BSX": "Boston Scientific", "CDNS": "Cadence Design", "CDW": "CDW technology",
+    "CEG": "Constellation Energy", "CMG": "Chipotle", "COST": "Costco",
+    "CRM": "Salesforce", "CRWD": "CrowdStrike", "CSCO": "Cisco",
+    "DDOG": "Datadog", "DE": "John Deere", "DELL": "Dell",
+    "DHR": "Danaher", "DXCM": "DexCom", "EA": "Electronic Arts",
+    "ECL": "Ecolab", "ENPH": "Enphase Energy", "EPAM": "EPAM Systems",
+    "EXPE": "Expedia", "FAST": "Fastenal", "FICO": "Fair Isaac FICO",
+    "FTNT": "Fortinet", "GE": "General Electric", "GOOG": "Google",
+    "GPN": "Global Payments", "GWW": "Grainger", "HLT": "Hilton Hotels",
+    "HPQ": "HP Hewlett-Packard", "HUBB": "Hubbell", "IDXX": "IDEXX Labs",
+    "INTU": "Intuit", "ISRG": "Intuitive Surgical", "KLAC": "KLA Corporation",
+    "LRCX": "Lam Research", "MA": "Mastercard", "MELI": "MercadoLibre",
+    "META": "Meta", "MNST": "Monster Beverage", "MPWR": "Monolithic Power",
+    "MSFT": "Microsoft", "MSI": "Motorola Solutions", "NFLX": "Netflix",
+    "NOW": "ServiceNow", "NTAP": "NetApp", "NVDA": "Nvidia",
+    "ODFL": "Old Dominion Freight", "ON": "ON Semiconductor",
+    "ORCL": "Oracle", "PANW": "Palo Alto Networks", "PAYC": "Paycom",
+    "PH": "Parker Hannifin", "PINS": "Pinterest", "PLTR": "Palantir",
+    "PTC": "PTC software", "PYPL": "PayPal", "QCOM": "Qualcomm",
+    "RMD": "ResMed", "ROK": "Rockwell Automation", "SHOP": "Shopify",
+    "SNPS": "Synopsys", "SQ": "Block Square", "TDG": "TransDigm",
+    "TEAM": "Atlassian", "TRGP": "Targa Resources", "TSLA": "Tesla",
+    "TTD": "Trade Desk", "TXN": "Texas Instruments", "UBER": "Uber",
+    "V": "Visa payment", "VEEV": "Veeva Systems", "VRSK": "Verisk Analytics",
+    "WSM": "Williams-Sonoma",
 }
 
 
@@ -38,14 +52,11 @@ class GdeltProvider(DataProvider):
         """Fetch news volume and avg tone for each ticker from GDELT."""
         nowcast: dict[str, dict] = {}
 
-        async with httpx.AsyncClient(timeout=12) as client:
-            for i, ticker in enumerate(tickers):
-                query = COMPANY_NAMES.get(ticker)
-                if not query:
-                    continue
-
-                if i > 0 and i % 8 == 0:
-                    await asyncio.sleep(2.0)
+        async with httpx.AsyncClient(timeout=15) as client:
+            mapped = [(t, COMPANY_NAMES[t]) for t in tickers if t in COMPANY_NAMES]
+            for i, (ticker, query) in enumerate(mapped):
+                if i > 0 and i % 6 == 0:
+                    await asyncio.sleep(1.5)
 
                 try:
                     resp = await client.get(

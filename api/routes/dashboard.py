@@ -108,10 +108,12 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
         by_ticker: dict[str, dict] = {}
         for p in preds:
             if p.ticker not in by_ticker:
-                by_ticker[p.ticker] = {"scores": {}, "confidences": []}
+                by_ticker[p.ticker] = {"scores": {}, "confidences": [], "sector": ""}
             by_ticker[p.ticker]["scores"][p.signal_name] = p.score
             if p.confidence > 0:
                 by_ticker[p.ticker]["confidences"].append(p.confidence)
+            if p.signal_name == "quality" and p.metadata_:
+                by_ticker[p.ticker]["sector"] = p.metadata_.get("sector", "")
 
         # Score each ticker
         weights = {s.name: s.default_weight for s in signals.values()}
@@ -127,6 +129,7 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
                 "final_score": round(weighted_sum, 6),
                 "confidence": round(avg_conf, 4),
                 "signal_scores": {k: round(v, 4) for k, v in data["scores"].items()},
+                "sector": data["sector"],
             })
 
         scored.sort(key=lambda x: x["final_score"], reverse=True)
@@ -178,18 +181,13 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
     account = await broker.get_account()
     positions = await broker.get_positions()
 
-    open_trades_q = await db.execute(
-        select(func.count(Trade.id)).where(Trade.status == "open")
-    )
-    open_trade_count = open_trades_q.scalar() or 0
-
     closed_trades_q = await db.execute(
         select(func.sum(Trade.realized_pnl)).where(Trade.status == "closed")
     )
     total_pnl = closed_trades_q.scalar() or 0.0
 
     portfolio_summary = {
-        "holdings_count": len(positions) + open_trade_count,
+        "holdings_count": len(positions),
         "total_value": account.portfolio_value,
         "equity": account.equity,
         "cash": account.cash,
@@ -199,6 +197,24 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
         "is_demo": broker.is_demo,
     }
 
+    # Data source statuses (live from registry)
+    from api.data.registry import get_sources
+    sources = get_sources()
+    data_sources = [
+        {
+            "name": s.name,
+            "provider": s.provider,
+            "description": s.description,
+            "category": s.category,
+            "status": s.status.value,
+            "requires_key": s.requires_key,
+            "last_fetch": s.last_fetch.isoformat() if s.last_fetch else None,
+            "last_fetch_count": s.last_fetch_count,
+            "last_error": s.last_error,
+        }
+        for s in sources.values()
+    ]
+
     payload = {
         "status": "ok",
         "signals": signal_health,
@@ -207,6 +223,7 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
         "portfolio": portfolio_summary,
         "pipeline": pipeline_status,
         "recent_runs": recent_runs,
+        "data_sources": data_sources,
     }
     cache.set(DASHBOARD_CACHE_KEY, payload, ttl=DASHBOARD_CACHE_TTL)
     return payload

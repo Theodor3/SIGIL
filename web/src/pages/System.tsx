@@ -198,31 +198,35 @@ export default function System() {
                 <th className="text-left py-2 pr-4">Source</th>
                 <th className="text-left py-2 pr-4">Provider</th>
                 <th className="text-left py-2 pr-4">Status</th>
+                <th className="text-right py-2 pr-4">Last Fetch</th>
+                <th className="text-right py-2">Records</th>
               </tr>
             </thead>
             <tbody className="text-sigil-muted">
-              {[
-                { source: "Fundamentals", provider: "Yahoo Finance", status: "active" },
-                { source: "Universe Screening", provider: "Built-in (100 tickers)", status: "active" },
-                { source: "Market Context", provider: "Pending (Phase 3+)", status: "pending" },
-                { source: "Earnings Calendar", provider: "Pending (Finnhub)", status: "pending" },
-                { source: "Alt Data (Wikipedia)", provider: "Pending (Phase 3+)", status: "pending" },
-                { source: "Alt Data (GDELT)", provider: "Pending (Phase 3+)", status: "pending" },
-                { source: "Macro (FRED)", provider: "Pending (Phase 3+)", status: "pending" },
-              ].map((row) => (
-                <tr key={row.source} className="border-b border-sigil-border/30">
-                  <td className="py-2 pr-4 text-sigil-text">{row.source}</td>
-                  <td className="py-2 pr-4">{row.provider}</td>
+              {(data?.data_sources || []).map((src: any) => (
+                <tr key={src.name} className="border-b border-sigil-border/30">
+                  <td className="py-2 pr-4 text-sigil-text">{src.name.replace(/_/g, " ")}</td>
+                  <td className="py-2 pr-4">{src.provider}</td>
                   <td className="py-2 pr-4">
                     <span
                       className={`px-2 py-0.5 rounded-full text-xs ${
-                        row.status === "active"
+                        src.status === "active"
                           ? "bg-sigil-accent/20 text-sigil-accent border border-sigil-accent/30"
-                          : "border border-sigil-muted/30 text-sigil-muted"
+                          : src.status === "error"
+                            ? "bg-sigil-danger/20 text-sigil-danger border border-sigil-danger/30"
+                            : src.status === "no_key"
+                              ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
+                              : "border border-sigil-muted/30 text-sigil-muted"
                       }`}
                     >
-                      {row.status}
+                      {src.status === "no_key" ? "no API key" : src.status}
                     </span>
+                  </td>
+                  <td className="py-2 pr-4 text-right text-xs">
+                    {src.last_fetch ? new Date(src.last_fetch).toLocaleString() : "—"}
+                  </td>
+                  <td className="py-2 text-right">
+                    {src.last_fetch_count > 0 ? src.last_fetch_count : "—"}
                   </td>
                 </tr>
               ))}

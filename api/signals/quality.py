@@ -55,6 +55,8 @@ class QualitySignal(Signal):
                     "fcf_margin": fcf_margin,
                     "asset_turnover": asset_turnover * 1.5,
                     "balance_sheet": balance_sheet,
+                    "sector": fundamentals.get("sector", ""),
+                    "industry": fundamentals.get("industry", ""),
                 },
             ))
         return results

@@ -59,11 +59,15 @@ async def get_portfolio(db: AsyncSession = Depends(get_db)):
         for t in closed_trades_q.scalars().all()
     ]
 
-    # Sector exposure from positions
+    # Sector exposure from positions (look up sector from cached company info)
+    from api import cache as app_cache
     sector_exposure: dict[str, float] = {}
     total_value = account.portfolio_value or 1
     for pos in positions:
-        sector = "Unknown"
+        cached = app_cache.get(f"company:{pos.ticker}")
+        sector = (cached or {}).get("sector", "") if cached else ""
+        if not sector:
+            sector = "Unknown"
         pct = (pos.market_value / total_value) * 100 if total_value else 0
         sector_exposure[sector] = sector_exposure.get(sector, 0) + pct
 

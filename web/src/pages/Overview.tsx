@@ -42,6 +42,7 @@ function ScoreBar({ score, max = 1 }: { score: number; max?: number }) {
 export default function Overview() {
   const { data, loading, error, refetch } = useDashboard();
   const [pipelineRunning, setPipelineRunning] = useState(false);
+  const [pipelineError, setPipelineError] = useState<string | null>(null);
 
   // Auto-refresh dashboard every 30 seconds
   useEffect(() => {
@@ -58,11 +59,16 @@ export default function Overview() {
 
   const triggerPipeline = async () => {
     setPipelineRunning(true);
+    setPipelineError(null);
     try {
-      await fetch("/api/pipeline/run", { method: "POST" });
+      const res = await fetch("/api/pipeline/run", { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ detail: "Pipeline failed" }));
+        setPipelineError(body.detail || `Error ${res.status}`);
+      }
       await refetch();
-    } catch {
-      // will show in pipeline status
+    } catch (e: any) {
+      setPipelineError(e.message || "Network error");
     } finally {
       setPipelineRunning(false);
     }
@@ -94,6 +100,13 @@ export default function Overview() {
           </button>
         </div>
       </div>
+
+      {pipelineError && (
+        <div className="rounded-lg bg-sigil-danger/10 border border-sigil-danger/30 px-4 py-2 text-sm text-sigil-danger flex items-center justify-between">
+          <span>Pipeline error: {pipelineError}</span>
+          <button onClick={() => setPipelineError(null)} className="text-sigil-danger/60 hover:text-sigil-danger ml-2">&times;</button>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-4">
         <StatCard
@@ -247,24 +260,36 @@ export default function Overview() {
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-        {data.signals.map((s) => (
-          <div
-            key={s.name}
-            className="rounded-xl border border-sigil-border bg-sigil-surface p-4"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-semibold text-sigil-accent">{s.name}</span>
-              <span className="text-xs text-sigil-muted px-2 py-0.5 rounded-full border border-sigil-border">
-                v{s.version}
-              </span>
+        {data.signals.map((s) => {
+          const activeCount = data.top_ideas.filter(
+            (idea) => (idea.signal_scores[s.name] || 0) > 0
+          ).length;
+          return (
+            <div
+              key={s.name}
+              className="rounded-xl border border-sigil-border bg-sigil-surface p-4"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-semibold text-sigil-accent">{s.name}</span>
+                <span className="text-xs text-sigil-muted px-2 py-0.5 rounded-full border border-sigil-border">
+                  v{s.version}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-sigil-muted mb-1">
+                <span>Weight: {(s.weight * 100).toFixed(0)}%</span>
+                <span>
+                  {activeCount > 0 ? (
+                    <span className="text-sigil-accent">{activeCount} active</span>
+                  ) : (
+                    <span className="text-sigil-muted">0 active</span>
+                  )}
+                  {" / "}{s.prediction_count} total
+                </span>
+              </div>
+              <ScoreBar score={s.weight} max={0.3} />
             </div>
-            <div className="flex items-center justify-between text-xs text-sigil-muted mb-1">
-              <span>Weight: {(s.weight * 100).toFixed(0)}%</span>
-              <span>{s.prediction_count} predictions</span>
-            </div>
-            <ScoreBar score={s.weight} max={0.3} />
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="rounded-xl border border-sigil-border bg-sigil-surface p-5">
@@ -282,6 +307,7 @@ export default function Overview() {
                 <tr className="text-sigil-muted text-xs uppercase border-b border-sigil-border">
                   <th className="text-left py-2 pr-4">#</th>
                   <th className="text-left py-2 pr-4">Ticker</th>
+                  <th className="text-left py-2 pr-4">Sector</th>
                   <th className="text-right py-2 pr-4">Score</th>
                   <th className="text-right py-2 pr-4">Confidence</th>
                   {data.signals.map((s) => (
@@ -302,6 +328,9 @@ export default function Overview() {
                     </td>
                     <td className="py-2.5 pr-4 font-semibold text-sigil-text">
                       {idea.ticker}
+                    </td>
+                    <td className="py-2.5 pr-4 text-sigil-muted text-xs">
+                      {idea.sector || "—"}
                     </td>
                     <td className="py-2.5 pr-4 text-right">
                       <span className="text-sigil-accent font-mono">

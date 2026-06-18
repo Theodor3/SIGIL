@@ -14,6 +14,7 @@ interface TopIdea {
   final_score: number;
   confidence: number;
   signal_scores: Record<string, number>;
+  sector?: string;
 }
 
 interface PipelineRun {
@@ -59,6 +60,17 @@ interface DashboardData {
     duration: number | null;
   };
   recent_runs: PipelineRun[];
+  data_sources?: Array<{
+    name: string;
+    provider: string;
+    description: string;
+    category: string;
+    status: string;
+    requires_key: boolean;
+    last_fetch: string | null;
+    last_fetch_count: number;
+    last_error: string | null;
+  }>;
 }
 
 export function useDashboard() {

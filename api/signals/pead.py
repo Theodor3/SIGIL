@@ -33,26 +33,32 @@ class PEADSignal(Signal):
             history = ctx.earnings_history.get(ticker, [])
             next_earnings = ctx.earnings_calendar.get(ticker)
 
-            if len(history) < MIN_SAMPLES or not next_earnings:
+            if len(history) < MIN_SAMPLES:
                 results.append(SignalOutput(ticker, 0.0, 0.0, {"reason": "insufficient_data"}))
-                continue
-
-            days_to = (next_earnings - ctx.as_of_date).days
-            if days_to > MAX_DAYS_TO_EARNINGS or days_to < 0:
-                results.append(SignalOutput(ticker, 0.0, 0.0, {"reason": "outside_window"}))
                 continue
 
             returns = [e["return_5d"] for e in history]
             avg_return = mean(returns)
             hit_rate = sum(1 for r in returns if r > 0) / len(returns)
-            proximity = max(PROXIMITY_FLOOR, 1.0 - (days_to - 5) / 40)
+
+            if next_earnings:
+                days_to = (next_earnings - ctx.as_of_date).days
+                if 0 <= days_to <= MAX_DAYS_TO_EARNINGS:
+                    proximity = max(PROXIMITY_FLOOR, 1.0 - (days_to - 5) / 40)
+                else:
+                    proximity = PROXIMITY_FLOOR
+                    days_to = -1
+            else:
+                proximity = PROXIMITY_FLOOR
+                days_to = -1
 
             score = max(avg_return, 0) * hit_rate * proximity
+            confidence = hit_rate * (0.5 if days_to < 0 else 1.0)
 
             results.append(SignalOutput(
                 ticker=ticker,
                 score=min(score, 0.12),
-                confidence=hit_rate,
+                confidence=confidence,
                 metadata={
                     "days_to_earnings": days_to,
                     "samples": len(history),
