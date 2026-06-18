@@ -1,20 +1,39 @@
-from fastapi import APIRouter, Depends
+import asyncio
+
+from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api import cache
-from api.db import get_db
+from api.db import get_db, async_session
 from api.pipeline.runner import run_pipeline
 from api.tracker.evaluator import evaluate_predictions, get_signal_stats
 
 router = APIRouter(prefix="/api", tags=["pipeline"])
 
+_pipeline_running = False
+
+
+async def _run_pipeline_bg():
+    global _pipeline_running
+    try:
+        async with async_session() as db:
+            await run_pipeline(db)
+            cache.clear()
+    except Exception as e:
+        print(f"[pipeline] Background run failed: {e}")
+    finally:
+        _pipeline_running = False
+
 
 @router.post("/pipeline/run")
-async def trigger_pipeline(db: AsyncSession = Depends(get_db)):
-    """Trigger a full pipeline run."""
-    result = await run_pipeline(db)
-    cache.clear()
-    return result
+async def trigger_pipeline():
+    """Trigger a full pipeline run in the background."""
+    global _pipeline_running
+    if _pipeline_running:
+        return {"status": "already_running"}
+    _pipeline_running = True
+    asyncio.create_task(_run_pipeline_bg())
+    return {"status": "started"}
 
 
 @router.post("/pipeline/evaluate")
