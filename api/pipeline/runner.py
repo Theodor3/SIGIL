@@ -249,6 +249,23 @@ async def run_pipeline(db: AsyncSession) -> dict:
         run.universe_size = len(bucket)
         await db.commit()
 
+        # Pre-warm company info cache for top tickers (avoids cold Research page)
+        from api import cache as app_cache
+        for s in scored[:30]:
+            fund = fundamentals.get(s.ticker, {})
+            md = market_data.get(s.ticker, {})
+            if fund:
+                app_cache.set(f"company:{s.ticker}", {
+                    "name": s.ticker,
+                    "description": fund.get("description", "")[:600],
+                    "sector": fund.get("sector", ""),
+                    "industry": fund.get("industry", ""),
+                    "market_cap": fund.get("market_cap"),
+                    "price": md.get("close"),
+                    "fifty_two_week_high": None,
+                    "fifty_two_week_low": None,
+                }, ttl=600)
+
         duration = (datetime.utcnow() - started_at).total_seconds()
         print(f"[pipeline] Completed in {duration:.1f}s total")
 
