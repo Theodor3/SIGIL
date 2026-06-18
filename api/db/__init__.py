@@ -6,8 +6,6 @@ engine = create_async_engine(
     settings.database_url,
     echo=False,
     connect_args={"timeout": 60},
-    pool_size=1,
-    max_overflow=0,
 )
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
