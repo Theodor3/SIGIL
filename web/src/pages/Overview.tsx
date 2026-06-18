@@ -338,8 +338,8 @@ export default function Overview() {
                   <th className="text-right py-2 pr-4">Score</th>
                   <th className="text-right py-2 pr-4">Confidence</th>
                   {data.signals.map((s) => (
-                    <th key={s.name} className="text-right py-2 pr-4">
-                      {s.name}
+                    <th key={s.name} className={`text-right py-2 pr-4 ${s.category === "risk" ? "text-red-400/70" : ""}`}>
+                      {s.name}{s.category === "risk" ? " ⚠" : ""}
                     </th>
                   ))}
                 </tr>
@@ -369,12 +369,21 @@ export default function Overview() {
                     </td>
                     {data.signals.map((s) => {
                       const val = idea.signal_scores[s.name];
+                      const isRisk = s.category === "risk";
+                      const display = val !== undefined
+                        ? isRisk ? ((1 - val) * 100).toFixed(1) : (val * 100).toFixed(1)
+                        : undefined;
+                      const riskLevel = isRisk && val !== undefined ? (1 - val) : 0;
                       return (
                         <td
                           key={s.name}
-                          className="py-2.5 pr-4 text-right font-mono text-sigil-muted"
+                          className={`py-2.5 pr-4 text-right font-mono ${
+                            isRisk && riskLevel > 0.3 ? "text-red-400" :
+                            isRisk && riskLevel > 0.1 ? "text-yellow-400" :
+                            "text-sigil-muted"
+                          }`}
                         >
-                          {val !== undefined ? (val * 100).toFixed(1) : "—"}
+                          {display ?? "—"}
                         </td>
                       );
                     })}
