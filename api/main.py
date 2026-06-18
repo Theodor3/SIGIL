@@ -24,8 +24,6 @@ _scheduler_task: asyncio.Task | None = None
 
 async def _scheduled_loop():
     """Run pipeline automatically on a timer."""
-    from api import cache
-    from api.pipeline.runner import run_pipeline
     from api.routes.ws import broadcast
     from api.tracker.evaluator import evaluate_predictions
 
@@ -33,26 +31,26 @@ async def _scheduled_loop():
 
     while True:
         try:
-            await broadcast("pipeline_status", {"status": "running"})
-            async with async_session() as db:
+            import api.routes.pipeline as pipeline_mod
+            if pipeline_mod._pipeline_running:
+                print("[scheduler] Pipeline already running, skipping")
+            else:
+                await broadcast("pipeline_status", {"status": "running"})
+                pipeline_mod._pipeline_running = True
                 print("[scheduler] Starting automatic pipeline run...")
-                result = await run_pipeline(db)
-                cache.clear()
-                print(f"[scheduler] Pipeline completed: {result['universe_size']} tickers, "
-                      f"{len(result['signals_run'])} signals, regime={result['regime']}")
+                try:
+                    await pipeline_mod._run_pipeline_bg()
+                except Exception:
+                    pipeline_mod._pipeline_running = False
+                    raise
 
-                await broadcast("pipeline_complete", {
-                    "run_id": result["run_id"],
-                    "universe_size": result["universe_size"],
-                    "signals_run": result["signals_run"],
-                    "regime": result["regime"],
-                    "duration": result["duration_seconds"],
-                })
+                print("[scheduler] Pipeline completed")
 
-                for horizon in (5, 20, 60):
-                    r = await evaluate_predictions(db, horizon_days=horizon)
-                    if r["evaluated"] > 0:
-                        print(f"[scheduler] Evaluated {r['evaluated']} predictions at {horizon}d horizon")
+                async with async_session() as db:
+                    for horizon in (5, 20, 60):
+                        r = await evaluate_predictions(db, horizon_days=horizon)
+                        if r["evaluated"] > 0:
+                            print(f"[scheduler] Evaluated {r['evaluated']} predictions at {horizon}d horizon")
 
                 await broadcast("evaluation_complete", {"status": "done"})
 
