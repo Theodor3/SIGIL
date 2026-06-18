@@ -68,6 +68,8 @@ async def _scheduled_loop():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _scheduler_task
+    from api.db import init_db
+    await init_db()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     discover_signals()

@@ -33,11 +33,11 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
     )
     latest_run = latest_run_q.scalar_one_or_none()
 
-    from api.routes.pipeline import _pipeline_running
+    import api.routes.pipeline as pipeline_mod
 
     pipeline_status = {
         "last_run": latest_run.started_at.isoformat() if latest_run else None,
-        "status": "running" if _pipeline_running else (latest_run.status if latest_run else "no_runs_yet"),
+        "status": "running" if pipeline_mod._pipeline_running else (latest_run.status if latest_run else "no_runs_yet"),
         "run_id": latest_run.id if latest_run else None,
         "universe_size": latest_run.universe_size if latest_run else 0,
         "duration": (
