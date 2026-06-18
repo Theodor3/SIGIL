@@ -6,7 +6,9 @@
     "peer_relative": 0.12,
     "value": 0.10,
     "proxy_inferred": 0.08,
-    "pead": 0.08
+    "pead": 0.08,
+    "buyback_yield": 0.06,
+    "earnings_surprise_streak": 0.06
   },
   "gates": {
     "min_confidence": 0.58,

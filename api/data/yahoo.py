@@ -59,6 +59,19 @@ def _fetch_one_sync(symbol: str) -> dict | None:
         if total_equity and shares:
             total_equity = total_equity * shares
 
+        # Buyback data from cashflow statement
+        buyback_ttm = 0.0
+        try:
+            cf = t.cashflow
+            if cf is not None and not cf.empty:
+                for label in ("Repurchase Of Capital Stock", "RepurchaseOfCapitalStock"):
+                    if label in cf.index:
+                        val = cf.loc[label].iloc[0]
+                        buyback_ttm = float(val) if val is not None and val == val else 0.0
+                        break
+        except Exception:
+            pass
+
         operating_margins = _num(info.get("operatingMargins"))
         operating_income = None
         if operating_margins and total_revenue:
@@ -97,6 +110,8 @@ def _fetch_one_sync(symbol: str) -> dict | None:
             "payout_ratio": _num(info.get("payoutRatio")),
             "short_ratio": _num(info.get("shortRatio")),
             "short_pct_float": _num(info.get("shortPercentOfFloat")),
+            "shares_outstanding": _num(info.get("sharesOutstanding")),
+            "buyback_ttm": buyback_ttm,
         }
     except Exception:
         return None
