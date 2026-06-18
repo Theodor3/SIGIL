@@ -267,6 +267,7 @@ export default function Overview() {
           event: "border-yellow-500/40 text-yellow-400",
           alternative: "border-cyan-500/40 text-cyan-400",
           sentiment: "border-orange-500/40 text-orange-400",
+          risk: "border-red-500/40 text-red-400",
           other: "border-sigil-border text-sigil-muted",
         };
         return categories.map((cat) => {

@@ -50,6 +50,7 @@ export default function Signals() {
           event: "text-yellow-400",
           alternative: "text-cyan-400",
           sentiment: "text-orange-400",
+          risk: "text-red-400",
           other: "text-sigil-muted",
         };
         return categories.map((cat) => {
