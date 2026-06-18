@@ -41,8 +41,26 @@ export default function Signals() {
         horizons.
       </p>
 
-      <div className="grid grid-cols-2 gap-4">
-        {data?.signals.map((s) => {
+      {(() => {
+        const signals = data?.signals || [];
+        const categories = [...new Set(signals.map((s) => s.category || "other"))];
+        const categoryColors: Record<string, string> = {
+          fundamental: "text-blue-400",
+          technical: "text-purple-400",
+          event: "text-yellow-400",
+          alternative: "text-cyan-400",
+          sentiment: "text-orange-400",
+          other: "text-sigil-muted",
+        };
+        return categories.map((cat) => {
+          const catSignals = signals.filter((s) => (s.category || "other") === cat);
+          return (
+            <div key={cat} className="space-y-3">
+              <h2 className={`text-sm font-semibold uppercase tracking-wider ${categoryColors[cat] || categoryColors.other}`}>
+                {cat} ({catSignals.length})
+              </h2>
+              <div className="grid grid-cols-2 gap-4">
+        {catSignals.map((s) => {
           const stats: EvalStats = (s as any).eval_stats || {};
           const hasEvals = Object.keys(stats).length > 0;
           const primary = stats["5d"] || stats["20d"] || stats["60d"];
@@ -52,7 +70,7 @@ export default function Signals() {
               key={s.name}
               className="rounded-xl border border-sigil-border bg-sigil-surface p-5"
             >
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-1">
                 <div>
                   <span className="font-bold text-sigil-accent text-lg">
                     {s.name}
@@ -65,6 +83,18 @@ export default function Signals() {
                   {(s.weight * 100).toFixed(0)}% weight
                 </span>
               </div>
+              {s.description && (
+                <div className="text-xs text-sigil-muted mb-2">{s.description}</div>
+              )}
+              {s.tags && s.tags.length > 0 && (
+                <div className="flex gap-1 mb-3 flex-wrap">
+                  {s.tags.map((tag: string) => (
+                    <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-sigil-bg border border-sigil-border/50 text-sigil-muted">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               <div className="grid grid-cols-4 gap-3">
                 <StatBox
@@ -142,7 +172,11 @@ export default function Signals() {
             </div>
           );
         })}
-      </div>
+              </div>
+            </div>
+          );
+        });
+      })()}
 
       <div className="rounded-xl border border-sigil-border bg-sigil-surface p-5">
         <h2 className="text-sm font-semibold text-sigil-muted uppercase tracking-wider mb-3">

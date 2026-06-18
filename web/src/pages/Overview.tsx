@@ -259,38 +259,64 @@ export default function Overview() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        {data.signals.map((s) => {
-          const activeCount = data.top_ideas.filter(
-            (idea) => (idea.signal_scores[s.name] || 0) > 0
-          ).length;
+      {(() => {
+        const categories = [...new Set(data.signals.map((s) => s.category || "other"))];
+        const categoryColors: Record<string, string> = {
+          fundamental: "border-blue-500/40 text-blue-400",
+          technical: "border-purple-500/40 text-purple-400",
+          event: "border-yellow-500/40 text-yellow-400",
+          alternative: "border-cyan-500/40 text-cyan-400",
+          sentiment: "border-orange-500/40 text-orange-400",
+          other: "border-sigil-border text-sigil-muted",
+        };
+        return categories.map((cat) => {
+          const catSignals = data.signals.filter((s) => (s.category || "other") === cat);
           return (
-            <div
-              key={s.name}
-              className="rounded-xl border border-sigil-border bg-sigil-surface p-4"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-semibold text-sigil-accent">{s.name}</span>
-                <span className="text-xs text-sigil-muted px-2 py-0.5 rounded-full border border-sigil-border">
-                  v{s.version}
-                </span>
+            <div key={cat} className="space-y-2">
+              <div className="text-xs font-semibold text-sigil-muted uppercase tracking-wider">
+                {cat} signals
               </div>
-              <div className="flex items-center justify-between text-xs text-sigil-muted mb-1">
-                <span>Weight: {(s.weight * 100).toFixed(0)}%</span>
-                <span>
-                  {activeCount > 0 ? (
-                    <span className="text-sigil-accent">{activeCount} active</span>
-                  ) : (
-                    <span className="text-sigil-muted">0 active</span>
-                  )}
-                  {" / "}{s.prediction_count} total
-                </span>
+              <div className="grid grid-cols-3 gap-4">
+                {catSignals.map((s) => {
+                  const activeCount = data.top_ideas.filter(
+                    (idea) => (idea.signal_scores[s.name] || 0) > 0
+                  ).length;
+                  return (
+                    <div
+                      key={s.name}
+                      className="rounded-xl border border-sigil-border bg-sigil-surface p-4"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-semibold text-sigil-accent">{s.name}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${categoryColors[cat] || categoryColors.other}`}>
+                          {cat}
+                        </span>
+                      </div>
+                      {s.description && (
+                        <div className="text-[11px] text-sigil-muted mb-2 leading-tight line-clamp-2">
+                          {s.description}
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between text-xs text-sigil-muted mb-1">
+                        <span>Weight: {(s.weight * 100).toFixed(0)}%</span>
+                        <span>
+                          {activeCount > 0 ? (
+                            <span className="text-sigil-accent">{activeCount} active</span>
+                          ) : (
+                            <span className="text-sigil-muted">0 active</span>
+                          )}
+                          {" / "}{s.prediction_count} total
+                        </span>
+                      </div>
+                      <ScoreBar score={s.weight} max={0.3} />
+                    </div>
+                  );
+                })}
               </div>
-              <ScoreBar score={s.weight} max={0.3} />
             </div>
           );
-        })}
-      </div>
+        });
+      })()}
 
       <div className="rounded-xl border border-sigil-border bg-sigil-surface p-5">
         <h2 className="text-sm font-semibold text-sigil-muted uppercase tracking-wider mb-4">

@@ -22,6 +22,18 @@ class QualitySignal(Signal):
     def default_weight(self) -> float:
         return 0.27
 
+    @property
+    def category(self) -> str:
+        return "fundamental"
+
+    @property
+    def description(self) -> str:
+        return "Scores business quality via ROIC, FCF margins, asset efficiency, and balance sheet strength"
+
+    @property
+    def tags(self) -> list[str]:
+        return ["fundamental", "profitability", "balance-sheet"]
+
     async def compute(self, ctx: PipelineContext) -> list[SignalOutput]:
         results = []
         for ticker in ctx.universe:

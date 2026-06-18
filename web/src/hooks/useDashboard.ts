@@ -4,7 +4,9 @@ interface SignalInfo {
   name: string;
   version: string;
   weight: number;
+  category: string;
   description: string;
+  tags: string[];
   prediction_count: number;
 }
 

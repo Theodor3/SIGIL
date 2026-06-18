@@ -27,6 +27,18 @@ class PEADSignal(Signal):
     def default_weight(self) -> float:
         return 0.08
 
+    @property
+    def category(self) -> str:
+        return "event"
+
+    @property
+    def description(self) -> str:
+        return "Post-earnings announcement drift — exploits tendency for price to continue moving after earnings surprises"
+
+    @property
+    def tags(self) -> list[str]:
+        return ["event", "earnings", "momentum"]
+
     async def compute(self, ctx: PipelineContext) -> list[SignalOutput]:
         results = []
         for ticker in ctx.universe:

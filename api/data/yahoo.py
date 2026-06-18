@@ -93,6 +93,10 @@ def _fetch_one_sync(symbol: str) -> dict | None:
             "price_to_sales": _num(info.get("priceToSalesTrailing12Months")),
             "ev_to_ebitda": _num(info.get("enterpriseToEbitda")),
             "ev_to_revenue": _num(info.get("enterpriseToRevenue")),
+            "dividend_yield": _num(info.get("dividendYield")),
+            "payout_ratio": _num(info.get("payoutRatio")),
+            "short_ratio": _num(info.get("shortRatio")),
+            "short_pct_float": _num(info.get("shortPercentOfFloat")),
         }
     except Exception:
         return None

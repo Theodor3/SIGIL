@@ -22,6 +22,18 @@ class ValueSignal(Signal):
     def default_weight(self) -> float:
         return 0.10
 
+    @property
+    def category(self) -> str:
+        return "fundamental"
+
+    @property
+    def description(self) -> str:
+        return "Relative valuation vs sector peers using P/E, EV/EBITDA, and price-to-sales"
+
+    @property
+    def tags(self) -> list[str]:
+        return ["fundamental", "valuation", "relative"]
+
     async def compute(self, ctx: PipelineContext) -> list[SignalOutput]:
         sector_medians = self._compute_sector_medians(ctx)
 

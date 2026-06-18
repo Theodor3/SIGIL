@@ -22,10 +22,7 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
     from api.signals.registry import get_registry
 
     signals = get_registry()
-    signal_info = [
-        {"name": s.name, "version": s.version, "weight": s.default_weight, "description": s.describe()}
-        for s in signals.values()
-    ]
+    signal_info = [s.meta() for s in signals.values()]
 
     # Get latest pipeline run
     latest_run_q = await db.execute(
@@ -151,10 +148,7 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
         pred_count = count_q.scalar() or 0
         stats = eval_stats.get(sig.name, {})
         signal_health.append({
-            "name": sig.name,
-            "version": sig.version,
-            "weight": sig.default_weight,
-            "description": sig.describe(),
+            **sig.meta(),
             "prediction_count": pred_count,
             "eval_stats": stats,
         })

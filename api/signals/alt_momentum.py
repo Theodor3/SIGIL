@@ -27,6 +27,18 @@ class AltMomentumSignal(Signal):
     def default_weight(self) -> float:
         return 0.13
 
+    @property
+    def category(self) -> str:
+        return "alternative"
+
+    @property
+    def description(self) -> str:
+        return "Alternative momentum from Wikipedia pageviews and GDELT news sentiment vs consensus"
+
+    @property
+    def tags(self) -> list[str]:
+        return ["alternative", "sentiment", "nowcast"]
+
     async def compute(self, ctx: PipelineContext) -> list[SignalOutput]:
         results = []
         for ticker in ctx.universe:

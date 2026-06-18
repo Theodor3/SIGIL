@@ -26,6 +26,18 @@ class PeerRelativeSignal(Signal):
     def default_weight(self) -> float:
         return 0.12
 
+    @property
+    def category(self) -> str:
+        return "alternative"
+
+    @property
+    def description(self) -> str:
+        return "Peer-relative deviation from consensus using direct alt data sources"
+
+    @property
+    def tags(self) -> list[str]:
+        return ["alternative", "relative", "nowcast"]
+
     async def compute(self, ctx: PipelineContext) -> list[SignalOutput]:
         results = []
         for ticker in ctx.universe:

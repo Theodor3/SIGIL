@@ -51,6 +51,20 @@ async def _fetch_gdelt(bucket: list[str]) -> dict:
     return await GdeltProvider().fetch(bucket)
 
 
+async def _fetch_insider(bucket: list[str]) -> dict:
+    if not settings.finnhub_api_key:
+        return {}
+    from api.data.finnhub import FinnhubProvider
+    return await FinnhubProvider().fetch_insider_transactions(bucket)
+
+
+async def _fetch_analyst(bucket: list[str]) -> dict:
+    if not settings.finnhub_api_key:
+        return {}
+    from api.data.finnhub import FinnhubProvider
+    return await FinnhubProvider().fetch_analyst_estimates(bucket)
+
+
 async def _fetch_yahoo_prices(yahoo: YahooProvider, bucket: list[str]) -> dict:
     return await yahoo.fetch_prices(bucket)
 
@@ -90,6 +104,8 @@ async def run_pipeline(db: AsyncSession) -> dict:
             _fetch_fred(),
             _fetch_wikipedia(bucket),
             _fetch_gdelt(bucket),
+            _fetch_insider(bucket),
+            _fetch_analyst(bucket),
             return_exceptions=True,
         )
         fetch_time = (datetime.utcnow() - t0).total_seconds()
@@ -102,9 +118,11 @@ async def run_pipeline(db: AsyncSession) -> dict:
         macro = results[3] if not isinstance(results[3], Exception) else {}
         wiki_data = results[4] if not isinstance(results[4], Exception) else {}
         gdelt_data = results[5] if not isinstance(results[5], Exception) else {}
+        insider_data = results[6] if not isinstance(results[6], Exception) else {}
+        analyst_data = results[7] if not isinstance(results[7], Exception) else {}
 
         # Log errors from any failed providers
-        provider_names = ["yahoo_prices", "finnhub", "polygon_benchmarks", "fred", "wikipedia", "gdelt"]
+        provider_names = ["yahoo_prices", "finnhub", "polygon_benchmarks", "fred", "wikipedia", "gdelt", "insider", "analyst"]
         for i, name in enumerate(provider_names):
             if isinstance(results[i], Exception):
                 print(f"[pipeline] {name} failed: {results[i]}")
@@ -157,6 +175,11 @@ async def run_pipeline(db: AsyncSession) -> dict:
         else:
             update_source_status("gdelt_news", SourceStatus.ERROR, error=str(results[5]))
 
+        if not isinstance(results[6], Exception):
+            print(f"[pipeline] Insider transactions: {len(insider_data)} tickers")
+        if not isinstance(results[7], Exception):
+            print(f"[pipeline] Analyst estimates: {len(analyst_data)} tickers")
+
         # Build market context for regime detection
         market_context = {**benchmarks, **macro}
 
@@ -169,6 +192,8 @@ async def run_pipeline(db: AsyncSession) -> dict:
             earnings_calendar=earnings_calendar,
             earnings_history=earnings_history,
             nowcast=nowcast,
+            insider_transactions=insider_data,
+            analyst_estimates=analyst_data,
             macro=macro,
             benchmarks=benchmarks,
         )

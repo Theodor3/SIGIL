@@ -22,6 +22,18 @@ class GrowthSignal(Signal):
     def default_weight(self) -> float:
         return 0.22
 
+    @property
+    def category(self) -> str:
+        return "fundamental"
+
+    @property
+    def description(self) -> str:
+        return "Measures revenue and free cash flow growth trajectories over 3 years"
+
+    @property
+    def tags(self) -> list[str]:
+        return ["fundamental", "growth", "revenue"]
+
     async def compute(self, ctx: PipelineContext) -> list[SignalOutput]:
         results = []
         for ticker in ctx.universe:

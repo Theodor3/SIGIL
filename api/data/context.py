@@ -19,6 +19,10 @@ class PipelineContext:
     nowcast: dict[str, dict] = field(default_factory=dict)
     news: dict[str, dict] = field(default_factory=dict)
 
+    # Finnhub extras
+    insider_transactions: dict[str, list[dict]] = field(default_factory=dict)
+    analyst_estimates: dict[str, dict] = field(default_factory=dict)
+
     # Market-wide
     macro: dict = field(default_factory=dict)
     benchmarks: dict = field(default_factory=dict)
