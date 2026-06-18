@@ -112,8 +112,7 @@ async def get_portfolio(db: AsyncSession = Depends(get_db)):
 async def generate_targets(db: AsyncSession = Depends(get_db)):
     """Generate portfolio targets from latest pipeline run."""
     from api.db.models import PipelineRun, SignalPrediction
-    from api.model.portfolio import PortfolioConstraints, construct_portfolio
-    from api.model.scorer import ScoredTicker
+    from api.model.portfolio import construct_portfolio
     from api.signals.registry import get_registry
 
     # Get latest completed run
@@ -136,32 +135,40 @@ async def generate_targets(db: AsyncSession = Depends(get_db)):
     signals = get_registry()
     weights = {s.name: s.default_weight for s in signals.values()}
 
-    by_ticker: dict[str, dict] = {}
-    for p in preds:
-        if p.ticker not in by_ticker:
-            by_ticker[p.ticker] = {"scores": {}, "confidences": []}
-        by_ticker[p.ticker]["scores"][p.signal_name] = p.score
-        if p.confidence > 0:
-            by_ticker[p.ticker]["confidences"].append(p.confidence)
+    # Rebuild SignalOutputs and use the real scorer (includes regime tilts)
+    from api.signals.base import SignalOutput
+    from api.model.scorer import score_universe
+    from api.regime.detector import DEFAULTS as REGIME_DEFAULTS
 
-    scored = []
-    for ticker, data in by_ticker.items():
-        weighted_sum = sum(data["scores"].get(sig, 0) * w for sig, w in weights.items())
-        avg_conf = sum(data["confidences"]) / max(len(data["confidences"]), 1) if data["confidences"] else 0.6
-        scored.append(ScoredTicker(
-            ticker=ticker,
-            final_score=round(weighted_sum, 6),
-            confidence=round(avg_conf, 4),
-            signal_scores={k: round(v, 4) for k, v in data["scores"].items()},
-            eligible=avg_conf >= 0.58,
-            gate_flags={"confidence": avg_conf >= 0.58},
-        ))
-    scored.sort(key=lambda x: x.final_score, reverse=True)
+    signal_outputs: dict[str, list[SignalOutput]] = {}
+    for p in preds:
+        signal_outputs.setdefault(p.signal_name, []).append(
+            SignalOutput(ticker=p.ticker, score=p.score, confidence=p.confidence, metadata=p.metadata_ or {})
+        )
+
+    # Build a regime snapshot from the run's stored regime
+    from api.regime.models import RegimeSnapshot
+    from datetime import date
+    regime_id = latest_run.regime_id or "risk_on"
+    regime = RegimeSnapshot(
+        as_of_date=date.today(),
+        regime_id=regime_id,
+        confidence=latest_run.regime_confidence or 0.5,
+        recommended_gross_exposure=REGIME_DEFAULTS["exposure"].get(regime_id, 0.75),
+        factor_tilts=REGIME_DEFAULTS["factor_tilts"].get(regime_id, {}),
+    )
+    scored = score_universe(signal_outputs, weights, regime)
 
     account = await _broker.get_account()
     tickers = [s.ticker for s in scored[:20] if s.eligible]
     prices = await _broker.get_prices(tickers)
-    sectors = {t: "Unknown" for t in tickers}
+
+    # Use cached company info for real sector data
+    from api import cache as app_cache
+    sectors = {}
+    for t in tickers:
+        cached = app_cache.get(f"company:{t}")
+        sectors[t] = (cached or {}).get("sector", "") or "Unknown"
 
     targets = construct_portfolio(scored, account.equity, prices, sectors)
 
@@ -208,8 +215,21 @@ async def execute_targets(db: AsyncSession = Depends(get_db)):
     latest_run = run_q.scalar_one_or_none()
     regime = latest_run.regime_id if latest_run else "unknown"
 
+    # Check existing positions (broker + DB) to avoid duplicates
+    existing_positions = await _broker.get_positions()
+    held_tickers = {p.ticker for p in existing_positions}
+    open_trades_q = await db.execute(
+        select(Trade.ticker).where(Trade.status == "open")
+    )
+    held_tickers.update(r[0] for r in open_trades_q.all())
+
     results = []
+    skipped = []
     for target in targets:
+        if target["ticker"] in held_tickers:
+            skipped.append(target["ticker"])
+            continue
+
         order = await _broker.submit_order(
             target["ticker"], target["shares"], "buy" if target["side"] == "long" else "sell"
         )
@@ -233,7 +253,10 @@ async def execute_targets(db: AsyncSession = Depends(get_db)):
         })
 
     await db.commit()
-    return {"message": f"Executed {len(results)} trades", "is_demo": _broker.is_demo, "trades": results}
+    msg = f"Executed {len(results)} trades"
+    if skipped:
+        msg += f", skipped {len(skipped)} already held ({', '.join(skipped)})"
+    return {"message": msg, "is_demo": _broker.is_demo, "trades": results}
 
 
 @router.post("/close/{trade_id}")

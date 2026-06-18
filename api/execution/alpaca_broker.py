@@ -100,13 +100,14 @@ class AlpacaBroker:
     ) -> OrderResult:
         if self._demo:
             import uuid
+            prices = await self.get_prices([ticker])
             return OrderResult(
                 order_id=str(uuid.uuid4()),
                 ticker=ticker,
                 side=side,
                 qty=qty,
                 status="demo_filled",
-                filled_price=None,
+                filled_price=prices.get(ticker),
             )
         from alpaca.trading.requests import MarketOrderRequest
         from alpaca.trading.enums import OrderSide, TimeInForce
