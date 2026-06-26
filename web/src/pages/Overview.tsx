@@ -260,37 +260,50 @@ export default function Overview() {
       </div>
 
       {(() => {
-        const categories = [...new Set(data.signals.map((s) => s.category || "other"))];
-        const categoryColors: Record<string, string> = {
-          fundamental: "border-blue-500/40 text-blue-400",
-          technical: "border-purple-500/40 text-purple-400",
-          event: "border-yellow-500/40 text-yellow-400",
+        const groupOrder = ["earnings", "quality", "momentum", "value", "alternative"];
+        const groupColors: Record<string, string> = {
+          earnings: "border-yellow-500/40 text-yellow-400",
+          quality: "border-blue-500/40 text-blue-400",
+          momentum: "border-purple-500/40 text-purple-400",
+          value: "border-emerald-500/40 text-emerald-400",
           alternative: "border-cyan-500/40 text-cyan-400",
-          sentiment: "border-orange-500/40 text-orange-400",
-          risk: "border-red-500/40 text-red-400",
-          other: "border-sigil-border text-sigil-muted",
         };
-        return categories.map((cat) => {
-          const catSignals = data.signals.filter((s) => (s.category || "other") === cat);
+        const groupAccents: Record<string, string> = {
+          earnings: "text-yellow-400",
+          quality: "text-blue-400",
+          momentum: "text-purple-400",
+          value: "text-emerald-400",
+          alternative: "text-cyan-400",
+        };
+        const groups = data.signal_groups || {};
+        return groupOrder.filter(g => groups[g]).map((groupName) => {
+          const group = groups[groupName];
+          const groupSignals = data.signals.filter((s) => s.group === groupName);
           return (
-            <div key={cat} className="space-y-2">
-              <div className="text-xs font-semibold text-sigil-muted uppercase tracking-wider">
-                {cat} signals
+            <div key={groupName} className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-semibold text-sigil-muted uppercase tracking-wider">
+                  {groupName}
+                </div>
+                <span className={`text-xs font-mono ${groupAccents[groupName] || "text-sigil-muted"}`}>
+                  {(group.budget * 100).toFixed(0)}% budget
+                </span>
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                {catSignals.map((s) => {
+              <div className="grid grid-cols-3 gap-4 xl:grid-cols-4">
+                {groupSignals.map((s) => {
                   const activeCount = data.top_ideas.filter(
                     (idea) => (idea.signal_scores[s.name] || 0) > 0
                   ).length;
+                  const isRisk = s.category === "risk";
                   return (
                     <div
                       key={s.name}
                       className="rounded-xl border border-sigil-border bg-sigil-surface p-4"
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-semibold text-sigil-accent">{s.name}</span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${categoryColors[cat] || categoryColors.other}`}>
-                          {cat}
+                        <span className={`font-semibold ${isRisk ? "text-red-400" : "text-sigil-accent"}`}>{s.name}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${groupColors[groupName] || "border-sigil-border text-sigil-muted"}`}>
+                          {s.category}
                         </span>
                       </div>
                       {s.description && (
@@ -299,7 +312,7 @@ export default function Overview() {
                         </div>
                       )}
                       <div className="flex items-center justify-between text-xs text-sigil-muted mb-1">
-                        <span>Weight: {(s.weight * 100).toFixed(0)}%</span>
+                        <span>Weight: {((s.weight || 0) * 100).toFixed(1)}%</span>
                         <span>
                           {activeCount > 0 ? (
                             <span className="text-sigil-accent">{activeCount} active</span>
@@ -309,7 +322,7 @@ export default function Overview() {
                           {" / "}{s.prediction_count} total
                         </span>
                       </div>
-                      <ScoreBar score={s.weight} max={0.3} />
+                      <ScoreBar score={s.weight || 0} max={0.12} />
                     </div>
                   );
                 })}

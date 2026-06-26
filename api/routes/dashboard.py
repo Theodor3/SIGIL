@@ -114,8 +114,9 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
             if p.signal_name == "quality" and p.metadata_:
                 by_ticker[p.ticker]["sector"] = p.metadata_.get("sector", "")
 
-        # Score each ticker
-        weights = {s.name: s.default_weight for s in signals.values()}
+        # Score each ticker using group-resolved weights
+        from api.model.scorer import load_weights
+        weights = load_weights()
         scored = []
         for ticker, data in by_ticker.items():
             weighted_sum = sum(
@@ -141,6 +142,19 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
 
     eval_stats = await get_signal_stats(db)
 
+    # Build signal-to-group mapping from config
+    import json
+    from pathlib import Path
+    config_path = Path(__file__).resolve().parent.parent / "config" / "alpha_model.json"
+    with open(config_path) as f:
+        alpha_config = json.load(f)
+    sig_to_group = {}
+    for group_name, group in alpha_config.get("groups", {}).items():
+        for sig_name in group.get("signals", {}):
+            sig_to_group[sig_name] = group_name
+
+    resolved_weights = load_weights()
+
     signal_health = []
     for sig in signals.values():
         count_q = await db.execute(
@@ -151,6 +165,8 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
         stats = eval_stats.get(sig.name, {})
         signal_health.append({
             **sig.meta(),
+            "weight": round(resolved_weights.get(sig.name, sig.default_weight), 4),
+            "group": sig_to_group.get(sig.name, "ungrouped"),
             "prediction_count": pred_count,
             "eval_stats": stats,
         })
@@ -211,9 +227,16 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
         for s in sources.values()
     ]
 
+    # Group budget summary
+    group_summary = {
+        name: {"budget": round(g["budget"], 2), "signals": list(g["signals"].keys())}
+        for name, g in alpha_config.get("groups", {}).items()
+    }
+
     payload = {
         "status": "ok",
         "signals": signal_health,
+        "signal_groups": group_summary,
         "regime": regime,
         "top_ideas": top_ideas,
         "portfolio": portfolio_summary,

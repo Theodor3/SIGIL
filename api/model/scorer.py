@@ -1,10 +1,14 @@
-"""Alpha model — normalize signal outputs, apply weights, gate, rank."""
+"""Alpha model — group-based weighting, regime tilts, gating, ranking."""
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
 
 from api.regime.models import RegimeSnapshot
 from api.signals.base import SignalOutput
+
+_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "alpha_model.json"
 
 
 @dataclass
@@ -17,18 +21,46 @@ class ScoredTicker:
     gate_flags: dict[str, bool]
 
 
+def _resolve_weights(config: dict) -> dict[str, float]:
+    """Convert group-based config into flat signal weights that sum to ~1.0."""
+    groups = config.get("groups")
+    if not groups:
+        raw = config.get("weights", {})
+        total = sum(raw.values()) or 1.0
+        return {k: v / total for k, v in raw.items()}
+
+    flat: dict[str, float] = {}
+    for group_name, group in groups.items():
+        budget = group["budget"]
+        signals = group["signals"]
+        rel_total = sum(signals.values()) or 1.0
+        for sig_name, rel_weight in signals.items():
+            flat[sig_name] = budget * (rel_weight / rel_total)
+    return flat
+
+
+def load_weights() -> dict[str, float]:
+    """Load and resolve weights from alpha_model.json."""
+    with open(_CONFIG_PATH) as f:
+        config = json.load(f)
+    return _resolve_weights(config)
+
+
 def score_universe(
     signal_outputs: dict[str, list[SignalOutput]],
     weights: dict[str, float],
     regime: RegimeSnapshot,
     gates: dict | None = None,
 ) -> list[ScoredTicker]:
-    """Combine all signal outputs into a ranked universe.
-
-    Placeholder implementation — full normalization + gating in Phase 3.
-    """
+    """Combine all signal outputs into a ranked universe using group-based weights."""
     gates = gates or {}
     min_confidence = gates.get("min_confidence", 0.58)
+
+    resolved = load_weights()
+    # Merge: use resolved weights, but let caller override for any signal not in config
+    for sig_name in weights:
+        if sig_name not in resolved:
+            resolved[sig_name] = weights[sig_name]
 
     tickers: set[str] = set()
     for outputs in signal_outputs.values():
@@ -48,7 +80,7 @@ def score_universe(
         signal_scores = {}
         confidences = []
 
-        for sig_name, weight in weights.items():
+        for sig_name, weight in resolved.items():
             out = scores.get(sig_name)
             if out:
                 tilt = regime.factor_tilts.get(sig_name, 1.0)

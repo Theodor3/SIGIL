@@ -5,6 +5,7 @@ interface SignalInfo {
   version: string;
   weight: number;
   category: string;
+  group: string;
   description: string;
   tags: string[];
   prediction_count: number;
@@ -49,6 +50,7 @@ interface DashboardData {
       confidence: number;
     }>;
   };
+  signal_groups: Record<string, { budget: number; signals: string[] }>;
   top_ideas: TopIdea[];
   portfolio: {
     holdings_count: number;
