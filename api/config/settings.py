@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     alpaca_api_key: str = ""
     alpaca_secret_key: str = ""
     fred_api_key: str = ""
+    fmp_api_key: str = ""
     demo_mode: bool = True
     auto_run_pipeline: bool = True
     auto_rebalance: bool = True

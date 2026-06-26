@@ -65,6 +65,13 @@ async def _fetch_analyst(bucket: list[str]) -> dict:
     return await FinnhubProvider().fetch_analyst_estimates(bucket)
 
 
+async def _fetch_fmp(bucket: list[str]) -> dict:
+    if not settings.fmp_api_key:
+        return {}
+    from api.data.fmp import FMPProvider
+    return await FMPProvider().fetch(bucket)
+
+
 async def _fetch_yahoo_prices(yahoo: YahooProvider, bucket: list[str]) -> dict:
     return await yahoo.fetch_prices(bucket)
 
@@ -106,6 +113,7 @@ async def run_pipeline(db: AsyncSession) -> dict:
             _fetch_gdelt(bucket),
             _fetch_insider(bucket),
             _fetch_analyst(bucket),
+            _fetch_fmp(bucket),
             return_exceptions=True,
         )
         fetch_time = (datetime.utcnow() - t0).total_seconds()
@@ -120,12 +128,41 @@ async def run_pipeline(db: AsyncSession) -> dict:
         gdelt_data = results[5] if not isinstance(results[5], Exception) else {}
         insider_data = results[6] if not isinstance(results[6], Exception) else {}
         analyst_data = results[7] if not isinstance(results[7], Exception) else {}
+        fmp_data = results[8] if not isinstance(results[8], Exception) else {}
 
         # Log errors from any failed providers
-        provider_names = ["yahoo_prices", "finnhub", "polygon_benchmarks", "fred", "wikipedia", "gdelt", "insider", "analyst"]
+        provider_names = ["yahoo_prices", "finnhub", "polygon_benchmarks", "fred", "wikipedia", "gdelt", "insider", "analyst", "fmp"]
         for i, name in enumerate(provider_names):
             if isinstance(results[i], Exception):
                 print(f"[pipeline] {name} failed: {results[i]}")
+
+        # Merge FMP into fundamentals — FMP values win where both exist and FMP is non-zero
+        if fmp_data:
+            update_source_status("fmp_fundamentals", SourceStatus.ACTIVE, fetch_count=len(fmp_data))
+            print(f"[pipeline] FMP: {len(fmp_data)} tickers")
+            merge_keys = [
+                "roic", "fcf_margin", "asset_turnover", "debt_to_ebitda",
+                "total_debt", "total_equity", "market_cap", "trailing_pe",
+                "forward_pe", "price_to_sales", "ev_to_ebitda", "ev_to_revenue",
+                "dividend_yield", "payout_ratio", "buyback_ttm",
+            ]
+            for ticker, fmp_fund in fmp_data.items():
+                if ticker not in fundamentals:
+                    fundamentals[ticker] = fmp_fund
+                    continue
+                yahoo_fund = fundamentals[ticker]
+                for key in merge_keys:
+                    fmp_val = fmp_fund.get(key)
+                    yahoo_val = yahoo_fund.get(key)
+                    if fmp_val is not None and fmp_val != 0:
+                        if yahoo_val is None or yahoo_val == 0:
+                            yahoo_fund[key] = fmp_val
+                # Always take FMP extras Yahoo doesn't have
+                for extra in ("roe", "roa", "operating_margin", "net_margin", "current_ratio", "interest_coverage"):
+                    if fmp_fund.get(extra) is not None:
+                        yahoo_fund[extra] = fmp_fund[extra]
+        elif isinstance(results[8], Exception):
+            update_source_status("fmp_fundamentals", SourceStatus.ERROR, error=str(results[8]))
 
         # Update source statuses
         if not isinstance(results[0], Exception):

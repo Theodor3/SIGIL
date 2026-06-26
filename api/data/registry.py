@@ -119,6 +119,15 @@ def init_default_sources():
         config={"series": ["T10Y2Y", "BAMLH0A0HYM2", "DTWEXBGS", "VIXCLS"]},
     ))
     register_source(DataSource(
+        name="fmp_fundamentals",
+        provider="Financial Modeling Prep",
+        description="Company fundamentals — ROIC, margins, ratios, cash flow. Supplements Yahoo with cleaner data",
+        category="fundamentals",
+        requires_key=True,
+        key_env_var="FMP_API_KEY",
+        status=SourceStatus.ACTIVE if settings.fmp_api_key else SourceStatus.NO_KEY,
+    ))
+    register_source(DataSource(
         name="alpaca_account",
         provider="Alpaca",
         description="Brokerage account data — positions, balances, order history for paper/live trading",
