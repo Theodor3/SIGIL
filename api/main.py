@@ -54,6 +54,41 @@ async def _scheduled_loop():
 
                 await broadcast("evaluation_complete", {"status": "done"})
 
+                # Auto-rebalance after pipeline
+                if settings.auto_rebalance:
+                    try:
+                        await broadcast("rebalance_status", {"status": "running"})
+                        async with async_session() as db:
+                            from api.routes.portfolio import _build_rebalance_inputs, _broker
+                            from api.execution.rebalancer import compute_rebalance
+                            result, err = await _build_rebalance_inputs(db)
+                            if err:
+                                print(f"[scheduler] Rebalance skipped: {err}")
+                            else:
+                                plan = compute_rebalance(
+                                    current_positions=result["current_positions"],
+                                    target_weights=result["target_weights"],
+                                    prices=result["prices"],
+                                    portfolio_value=result["account"].portfolio_value,
+                                    exposure_target=result["exposure"],
+                                )
+                                if not plan.sells and not plan.buys:
+                                    print("[scheduler] Rebalance: portfolio already aligned")
+                                else:
+                                    from api.routes.portfolio import rebalance_execute
+                                    resp = await rebalance_execute(db)
+                                    sells = sum(1 for o in resp.get("orders", []) if o["side"] == "sell")
+                                    buys = sum(1 for o in resp.get("orders", []) if o["side"] == "buy")
+                                    print(f"[scheduler] Rebalanced: {sells} sells, {buys} buys")
+                                    await broadcast("rebalance_complete", {
+                                        "sells": sells,
+                                        "buys": buys,
+                                        "skipped": len(plan.skipped),
+                                    })
+                    except Exception as e:
+                        print(f"[scheduler] Rebalance failed: {e}")
+                        await broadcast("rebalance_error", {"error": str(e)})
+
         except Exception as e:
             print(f"[scheduler] Pipeline run failed: {e}")
             await broadcast("pipeline_error", {"error": str(e)})
@@ -135,4 +170,7 @@ if DIST_DIR.is_dir():
         file_path = DIST_DIR / path
         if file_path.is_file():
             return FileResponse(str(file_path))
-        return FileResponse(str(DIST_DIR / "index.html"))
+        return FileResponse(
+            str(DIST_DIR / "index.html"),
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+        )

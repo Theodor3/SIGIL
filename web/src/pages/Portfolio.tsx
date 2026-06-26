@@ -66,6 +66,37 @@ interface TargetsData {
   targets: Target[];
 }
 
+interface RebalanceOrder {
+  ticker: string;
+  shares: number;
+  reason: string;
+  current_pct: number;
+  target_pct: number;
+  delta_pct: number;
+}
+
+interface RebalancePlan {
+  sells: RebalanceOrder[];
+  buys: RebalanceOrder[];
+  skipped: { ticker: string; current_pct: number; target_pct: number; delta_pct: number }[];
+  total_sell_value: number;
+  total_buy_value: number;
+  net_cash_change: number;
+  positions_before: number;
+  positions_after: number;
+  total_orders: number;
+}
+
+interface RebalancePreview {
+  run_id: string;
+  regime_id: string;
+  exposure_target: number;
+  portfolio_value: number;
+  cash: number;
+  is_demo: boolean;
+  plan: RebalancePlan;
+}
+
 function fmt(n: number | null | undefined, decimals = 2): string {
   if (n == null) return "--";
   return n.toLocaleString(undefined, {
@@ -92,11 +123,14 @@ function PnlText({ value }: { value: number | null | undefined }) {
 export default function Portfolio() {
   const [data, setData] = useState<PortfolioData | null>(null);
   const [targets, setTargets] = useState<TargetsData | null>(null);
+  const [rebalance, setRebalance] = useState<RebalancePreview | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [executing, setExecuting] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [rebalancing, setRebalancing] = useState(false);
   const [execResult, setExecResult] = useState<string | null>(null);
-  const [tab, setTab] = useState<"positions" | "targets" | "history">(
+  const [tab, setTab] = useState<"positions" | "targets" | "rebalance" | "history">(
     "positions",
   );
 
@@ -162,6 +196,36 @@ export default function Portfolio() {
     }
   }
 
+  async function previewRebalance() {
+    setPreviewing(true);
+    try {
+      const res = await fetch("/api/portfolio/rebalance/preview", { method: "POST" });
+      setRebalance(await res.json());
+      setTab("rebalance");
+    } catch {
+      /* ignore */
+    } finally {
+      setPreviewing(false);
+    }
+  }
+
+  async function executeRebalance() {
+    setRebalancing(true);
+    setExecResult(null);
+    try {
+      const res = await fetch("/api/portfolio/rebalance/execute", { method: "POST" });
+      const json = await res.json();
+      setExecResult(json.message || "Rebalanced");
+      setRebalance(null);
+      await fetchPortfolio();
+      setTab("positions");
+    } catch {
+      setExecResult("Rebalance failed");
+    } finally {
+      setRebalancing(false);
+    }
+  }
+
   if (loading)
     return <div className="text-sigil-muted">Loading portfolio...</div>;
 
@@ -180,6 +244,14 @@ export default function Portfolio() {
           </p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={previewRebalance}
+            disabled={previewing}
+            className="px-4 py-2 rounded-lg bg-sigil-accent text-sigil-bg font-semibold text-sm
+                       hover:bg-sigil-accent/90 disabled:opacity-50 transition-all"
+          >
+            {previewing ? "Loading..." : "Rebalance Preview"}
+          </button>
           <button
             onClick={generateTargets}
             disabled={generating}
@@ -238,6 +310,7 @@ export default function Portfolio() {
         {(
           [
             ["positions", "Positions"],
+            ["rebalance", "Rebalance"],
             ["targets", "Targets"],
             ["history", "Trade History"],
           ] as const
@@ -492,6 +565,182 @@ export default function Portfolio() {
               <p className="text-sigil-muted text-sm">
                 No targets generated yet. Click "Generate Targets" to build
                 portfolio allocations from the latest pipeline scores.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Rebalance Tab */}
+      {tab === "rebalance" && (
+        <div className="space-y-4">
+          {rebalance?.plan ? (
+            <>
+              {/* Summary cards */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="rounded-xl border border-sigil-border bg-sigil-surface p-4">
+                  <div className="text-sigil-muted text-[10px] uppercase tracking-wider mb-1">Regime</div>
+                  <div className="text-sm font-semibold">
+                    <span className="px-2 py-0.5 rounded-full border border-sigil-accent/30 text-sigil-accent bg-sigil-accent/10">
+                      {rebalance.regime_id}
+                    </span>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-sigil-border bg-sigil-surface p-4">
+                  <div className="text-sigil-muted text-[10px] uppercase tracking-wider mb-1">Exposure Target</div>
+                  <div className="text-sm font-bold">{(rebalance.exposure_target * 100).toFixed(0)}%</div>
+                </div>
+                <div className="rounded-xl border border-sigil-border bg-sigil-surface p-4">
+                  <div className="text-sigil-muted text-[10px] uppercase tracking-wider mb-1">Total Orders</div>
+                  <div className="text-sm font-bold">{rebalance.plan.total_orders}</div>
+                </div>
+                <div className="rounded-xl border border-sigil-border bg-sigil-surface p-4">
+                  <div className="text-sigil-muted text-[10px] uppercase tracking-wider mb-1">Positions</div>
+                  <div className="text-sm font-bold">{rebalance.plan.positions_before} → {rebalance.plan.positions_after}</div>
+                </div>
+                <div className="rounded-xl border border-sigil-border bg-sigil-surface p-4">
+                  <div className="text-sigil-muted text-[10px] uppercase tracking-wider mb-1">Net Cash</div>
+                  <div className={`text-sm font-bold ${rebalance.plan.net_cash_change > 0 ? "text-sigil-accent" : rebalance.plan.net_cash_change < 0 ? "text-sigil-danger" : ""}`}>
+                    {rebalance.plan.net_cash_change > 0 ? "+" : ""}${fmt(rebalance.plan.net_cash_change)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Sells */}
+              {rebalance.plan.sells.length > 0 && (
+                <div className="rounded-xl border border-sigil-danger/30 bg-sigil-surface overflow-hidden">
+                  <div className="px-4 py-3 border-b border-sigil-border flex items-center gap-2">
+                    <span className="text-sm font-semibold text-sigil-danger">Sells</span>
+                    <span className="text-xs text-sigil-muted">
+                      {rebalance.plan.sells.length} orders · ${fmt(rebalance.plan.total_sell_value)}
+                    </span>
+                  </div>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-sigil-muted text-xs uppercase border-b border-sigil-border">
+                        <th className="text-left px-4 py-2">Ticker</th>
+                        <th className="text-left px-4 py-2">Reason</th>
+                        <th className="text-right px-4 py-2">Shares</th>
+                        <th className="text-right px-4 py-2">Current %</th>
+                        <th className="text-right px-4 py-2">Target %</th>
+                        <th className="text-right px-4 py-2">Delta</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rebalance.plan.sells.map((o) => (
+                        <tr key={o.ticker} className="border-b border-sigil-border/50 hover:bg-white/[0.02]">
+                          <td className="px-4 py-2.5 font-semibold">{o.ticker}</td>
+                          <td className="px-4 py-2.5">
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${
+                              o.reason === "exit"
+                                ? "bg-sigil-danger/10 text-sigil-danger border border-sigil-danger/30"
+                                : "bg-yellow-500/10 text-yellow-400 border border-yellow-500/30"
+                            }`}>
+                              {o.reason}
+                            </span>
+                          </td>
+                          <td className="text-right px-4 py-2.5">{o.shares}</td>
+                          <td className="text-right px-4 py-2.5">{o.current_pct.toFixed(1)}%</td>
+                          <td className="text-right px-4 py-2.5">{o.target_pct.toFixed(1)}%</td>
+                          <td className="text-right px-4 py-2.5 text-sigil-danger">{o.delta_pct.toFixed(1)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Buys */}
+              {rebalance.plan.buys.length > 0 && (
+                <div className="rounded-xl border border-sigil-accent/30 bg-sigil-surface overflow-hidden">
+                  <div className="px-4 py-3 border-b border-sigil-border flex items-center gap-2">
+                    <span className="text-sm font-semibold text-sigil-accent">Buys</span>
+                    <span className="text-xs text-sigil-muted">
+                      {rebalance.plan.buys.length} orders · ${fmt(rebalance.plan.total_buy_value)}
+                    </span>
+                  </div>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-sigil-muted text-xs uppercase border-b border-sigil-border">
+                        <th className="text-left px-4 py-2">Ticker</th>
+                        <th className="text-left px-4 py-2">Reason</th>
+                        <th className="text-right px-4 py-2">Shares</th>
+                        <th className="text-right px-4 py-2">Current %</th>
+                        <th className="text-right px-4 py-2">Target %</th>
+                        <th className="text-right px-4 py-2">Delta</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rebalance.plan.buys.map((o) => (
+                        <tr key={o.ticker} className="border-b border-sigil-border/50 hover:bg-white/[0.02]">
+                          <td className="px-4 py-2.5 font-semibold">{o.ticker}</td>
+                          <td className="px-4 py-2.5">
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${
+                              o.reason === "new"
+                                ? "bg-sigil-accent/10 text-sigil-accent border border-sigil-accent/30"
+                                : "bg-blue-500/10 text-blue-400 border border-blue-500/30"
+                            }`}>
+                              {o.reason}
+                            </span>
+                          </td>
+                          <td className="text-right px-4 py-2.5">{o.shares}</td>
+                          <td className="text-right px-4 py-2.5">{o.current_pct.toFixed(1)}%</td>
+                          <td className="text-right px-4 py-2.5">{o.target_pct.toFixed(1)}%</td>
+                          <td className="text-right px-4 py-2.5 text-sigil-accent">+{o.delta_pct.toFixed(1)}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Skipped */}
+              {rebalance.plan.skipped.length > 0 && (
+                <div className="rounded-xl border border-sigil-border bg-sigil-surface p-4">
+                  <div className="text-xs font-semibold text-sigil-muted uppercase tracking-wider mb-2">
+                    Within Tolerance ({rebalance.plan.skipped.length})
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {rebalance.plan.skipped.map((s) => (
+                      <span key={s.ticker} className="text-xs text-sigil-muted bg-sigil-bg px-2 py-1 rounded">
+                        {s.ticker} ({s.current_pct.toFixed(1)}% → {s.target_pct.toFixed(1)}%)
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Execute button */}
+              {rebalance.plan.total_orders > 0 && (
+                <div className="flex items-center justify-between rounded-xl border border-sigil-accent/30 bg-sigil-accent/5 p-4">
+                  <div className="text-sm">
+                    <span className="font-semibold">{rebalance.plan.total_orders} orders</span>
+                    <span className="text-sigil-muted ml-2">
+                      sell ${fmt(rebalance.plan.total_sell_value)} · buy ${fmt(rebalance.plan.total_buy_value)}
+                    </span>
+                    {rebalance.is_demo && <span className="ml-2 text-yellow-400 text-xs">(demo)</span>}
+                  </div>
+                  <button
+                    onClick={executeRebalance}
+                    disabled={rebalancing}
+                    className="px-6 py-2 rounded-lg bg-sigil-accent text-sigil-bg font-semibold text-sm
+                               hover:bg-sigil-accent/90 disabled:opacity-50 transition-all"
+                  >
+                    {rebalancing ? "Executing..." : "Execute Rebalance"}
+                  </button>
+                </div>
+              )}
+
+              {rebalance.plan.total_orders === 0 && (
+                <div className="rounded-xl border border-sigil-accent/30 bg-sigil-accent/5 p-4 text-center text-sm text-sigil-accent">
+                  Portfolio is already aligned with targets — no trades needed.
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="rounded-xl border border-dashed border-sigil-border/50 bg-sigil-surface/50 p-8 text-center">
+              <p className="text-sigil-muted text-sm">
+                Click "Rebalance Preview" to see what trades are needed to align your portfolio with the latest signal scores.
               </p>
             </div>
           )}

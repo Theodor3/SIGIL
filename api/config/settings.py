@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     fred_api_key: str = ""
     demo_mode: bool = True
     auto_run_pipeline: bool = True
+    auto_rebalance: bool = True
     pipeline_interval_hours: float = 6
     auth_password: str = ""
 

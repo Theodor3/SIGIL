@@ -1,6 +1,7 @@
 """Alpaca broker bridge — paper/live trading via alpaca-py SDK."""
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -120,13 +121,36 @@ class AlpacaBroker:
             time_in_force=TimeInForce.DAY,
         )
         order = client.submit_order(request)
+        order_id = str(order.id)
+
+        # Poll for fill — market orders usually fill within seconds
+        filled_price = None
+        if order.filled_avg_price:
+            filled_price = float(order.filled_avg_price)
+        else:
+            for _ in range(10):
+                await asyncio.sleep(0.5)
+                updated = client.get_order_by_id(order_id)
+                if updated.filled_avg_price:
+                    filled_price = float(updated.filled_avg_price)
+                    order = updated
+                    break
+                if str(updated.status) in ("canceled", "expired", "rejected"):
+                    order = updated
+                    break
+
+        # Last resort: use current quote as entry price
+        if filled_price is None and str(order.status) not in ("canceled", "expired", "rejected"):
+            prices = await self.get_prices([ticker])
+            filled_price = prices.get(ticker)
+
         return OrderResult(
-            order_id=str(order.id),
+            order_id=order_id,
             ticker=ticker,
             side=side,
             qty=qty,
             status=str(order.status),
-            filled_price=float(order.filled_avg_price) if order.filled_avg_price else None,
+            filled_price=filled_price,
         )
 
     async def get_prices(self, tickers: list[str]) -> dict[str, float]:

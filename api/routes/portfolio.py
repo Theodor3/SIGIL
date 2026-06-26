@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.db import get_db
 from api.db.models import Trade
 from api.execution.alpaca_broker import AlpacaBroker
+from api.execution.rebalancer import compute_rebalance
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
 
@@ -321,3 +322,264 @@ async def close_all_trades(db: AsyncSession = Depends(get_db)):
 
     await db.commit()
     return {"message": f"Closed {len(closed)} trades", "closed": len(closed), "trades": closed}
+
+
+async def _build_rebalance_inputs(db: AsyncSession):
+    """Shared logic: get current positions, target weights, prices, regime."""
+    from api.db.models import PipelineRun, SignalPrediction
+    from api.model.portfolio import construct_portfolio
+    from api.signals.registry import get_registry
+    from api.signals.base import SignalOutput
+    from api.model.scorer import score_universe
+    from api.regime.detector import DEFAULTS as REGIME_DEFAULTS
+    from api.regime.models import RegimeSnapshot
+    from datetime import date
+    from api import cache as app_cache
+
+    run_q = await db.execute(
+        select(PipelineRun)
+        .where(PipelineRun.status == "completed")
+        .order_by(PipelineRun.started_at.desc())
+        .limit(1)
+    )
+    latest_run = run_q.scalar_one_or_none()
+    if not latest_run:
+        return None, "No completed pipeline run found"
+
+    preds_q = await db.execute(
+        select(SignalPrediction).where(SignalPrediction.run_id == latest_run.id)
+    )
+    preds = preds_q.scalars().all()
+
+    signals = get_registry()
+    weights = {s.name: s.default_weight for s in signals.values()}
+
+    signal_outputs: dict[str, list[SignalOutput]] = {}
+    for p in preds:
+        signal_outputs.setdefault(p.signal_name, []).append(
+            SignalOutput(ticker=p.ticker, score=p.score, confidence=p.confidence, metadata=p.metadata_ or {})
+        )
+
+    regime_id = latest_run.regime_id or "risk_on"
+    regime = RegimeSnapshot(
+        as_of_date=date.today(),
+        regime_id=regime_id,
+        confidence=latest_run.regime_confidence or 0.5,
+        recommended_gross_exposure=REGIME_DEFAULTS["exposure"].get(regime_id, 0.75),
+        factor_tilts=REGIME_DEFAULTS["factor_tilts"].get(regime_id, {}),
+    )
+    scored = score_universe(signal_outputs, weights, regime)
+
+    account = await _broker.get_account()
+    positions = await _broker.get_positions()
+
+    eligible_tickers = [s.ticker for s in scored[:20] if s.eligible]
+    held_tickers = [p.ticker for p in positions]
+    all_tickers = list(set(eligible_tickers + held_tickers))
+    prices = await _broker.get_prices(all_tickers) if all_tickers else {}
+
+    sectors = {}
+    for t in eligible_tickers:
+        cached = app_cache.get(f"company:{t}")
+        sectors[t] = (cached or {}).get("sector", "") or "Unknown"
+
+    targets = construct_portfolio(scored, account.equity, prices, sectors)
+    target_weights = {t.ticker: t.weight for t in targets}
+
+    current_positions = {
+        p.ticker: {"shares": p.qty, "market_value": p.market_value}
+        for p in positions
+    }
+
+    exposure = regime.recommended_gross_exposure
+
+    return {
+        "account": account,
+        "current_positions": current_positions,
+        "target_weights": target_weights,
+        "prices": prices,
+        "exposure": exposure,
+        "regime_id": regime_id,
+        "run_id": latest_run.id,
+        "targets": targets,
+    }, None
+
+
+@router.post("/rebalance/preview")
+async def rebalance_preview(db: AsyncSession = Depends(get_db)):
+    """Preview the rebalance plan without executing any orders."""
+    result, error = await _build_rebalance_inputs(db)
+    if error:
+        return {"error": error}
+
+    plan = compute_rebalance(
+        current_positions=result["current_positions"],
+        target_weights=result["target_weights"],
+        prices=result["prices"],
+        portfolio_value=result["account"].portfolio_value,
+        exposure_target=result["exposure"],
+    )
+
+    return {
+        "run_id": result["run_id"],
+        "regime_id": result["regime_id"],
+        "exposure_target": result["exposure"],
+        "portfolio_value": result["account"].portfolio_value,
+        "cash": result["account"].cash,
+        "is_demo": _broker.is_demo,
+        "plan": {
+            "sells": [
+                {
+                    "ticker": o.ticker,
+                    "shares": o.shares,
+                    "reason": o.reason,
+                    "current_pct": o.current_pct,
+                    "target_pct": o.target_pct,
+                    "delta_pct": o.delta_pct,
+                }
+                for o in plan.sells
+            ],
+            "buys": [
+                {
+                    "ticker": o.ticker,
+                    "shares": o.shares,
+                    "reason": o.reason,
+                    "current_pct": o.current_pct,
+                    "target_pct": o.target_pct,
+                    "delta_pct": o.delta_pct,
+                }
+                for o in plan.buys
+            ],
+            "skipped": plan.skipped,
+            "total_sell_value": plan.total_sell_value,
+            "total_buy_value": plan.total_buy_value,
+            "net_cash_change": plan.net_cash_change,
+            "positions_before": plan.positions_before,
+            "positions_after": plan.positions_after,
+            "total_orders": len(plan.sells) + len(plan.buys),
+        },
+    }
+
+
+@router.post("/rebalance/execute")
+async def rebalance_execute(db: AsyncSession = Depends(get_db)):
+    """Execute the rebalance plan — sells first, then buys."""
+    result, error = await _build_rebalance_inputs(db)
+    if error:
+        return {"error": error}
+
+    plan = compute_rebalance(
+        current_positions=result["current_positions"],
+        target_weights=result["target_weights"],
+        prices=result["prices"],
+        portfolio_value=result["account"].portfolio_value,
+        exposure_target=result["exposure"],
+    )
+
+    if not plan.sells and not plan.buys:
+        return {"message": "Portfolio already aligned with targets", "orders": []}
+
+    regime = result["regime_id"]
+    executed = []
+    errors = []
+
+    # Sells first to free up cash
+    for order in plan.sells:
+        try:
+            res = await _broker.submit_order(order.ticker, order.shares, "sell")
+            # Close or reduce matching DB trade
+            trade_q = await db.execute(
+                select(Trade)
+                .where(Trade.ticker == order.ticker, Trade.status == "open")
+                .order_by(Trade.opened_at.asc())
+                .limit(1)
+            )
+            trade = trade_q.scalar_one_or_none()
+            if trade:
+                if order.reason == "exit":
+                    trade.exit_price = res.filled_price
+                    entry = trade.entry_price or res.filled_price or 0
+                    trade.realized_pnl = round(
+                        ((res.filled_price or 0) - entry) * order.shares, 2
+                    )
+                    trade.closed_at = datetime.utcnow()
+                    trade.status = "closed"
+                else:
+                    trade.shares = max(trade.shares - order.shares, 0)
+                    if trade.shares == 0:
+                        trade.exit_price = res.filled_price
+                        trade.closed_at = datetime.utcnow()
+                        trade.status = "closed"
+
+            executed.append({
+                "ticker": order.ticker,
+                "side": "sell",
+                "shares": order.shares,
+                "reason": order.reason,
+                "order_id": res.order_id,
+                "status": res.status,
+                "filled_price": res.filled_price,
+            })
+        except Exception as e:
+            errors.append({"ticker": order.ticker, "side": "sell", "error": str(e)})
+
+    # Then buys
+    for order in plan.buys:
+        try:
+            res = await _broker.submit_order(order.ticker, order.shares, "buy")
+            if order.reason == "new":
+                target_match = next(
+                    (t for t in result["targets"] if t.ticker == order.ticker), None
+                )
+                trade = Trade(
+                    opened_at=datetime.utcnow(),
+                    ticker=order.ticker,
+                    side="long",
+                    entry_price=res.filled_price,
+                    shares=order.shares,
+                    signal_drivers=target_match.signal_scores if target_match else {},
+                    regime_at_entry=regime,
+                    status="open",
+                )
+                db.add(trade)
+            else:
+                # Adding to existing position — update share count
+                trade_q = await db.execute(
+                    select(Trade)
+                    .where(Trade.ticker == order.ticker, Trade.status == "open")
+                    .order_by(Trade.opened_at.asc())
+                    .limit(1)
+                )
+                trade = trade_q.scalar_one_or_none()
+                if trade:
+                    trade.shares += order.shares
+
+            executed.append({
+                "ticker": order.ticker,
+                "side": "buy",
+                "shares": order.shares,
+                "reason": order.reason,
+                "order_id": res.order_id,
+                "status": res.status,
+                "filled_price": res.filled_price,
+            })
+        except Exception as e:
+            errors.append({"ticker": order.ticker, "side": "buy", "error": str(e)})
+
+    await db.commit()
+
+    sell_count = sum(1 for o in executed if o["side"] == "sell")
+    buy_count = sum(1 for o in executed if o["side"] == "buy")
+    msg = f"Rebalanced: {sell_count} sells, {buy_count} buys"
+    if plan.skipped:
+        msg += f", {len(plan.skipped)} within tolerance"
+    if errors:
+        msg += f", {len(errors)} errors"
+
+    return {
+        "message": msg,
+        "is_demo": _broker.is_demo,
+        "orders": executed,
+        "errors": errors,
+        "skipped": plan.skipped,
+    }
