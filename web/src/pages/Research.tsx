@@ -254,7 +254,7 @@ export default function Research() {
               <h3 className="text-sm font-semibold text-sigil-muted uppercase tracking-wider mb-4">
                 Signal Details
               </h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {data.signals
                   .filter((s) => Object.keys(s.metadata).length > 0)
                   .map((s) => (

@@ -60,7 +60,7 @@ export default function Signals() {
               <h2 className={`text-sm font-semibold uppercase tracking-wider ${categoryColors[cat] || categoryColors.other}`}>
                 {cat} ({catSignals.length})
               </h2>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {catSignals.map((s) => {
           const stats: EvalStats = (s as any).eval_stats || {};
           const hasEvals = Object.keys(stats).length > 0;
@@ -97,7 +97,7 @@ export default function Signals() {
                 </div>
               )}
 
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <StatBox
                   label="Predictions"
                   value={String(s.prediction_count)}

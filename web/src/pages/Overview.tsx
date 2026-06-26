@@ -84,7 +84,7 @@ export default function Overview() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-xl font-bold">Overview</h1>
         <div className="flex items-center gap-3">
           <button
@@ -108,7 +108,7 @@ export default function Overview() {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
           label="Signals Active"
           value={String(data.signals.length)}
@@ -156,9 +156,9 @@ export default function Overview() {
           </div>
         </div>
 
-        <div className="grid grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 lg:gap-6">
           {/* Regime ID + Confidence */}
-          <div className="col-span-3">
+          <div className="lg:col-span-3">
             <div className={`text-3xl font-bold mb-1 ${
               data.regime.regime_id === "risk_off" ? "text-red-400" :
               data.regime.regime_id === "high_vol" ? "text-yellow-400" :
@@ -176,7 +176,7 @@ export default function Overview() {
           </div>
 
           {/* Key Indicators */}
-          <div className="col-span-3">
+          <div className="lg:col-span-3">
             <div className="text-xs text-sigil-muted uppercase tracking-wider mb-2">Indicators</div>
             <div className="space-y-2">
               {[
@@ -199,7 +199,7 @@ export default function Overview() {
           </div>
 
           {/* Factor Tilts */}
-          <div className="col-span-3">
+          <div className="lg:col-span-3">
             <div className="text-xs text-sigil-muted uppercase tracking-wider mb-2">Factor Tilts</div>
             <div className="space-y-1.5">
               {data.regime.factor_tilts && Object.entries(data.regime.factor_tilts).map(([factor, tilt]) => (
@@ -225,7 +225,7 @@ export default function Overview() {
           </div>
 
           {/* Regime History Mini Chart */}
-          <div className="col-span-3">
+          <div className="sm:col-span-2 lg:col-span-3">
             <div className="text-xs text-sigil-muted uppercase tracking-wider mb-2">Recent History</div>
             {data.regime.history && data.regime.history.length > 0 ? (
               <div className="flex items-end gap-1 h-16">
@@ -289,7 +289,7 @@ export default function Overview() {
                   {(group.budget * 100).toFixed(0)}% budget
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-4 xl:grid-cols-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {groupSignals.map((s) => {
                   const activeCount = data.top_ideas.filter(
                     (idea) => (idea.signal_scores[s.name] || 0) > 0
@@ -417,7 +417,7 @@ export default function Overview() {
             {data.recent_runs.map((run) => (
               <div
                 key={run.id}
-                className="flex items-center justify-between text-sm px-3 py-2 rounded-lg bg-sigil-bg"
+                className="flex flex-wrap items-center gap-2 sm:gap-0 sm:justify-between text-sm px-3 py-2 rounded-lg bg-sigil-bg"
               >
                 <span className="text-sigil-muted font-mono text-xs">
                   {run.id.slice(0, 8)}

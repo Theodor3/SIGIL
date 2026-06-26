@@ -235,7 +235,7 @@ export default function Portfolio() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">Portfolio</h1>
           <p className="text-sigil-muted text-sm mt-1">
@@ -247,18 +247,18 @@ export default function Portfolio() {
           <button
             onClick={previewRebalance}
             disabled={previewing}
-            className="px-4 py-2 rounded-lg bg-sigil-accent text-sigil-bg font-semibold text-sm
+            className="px-3 sm:px-4 py-2 rounded-lg bg-sigil-accent text-sigil-bg font-semibold text-xs sm:text-sm
                        hover:bg-sigil-accent/90 disabled:opacity-50 transition-all"
           >
-            {previewing ? "Loading..." : "Rebalance Preview"}
+            {previewing ? "Loading..." : "Rebalance"}
           </button>
           <button
             onClick={generateTargets}
             disabled={generating}
-            className="px-4 py-2 rounded-lg border border-sigil-border text-sm text-sigil-muted
+            className="px-3 sm:px-4 py-2 rounded-lg border border-sigil-border text-xs sm:text-sm text-sigil-muted
                        hover:border-sigil-accent hover:text-sigil-accent disabled:opacity-50 transition-all"
           >
-            {generating ? "Generating..." : "Generate Targets"}
+            {generating ? "Generating..." : "Targets"}
           </button>
         </div>
       </div>
@@ -276,7 +276,7 @@ export default function Portfolio() {
       )}
 
       {/* Account Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         <div className="rounded-xl border border-sigil-border bg-sigil-surface p-5">
           <div className="text-sigil-muted text-xs uppercase tracking-wider mb-1">
             Equity
@@ -306,7 +306,7 @@ export default function Portfolio() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex gap-1 border-b border-sigil-border">
+      <div className="flex gap-1 border-b border-sigil-border overflow-x-auto">
         {(
           [
             ["positions", "Positions"],
@@ -334,11 +334,11 @@ export default function Portfolio() {
         <div className="space-y-4">
           {/* Live broker positions */}
           {(data?.positions?.length ?? 0) > 0 && (
-            <div className="rounded-xl border border-sigil-border bg-sigil-surface overflow-hidden">
+            <div className="rounded-xl border border-sigil-border bg-sigil-surface overflow-hidden overflow-x-auto">
               <div className="px-4 py-3 border-b border-sigil-border">
                 <span className="text-sm font-semibold">Broker Positions</span>
               </div>
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[500px]">
                 <thead>
                   <tr className="text-sigil-muted text-xs uppercase border-b border-sigil-border">
                     <th className="text-left px-4 py-2">Ticker</th>
@@ -378,7 +378,7 @@ export default function Portfolio() {
 
           {/* DB-tracked open trades */}
           {(data?.open_trades?.length ?? 0) > 0 ? (
-            <div className="rounded-xl border border-sigil-border bg-sigil-surface overflow-hidden">
+            <div className="rounded-xl border border-sigil-border bg-sigil-surface overflow-hidden overflow-x-auto">
               <div className="px-4 py-3 border-b border-sigil-border flex items-center justify-between">
                 <span className="text-sm font-semibold">Open Trades</span>
                 <button
@@ -577,7 +577,7 @@ export default function Portfolio() {
           {rebalance?.plan ? (
             <>
               {/* Summary cards */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
                 <div className="rounded-xl border border-sigil-border bg-sigil-surface p-4">
                   <div className="text-sigil-muted text-[10px] uppercase tracking-wider mb-1">Regime</div>
                   <div className="text-sm font-semibold">
@@ -608,7 +608,7 @@ export default function Portfolio() {
 
               {/* Sells */}
               {rebalance.plan.sells.length > 0 && (
-                <div className="rounded-xl border border-sigil-danger/30 bg-sigil-surface overflow-hidden">
+                <div className="rounded-xl border border-sigil-danger/30 bg-sigil-surface overflow-hidden overflow-x-auto">
                   <div className="px-4 py-3 border-b border-sigil-border flex items-center gap-2">
                     <span className="text-sm font-semibold text-sigil-danger">Sells</span>
                     <span className="text-xs text-sigil-muted">
@@ -652,7 +652,7 @@ export default function Portfolio() {
 
               {/* Buys */}
               {rebalance.plan.buys.length > 0 && (
-                <div className="rounded-xl border border-sigil-accent/30 bg-sigil-surface overflow-hidden">
+                <div className="rounded-xl border border-sigil-accent/30 bg-sigil-surface overflow-hidden overflow-x-auto">
                   <div className="px-4 py-3 border-b border-sigil-border flex items-center gap-2">
                     <span className="text-sm font-semibold text-sigil-accent">Buys</span>
                     <span className="text-xs text-sigil-muted">
@@ -712,7 +712,7 @@ export default function Portfolio() {
 
               {/* Execute button */}
               {rebalance.plan.total_orders > 0 && (
-                <div className="flex items-center justify-between rounded-xl border border-sigil-accent/30 bg-sigil-accent/5 p-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-sigil-accent/30 bg-sigil-accent/5 p-4">
                   <div className="text-sm">
                     <span className="font-semibold">{rebalance.plan.total_orders} orders</span>
                     <span className="text-sigil-muted ml-2">

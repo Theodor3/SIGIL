@@ -133,7 +133,7 @@ export default function Backtest() {
       ) : (
         <>
           {/* Summary cards */}
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="rounded-xl border border-sigil-border bg-sigil-surface p-4">
               <div className="text-sigil-muted text-xs uppercase tracking-wider mb-1">Total P&L</div>
               <div className={`text-2xl font-bold font-mono ${totalPnl >= 0 ? "text-sigil-accent" : "text-sigil-danger"}`}>
