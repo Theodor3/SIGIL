@@ -36,11 +36,17 @@
       }
     },
     "alternative": {
-      "budget": 0.15,
+      "budget": 0.10,
       "signals": {
         "insider": 1.0,
         "short_interest": 0.8,
         "growth": 1.2
+      }
+    },
+    "composite": {
+      "budget": 0.05,
+      "signals": {
+        "llm_conviction": 1.0
       }
     }
   },

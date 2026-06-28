@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     alpha_vantage_api_key: str = ""
     tiingo_api_key: str = ""
     bls_api_key: str = ""
+    anthropic_api_key: str = ""
     demo_mode: bool = True
     auto_run_pipeline: bool = True
     auto_rebalance: bool = True
