@@ -68,7 +68,7 @@ def init_default_sources():
     register_source(DataSource(
         name="universe_screener",
         provider="Built-in",
-        description="S&P 500 growth subset screener — filters 100 seed tickers to ~70 growth names",
+        description="S&P 500 screener — filters ~500 constituents to top 200 by quality score",
         category="universe",
         requires_key=False,
         status=SourceStatus.ACTIVE,
@@ -137,18 +137,9 @@ def init_default_sources():
         status=SourceStatus.ACTIVE if settings.alpaca_api_key else SourceStatus.NO_KEY,
     ))
     register_source(DataSource(
-        name="stocktwits_sentiment",
-        provider="StockTwits",
-        description="Retail sentiment per ticker — bullish/bearish ratios, message volume, trending",
-        category="sentiment",
-        requires_key=True,
-        key_env_var="STOCKTWITS_USERNAME",
-        status=SourceStatus.ACTIVE if settings.stocktwits_username else SourceStatus.NO_KEY,
-    ))
-    register_source(DataSource(
         name="tiingo_prices",
         provider="Tiingo",
-        description="Daily adjusted prices and financial news per ticker",
+        description="Daily adjusted prices — backup price source filling Yahoo gaps",
         category="market",
         requires_key=True,
         key_env_var="TIINGO_API_KEY",
@@ -163,15 +154,6 @@ def init_default_sources():
         key_env_var="ALPHA_VANTAGE_API_KEY",
         status=SourceStatus.ACTIVE if settings.alpha_vantage_api_key else SourceStatus.NO_KEY,
         config={"note": "Free tier: 25 req/day — only fetches top 20 tickers"},
-    ))
-    register_source(DataSource(
-        name="nasdaq_data_link",
-        provider="Nasdaq Data Link (Quandl)",
-        description="Macro indicators — fed funds, breakeven inflation, unemployment, consumer sentiment",
-        category="macro",
-        requires_key=True,
-        key_env_var="NASDAQ_DATA_LINK_API_KEY",
-        status=SourceStatus.ACTIVE if settings.nasdaq_data_link_api_key else SourceStatus.NO_KEY,
     ))
     register_source(DataSource(
         name="bls_labor",

@@ -76,7 +76,7 @@ class FinnhubProvider(DataProvider):
                                         "actual": actual,
                                         "estimate": estimate,
                                         "surprise_pct": surprise_pct,
-                                        "return_5d": surprise_pct * 0.015,
+                                        "return_5d": surprise_pct / 100.0,
                                     })
                             if records:
                                 history[ticker] = records

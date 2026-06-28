@@ -73,7 +73,7 @@ class ValueSignal(Signal):
             if sub_scores:
                 score = sum(sub_scores) / len(sub_scores)
                 coverage = len(sub_scores) / 3.0
-                confidence = 0.30 * coverage + 0.25 * (1.0 if med_pe else 0.35) + 0.20 + 0.15 * coverage + 0.10 * (0.6 if f else 0)
+                confidence = 0.35 * coverage + 0.25 * (1.0 if med_pe else 0.35) + 0.15 + 0.15 * coverage + 0.10 * (0.6 if f else 0)
             else:
                 score = 0.5
                 confidence = 0.35

@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config.settings import settings
 from api.data.context import PipelineContext
-from api.data.universe import SEED_UNIVERSE, screen_universe
+from api.data.universe import SEED_UNIVERSE, fetch_sp500_tickers, screen_universe
 from api.data.yahoo import YahooProvider
 from api.db.models import PipelineRun, SignalPrediction
 from api.model.scorer import score_universe
@@ -72,18 +72,11 @@ async def _fetch_fmp(bucket: list[str]) -> dict:
     return await FMPProvider().fetch(bucket)
 
 
-async def _fetch_stocktwits(bucket: list[str]) -> dict:
-    if not settings.stocktwits_username:
-        return {}
-    from api.data.stocktwits import StockTwitsProvider
-    return await StockTwitsProvider().fetch(bucket)
-
-
-async def _fetch_tiingo_news(bucket: list[str]) -> dict:
+async def _fetch_tiingo_prices(bucket: list[str]) -> dict:
     if not settings.tiingo_api_key:
         return {}
     from api.data.tiingo import TiingoProvider
-    return await TiingoProvider().fetch_news(bucket)
+    return await TiingoProvider().fetch_prices(bucket)
 
 
 async def _fetch_alphavantage_earnings(bucket: list[str]) -> dict:
@@ -91,13 +84,6 @@ async def _fetch_alphavantage_earnings(bucket: list[str]) -> dict:
         return {}
     from api.data.alphavantage import AlphaVantageProvider
     return await AlphaVantageProvider().fetch_earnings(bucket)
-
-
-async def _fetch_nasdaq_macro() -> dict:
-    if not settings.nasdaq_data_link_api_key:
-        return {}
-    from api.data.nasdaq_data_link import NasdaqDataLinkProvider
-    return await NasdaqDataLinkProvider().fetch_macro()
 
 
 async def _fetch_bls() -> dict:
@@ -124,9 +110,10 @@ async def run_pipeline(db: AsyncSession) -> dict:
     try:
         from api.data.registry import SourceStatus, update_source_status
 
-        # Phase 1: Fetch fundamentals (must complete before screening)
+        # Phase 1: Fetch S&P 500 universe + fundamentals
         yahoo = YahooProvider(demo_mode=settings.demo_mode)
-        universe = SEED_UNIVERSE.copy()
+        universe = await fetch_sp500_tickers()
+        print(f"[pipeline] Fetched {len(universe)} S&P 500 tickers")
         fundamentals = await yahoo.fetch(universe)
         update_source_status("yahoo_fundamentals", SourceStatus.ACTIVE, fetch_count=len(fundamentals))
         update_source_status("universe_screener", SourceStatus.ACTIVE, fetch_count=len(universe))
@@ -140,7 +127,7 @@ async def run_pipeline(db: AsyncSession) -> dict:
         # Phase 3: Fetch ALL other data sources IN PARALLEL
         t0 = datetime.utcnow()
         results = await asyncio.gather(
-            _fetch_yahoo_prices(yahoo, bucket),   # 0
+            _fetch_yahoo_prices(yahoo, bucket),    # 0
             _fetch_finnhub(bucket),                # 1
             _fetch_benchmarks(),                   # 2
             _fetch_fred(),                         # 3
@@ -149,11 +136,9 @@ async def run_pipeline(db: AsyncSession) -> dict:
             _fetch_insider(bucket),                # 6
             _fetch_analyst(bucket),                # 7
             _fetch_fmp(bucket),                    # 8
-            _fetch_stocktwits(bucket),             # 9
-            _fetch_tiingo_news(bucket),            # 10
-            _fetch_alphavantage_earnings(bucket),  # 11
-            _fetch_nasdaq_macro(),                 # 12
-            _fetch_bls(),                          # 13
+            _fetch_tiingo_prices(bucket),          # 9
+            _fetch_alphavantage_earnings(bucket),  # 10
+            _fetch_bls(),                          # 11
             return_exceptions=True,
         )
         fetch_time = (datetime.utcnow() - t0).total_seconds()
@@ -169,17 +154,15 @@ async def run_pipeline(db: AsyncSession) -> dict:
         insider_data = results[6] if not isinstance(results[6], Exception) else {}
         analyst_data = results[7] if not isinstance(results[7], Exception) else {}
         fmp_data = results[8] if not isinstance(results[8], Exception) else {}
-        stocktwits_data = results[9] if not isinstance(results[9], Exception) else {}
-        tiingo_news = results[10] if not isinstance(results[10], Exception) else {}
-        av_earnings = results[11] if not isinstance(results[11], Exception) else {}
-        nasdaq_macro = results[12] if not isinstance(results[12], Exception) else {}
-        bls_data = results[13] if not isinstance(results[13], Exception) else {}
+        tiingo_prices = results[9] if not isinstance(results[9], Exception) else {}
+        av_earnings = results[10] if not isinstance(results[10], Exception) else {}
+        bls_data = results[11] if not isinstance(results[11], Exception) else {}
 
         # Log errors from any failed providers
         provider_names = [
             "yahoo_prices", "finnhub", "polygon_benchmarks", "fred", "wikipedia",
-            "gdelt", "insider", "analyst", "fmp", "stocktwits", "tiingo_news",
-            "alphavantage", "nasdaq_macro", "bls",
+            "gdelt", "insider", "analyst", "fmp", "tiingo_prices",
+            "alphavantage", "bls",
         ]
         for i, name in enumerate(provider_names):
             if isinstance(results[i], Exception):
@@ -266,45 +249,33 @@ async def run_pipeline(db: AsyncSession) -> dict:
         if not isinstance(results[7], Exception):
             print(f"[pipeline] Analyst estimates: {len(analyst_data)} tickers")
 
-        # StockTwits sentiment
-        if not isinstance(results[9], Exception) and stocktwits_data:
-            update_source_status("stocktwits_sentiment", SourceStatus.ACTIVE, fetch_count=len(stocktwits_data))
-            print(f"[pipeline] StockTwits: {len(stocktwits_data)} tickers")
+        # Tiingo prices — fill gaps in Yahoo market data
+        if not isinstance(results[9], Exception) and tiingo_prices:
+            update_source_status("tiingo_prices", SourceStatus.ACTIVE, fetch_count=len(tiingo_prices))
+            print(f"[pipeline] Tiingo prices: {len(tiingo_prices)} tickers")
+            for ticker, tp in tiingo_prices.items():
+                if ticker not in market_data or not market_data[ticker].get("close"):
+                    market_data[ticker] = tp
         elif isinstance(results[9], Exception):
-            update_source_status("stocktwits_sentiment", SourceStatus.ERROR, error=str(results[9]))
-
-        # Tiingo news
-        if not isinstance(results[10], Exception) and tiingo_news:
-            update_source_status("tiingo_prices", SourceStatus.ACTIVE, fetch_count=len(tiingo_news))
-            print(f"[pipeline] Tiingo news: {len(tiingo_news)} tickers")
-        elif isinstance(results[10], Exception):
-            update_source_status("tiingo_prices", SourceStatus.ERROR, error=str(results[10]))
+            update_source_status("tiingo_prices", SourceStatus.ERROR, error=str(results[9]))
 
         # Alpha Vantage earnings — merge into earnings history
-        if not isinstance(results[11], Exception) and av_earnings:
+        if not isinstance(results[10], Exception) and av_earnings:
             update_source_status("alphavantage_earnings", SourceStatus.ACTIVE, fetch_count=len(av_earnings))
             print(f"[pipeline] Alpha Vantage earnings: {len(av_earnings)} tickers")
             for ticker, av_data in av_earnings.items():
                 if ticker not in earnings_history or not earnings_history[ticker]:
                     earnings_history[ticker] = av_data.get("surprise_history", [])
-        elif isinstance(results[11], Exception):
-            update_source_status("alphavantage_earnings", SourceStatus.ERROR, error=str(results[11]))
-
-        # Nasdaq Data Link macro — merge into macro dict
-        if not isinstance(results[12], Exception) and nasdaq_macro:
-            update_source_status("nasdaq_data_link", SourceStatus.ACTIVE, fetch_count=len(nasdaq_macro))
-            print(f"[pipeline] Nasdaq Data Link: {len(nasdaq_macro)} macro indicators")
-            macro.update(nasdaq_macro)
-        elif isinstance(results[12], Exception):
-            update_source_status("nasdaq_data_link", SourceStatus.ERROR, error=str(results[12]))
+        elif isinstance(results[10], Exception):
+            update_source_status("alphavantage_earnings", SourceStatus.ERROR, error=str(results[10]))
 
         # BLS labor data
-        if not isinstance(results[13], Exception) and bls_data:
+        if not isinstance(results[11], Exception) and bls_data:
             update_source_status("bls_labor", SourceStatus.ACTIVE, fetch_count=len(bls_data))
             print(f"[pipeline] BLS: {len(bls_data)} labor indicators")
             macro.update(bls_data)
-        elif isinstance(results[13], Exception):
-            update_source_status("bls_labor", SourceStatus.ERROR, error=str(results[13]))
+        elif isinstance(results[11], Exception):
+            update_source_status("bls_labor", SourceStatus.ERROR, error=str(results[11]))
 
         # Build market context for regime detection
         market_context = {**benchmarks, **macro}
@@ -320,8 +291,6 @@ async def run_pipeline(db: AsyncSession) -> dict:
             nowcast=nowcast,
             insider_transactions=insider_data,
             analyst_estimates=analyst_data,
-            sentiment=stocktwits_data,
-            tiingo_news=tiingo_news,
             macro=macro,
             benchmarks=benchmarks,
         )

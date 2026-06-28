@@ -1,21 +1,60 @@
-"""Universe screener — filters S&P 500 to a growth bucket."""
+"""Universe screener — S&P 500 constituents filtered to a growth bucket."""
 from __future__ import annotations
 
 import httpx
 
-# Hardcoded S&P 500 growth-oriented subset for Phase 2
-# Full S&P 500 scraping from Wikipedia will be added later
+_SP500_CSV_URL = "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/main/data/constituents.csv"
+
 SEED_UNIVERSE = [
-    "AAPL", "ABNB", "ADBE", "ADI", "ADP", "ADSK", "AMAT", "AMD", "AMZN", "ANSS",
-    "APH", "AVGO", "AXP", "BAH", "BBY", "BILL", "BLK", "BLDR", "BR", "BSX",
-    "CDNS", "CDW", "CEG", "CMG", "COST", "CRM", "CRWD", "CSGP", "CSCO", "DDOG",
-    "DE", "DELL", "DG", "DHR", "DXCM", "EA", "ECL", "ENPH", "EPAM", "EXPE",
-    "FAST", "FICO", "FIX", "FTNT", "GE", "GOOG", "GPN", "GWW", "HLT", "HPQ",
-    "HUBB", "HWM", "IDXX", "INTU", "ISRG", "IT", "KLAC", "LRCX", "MA", "MELI",
-    "META", "MNST", "MPWR", "MSFT", "MSI", "MTD", "MTX", "NFLX", "NOW", "NTAP",
-    "NVDA", "ODFL", "ON", "ORCL", "PANW", "PAYC", "PH", "PINS", "PLTR", "PTC",
-    "PYPL", "QCOM", "RMD", "ROK", "ROL", "SHOP", "SNPS", "SQ", "STE", "TDG",
-    "TEAM", "TRGP", "TSLA", "TTD", "TXN", "UBER", "V", "VEEV", "VRSK", "WSM",
+    "AAPL", "ABBV", "ABT", "ACN", "ADBE", "ADI", "ADP", "ADSK", "AES", "AFL",
+    "AIG", "AIZ", "ALB", "ALGN", "ALL", "AMAT", "AMCR", "AMD", "AME", "AMGN",
+    "AMP", "AMZN", "ANET", "ANSS", "AON", "AOS", "APA", "APD", "APH", "APTV",
+    "ARE", "ATO", "ATVI", "AVB", "AVGO", "AVY", "AWK", "AXP", "AZO", "BA",
+    "BAC", "BAX", "BBWI", "BBY", "BDX", "BEN", "BF.B", "BG", "BIIB", "BIO",
+    "BK", "BKNG", "BKR", "BLK", "BMY", "BR", "BRK.B", "BRO", "BSX", "BWA",
+    "BXP", "C", "CAG", "CAH", "CARR", "CAT", "CB", "CBOE", "CBRE", "CCI",
+    "CCL", "CDNS", "CDW", "CE", "CEG", "CF", "CFG", "CHD", "CHRW", "CHTR",
+    "CI", "CINF", "CL", "CLX", "CMA", "CMCSA", "CME", "CMG", "CMI", "CMS",
+    "CNC", "CNP", "COF", "COO", "COP", "COST", "CPB", "CPRT", "CPT", "CRL",
+    "CRM", "CRWD", "CSCO", "CSGP", "CSX", "CTAS", "CTLT", "CTRA", "CTSH", "CTVA",
+    "CVS", "CVX", "CZR", "D", "DAL", "DD", "DDOG", "DE", "DELL", "DFS",
+    "DG", "DGX", "DHI", "DHR", "DIS", "DISH", "DLTR", "DOV", "DOW", "DPZ",
+    "DRI", "DTE", "DUK", "DVA", "DVN", "DXC", "DXCM", "EA", "EBAY", "ECL",
+    "ED", "EFX", "EIX", "EL", "EMN", "EMR", "ENPH", "EOG", "EPAM", "EQIX",
+    "EQR", "EQT", "ES", "ESS", "ETN", "ETR", "ETSY", "EVRG", "EW", "EXC",
+    "EXPD", "EXPE", "EXR", "F", "FANG", "FAST", "FBHS", "FCX", "FDS", "FDX",
+    "FE", "FFIV", "FIS", "FISV", "FITB", "FLT", "FMC", "FOX", "FOXA", "FRC",
+    "FRT", "FTNT", "FTV", "GD", "GE", "GILD", "GIS", "GL", "GLW", "GM",
+    "GNRC", "GOOG", "GOOGL", "GPC", "GPN", "GRMN", "GS", "GWW", "HAL", "HAS",
+    "HBAN", "HCA", "HD", "HOLX", "HON", "HPE", "HPQ", "HRL", "HSIC", "HST",
+    "HSY", "HUBB", "HUM", "HWM", "IBM", "ICE", "IDXX", "IEX", "IFF", "ILMN",
+    "INCY", "INTC", "INTU", "INVH", "IP", "IPG", "IQV", "IR", "IRM", "ISRG",
+    "IT", "ITW", "IVZ", "J", "JBHT", "JCI", "JKHY", "JNJ", "JNPR", "JPM",
+    "K", "KDP", "KEY", "KEYS", "KHC", "KIM", "KLAC", "KMB", "KMI", "KMX",
+    "KO", "KR", "L", "LDOS", "LEN", "LH", "LHX", "LIN", "LKQ", "LLY",
+    "LMT", "LNC", "LNT", "LOW", "LRCX", "LUMN", "LUV", "LVS", "LW", "LYB",
+    "LYV", "MA", "MAA", "MAR", "MAS", "MCD", "MCHP", "MCK", "MCO", "MDLZ",
+    "MDT", "MET", "META", "MGM", "MHK", "MKC", "MKTX", "MLM", "MMC", "MMM",
+    "MNST", "MO", "MOH", "MOS", "MPC", "MPWR", "MRK", "MRNA", "MRO", "MS",
+    "MSCI", "MSFT", "MSI", "MTB", "MTCH", "MTD", "MU", "NCLH", "NDAQ", "NDSN",
+    "NEE", "NEM", "NFLX", "NI", "NKE", "NOC", "NOW", "NRG", "NSC", "NTAP",
+    "NTRS", "NUE", "NVDA", "NVR", "NWL", "NWS", "NWSA", "NXPI", "O", "ODFL",
+    "OGN", "OKE", "OMC", "ON", "ORCL", "ORLY", "OTIS", "OXY", "PARA", "PAYC",
+    "PAYX", "PCAR", "PCG", "PEAK", "PEG", "PEP", "PFE", "PFG", "PG", "PGR",
+    "PH", "PHM", "PKG", "PKI", "PLD", "PLTR", "PM", "PNC", "PNR", "PNW",
+    "POOL", "PPG", "PPL", "PRU", "PSA", "PSX", "PTC", "PVH", "PWR", "PXD",
+    "PYPL", "QCOM", "QRVO", "RCL", "RE", "REG", "REGN", "RF", "RHI", "RJF",
+    "RL", "RMD", "ROK", "ROL", "ROP", "ROST", "RSG", "RTX", "SBAC", "SBNY",
+    "SBUX", "SCHW", "SEE", "SHW", "SIVB", "SJM", "SLB", "SNA", "SNPS", "SO",
+    "SPG", "SPGI", "SRE", "STE", "STT", "STX", "STZ", "SWK", "SWKS", "SYF",
+    "SYK", "SYY", "T", "TAP", "TDG", "TDY", "TECH", "TEL", "TER", "TFC",
+    "TFX", "TGT", "TMO", "TMUS", "TPR", "TRGP", "TRMB", "TROW", "TRV", "TSCO",
+    "TSLA", "TSN", "TT", "TTWO", "TXN", "TXT", "TYL", "UAL", "UDR", "UHS",
+    "ULTA", "UNH", "UNP", "UPS", "URI", "USB", "V", "VFC", "VICI", "VLO",
+    "VMC", "VRSK", "VRSN", "VRTX", "VTR", "VTRS", "VZ", "WAB", "WAT", "WBA",
+    "WBD", "WDC", "WEC", "WELL", "WFC", "WHR", "WM", "WMB", "WMT", "WRB",
+    "WRK", "WST", "WTW", "WY", "WYNN", "XEL", "XOM", "XRAY", "XYL", "YUM",
+    "ZBH", "ZBRA", "ZION", "ZTS",
 ]
 
 GROWTH_FILTERS = {
@@ -24,26 +63,20 @@ GROWTH_FILTERS = {
     "max_debt_to_ebitda": 3.0,
 }
 
-TARGET_BUCKET_SIZE = 75
+TARGET_BUCKET_SIZE = 200
 
 
 async def fetch_sp500_tickers() -> list[str]:
-    """Fetch S&P 500 tickers from Wikipedia. Falls back to seed list."""
+    """Fetch S&P 500 tickers from GitHub dataset CSV. Falls back to seed list."""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
-                "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
-                headers={"User-Agent": "Mozilla/5.0"},
-            )
+            resp = await client.get(_SP500_CSV_URL)
             if resp.status_code == 200:
-                import re
-                # Extract tickers from the Wikipedia table
-                matches = re.findall(
-                    r'<td[^>]*><a[^>]*>([A-Z]{1,5})</a></td>',
-                    resp.text,
-                )
-                if len(matches) > 100:
-                    return matches
+                lines = resp.text.strip().split("\n")
+                tickers = [line.split(",")[0] for line in lines[1:] if line.strip()]
+                tickers = [t for t in tickers if t.isalpha() or "." in t]
+                if len(tickers) > 400:
+                    return tickers
     except Exception:
         pass
     return SEED_UNIVERSE.copy()

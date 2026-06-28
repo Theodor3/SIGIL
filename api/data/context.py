@@ -17,17 +17,10 @@ class PipelineContext:
     earnings_calendar: dict[str, date] = field(default_factory=dict)
     earnings_history: dict[str, list[dict]] = field(default_factory=dict)
     nowcast: dict[str, dict] = field(default_factory=dict)
-    news: dict[str, dict] = field(default_factory=dict)
 
     # Finnhub extras
     insider_transactions: dict[str, list[dict]] = field(default_factory=dict)
     analyst_estimates: dict[str, dict] = field(default_factory=dict)
-
-    # Sentiment
-    sentiment: dict[str, dict] = field(default_factory=dict)
-
-    # News from Tiingo
-    tiingo_news: dict[str, list[dict]] = field(default_factory=dict)
 
     # Market-wide
     macro: dict = field(default_factory=dict)
