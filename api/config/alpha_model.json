@@ -6,7 +6,8 @@
         "pead": 1.0,
         "earnings_surprise_streak": 1.0,
         "earnings_miss_risk": 0.8,
-        "analyst_revision": 0.8
+        "analyst_revision": 0.8,
+        "earnings_momentum": 1.0
       }
     },
     "quality": {
@@ -36,7 +37,7 @@
       }
     },
     "alternative": {
-      "budget": 0.10,
+      "budget": 0.05,
       "signals": {
         "insider": 1.0,
         "short_interest": 0.8,
@@ -44,9 +45,10 @@
       }
     },
     "composite": {
-      "budget": 0.05,
+      "budget": 0.10,
       "signals": {
-        "llm_conviction": 1.0
+        "llm_conviction": 1.0,
+        "macro_factor_tilt": 0.8
       }
     }
   },
