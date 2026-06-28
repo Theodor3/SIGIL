@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     alpaca_secret_key: str = ""
     fred_api_key: str = ""
     fmp_api_key: str = ""
+    alpha_vantage_api_key: str = ""
+    tiingo_api_key: str = ""
+    nasdaq_data_link_api_key: str = ""
+    stocktwits_username: str = ""
+    stocktwits_password: str = ""
+    bls_api_key: str = ""
     demo_mode: bool = True
     auto_run_pipeline: bool = True
     auto_rebalance: bool = True

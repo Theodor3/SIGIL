@@ -136,3 +136,49 @@ def init_default_sources():
         key_env_var="ALPACA_API_KEY",
         status=SourceStatus.ACTIVE if settings.alpaca_api_key else SourceStatus.NO_KEY,
     ))
+    register_source(DataSource(
+        name="stocktwits_sentiment",
+        provider="StockTwits",
+        description="Retail sentiment per ticker — bullish/bearish ratios, message volume, trending",
+        category="sentiment",
+        requires_key=True,
+        key_env_var="STOCKTWITS_USERNAME",
+        status=SourceStatus.ACTIVE if settings.stocktwits_username else SourceStatus.NO_KEY,
+    ))
+    register_source(DataSource(
+        name="tiingo_prices",
+        provider="Tiingo",
+        description="Daily adjusted prices and financial news per ticker",
+        category="market",
+        requires_key=True,
+        key_env_var="TIINGO_API_KEY",
+        status=SourceStatus.ACTIVE if settings.tiingo_api_key else SourceStatus.NO_KEY,
+    ))
+    register_source(DataSource(
+        name="alphavantage_earnings",
+        provider="Alpha Vantage",
+        description="Quarterly earnings surprise history — supplements Finnhub earnings data",
+        category="earnings",
+        requires_key=True,
+        key_env_var="ALPHA_VANTAGE_API_KEY",
+        status=SourceStatus.ACTIVE if settings.alpha_vantage_api_key else SourceStatus.NO_KEY,
+        config={"note": "Free tier: 25 req/day — only fetches top 20 tickers"},
+    ))
+    register_source(DataSource(
+        name="nasdaq_data_link",
+        provider="Nasdaq Data Link (Quandl)",
+        description="Macro indicators — fed funds, breakeven inflation, unemployment, consumer sentiment",
+        category="macro",
+        requires_key=True,
+        key_env_var="NASDAQ_DATA_LINK_API_KEY",
+        status=SourceStatus.ACTIVE if settings.nasdaq_data_link_api_key else SourceStatus.NO_KEY,
+    ))
+    register_source(DataSource(
+        name="bls_labor",
+        provider="Bureau of Labor Statistics",
+        description="CPI, core CPI, nonfarm payrolls, unemployment, PPI, hourly earnings + YoY changes",
+        category="macro",
+        requires_key=True,
+        key_env_var="BLS_API_KEY",
+        status=SourceStatus.ACTIVE if settings.bls_api_key else SourceStatus.NO_KEY,
+    ))
