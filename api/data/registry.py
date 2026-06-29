@@ -68,7 +68,7 @@ def init_default_sources():
     register_source(DataSource(
         name="universe_screener",
         provider="Built-in",
-        description="S&P 500 screener — filters ~500 constituents to top 200 by quality score",
+        description="Multi-index screener — filters S&P 500 + small/mid cap (~2500 tickers) to top 300 by quality",
         category="universe",
         requires_key=False,
         status=SourceStatus.ACTIVE,

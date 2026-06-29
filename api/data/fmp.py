@@ -116,6 +116,50 @@ async def _fetch_ticker(client: httpx.AsyncClient, symbol: str) -> dict | None:
     }
 
 
+async def _fetch_screening_data(client: httpx.AsyncClient, symbol: str) -> dict | None:
+    """Lightweight fetch for screening — profile + key-metrics-ttm + ratios-ttm (3 calls instead of 4)."""
+    profile_data, metrics_data, ratios_data = await asyncio.gather(
+        _get(client, "profile", {"symbol": symbol}),
+        _get(client, "key-metrics-ttm", {"symbol": symbol}),
+        _get(client, "ratios-ttm", {"symbol": symbol}),
+        return_exceptions=True,
+    )
+
+    profile = {}
+    if isinstance(profile_data, list) and profile_data:
+        profile = profile_data[0]
+    elif isinstance(profile_data, dict):
+        profile = profile_data
+
+    if not profile.get("symbol"):
+        return None
+
+    metrics = {}
+    if isinstance(metrics_data, list) and metrics_data:
+        metrics = metrics_data[0]
+
+    ratios = {}
+    if isinstance(ratios_data, list) and ratios_data:
+        ratios = ratios_data[0]
+
+    fcf_margin = 0.0
+    rev = _num(ratios.get("revenuePerShareTTM"))
+    fcf = _num(ratios.get("freeCashFlowPerShareTTM"))
+    if rev and fcf and rev > 0:
+        fcf_margin = fcf / rev
+
+    return {
+        "roic": _num(metrics.get("returnOnInvestedCapitalTTM")) or _num(metrics.get("returnOnAssetsTTM")) or 0,
+        "fcf_margin": fcf_margin,
+        "asset_turnover": _num(ratios.get("assetTurnoverTTM")) or 0,
+        "debt_to_ebitda": _num(metrics.get("netDebtToEBITDATTM")),
+        "market_cap": _num(profile.get("marketCap")) or _num(metrics.get("marketCap")),
+        "sector": profile.get("sector", ""),
+        "industry": profile.get("industry", ""),
+        "_source": "fmp_screen",
+    }
+
+
 class FMPProvider(DataProvider):
     @property
     def name(self) -> str:
@@ -138,6 +182,27 @@ class FMPProvider(DataProvider):
                     if result:
                         results[ticker] = result
                 if i + 10 < len(tickers):
+                    await asyncio.sleep(0.3)
+
+        return results
+
+    async def fetch_screening_data(self, tickers: list[str]) -> dict[str, dict]:
+        """Lightweight fundamentals for screening — 2 API calls per ticker instead of 4."""
+        if not settings.fmp_api_key:
+            return {}
+
+        results: dict[str, dict] = {}
+        async with httpx.AsyncClient(timeout=30) as client:
+            for i in range(0, len(tickers), 20):
+                batch = tickers[i:i + 20]
+                tasks = [_fetch_screening_data(client, t) for t in batch]
+                batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+                for ticker, result in zip(batch, batch_results):
+                    if isinstance(result, Exception):
+                        continue
+                    if result:
+                        results[ticker] = result
+                if i + 20 < len(tickers):
                     await asyncio.sleep(0.3)
 
         return results

@@ -1,9 +1,12 @@
-"""Universe screener — S&P 500 constituents filtered to a growth bucket."""
+"""Universe screener — multi-index (S&P 500 + small/mid cap + ETFs) filtered to a quality bucket."""
 from __future__ import annotations
 
 import httpx
 
+from api.config.settings import settings
+
 _SP500_CSV_URL = "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/main/data/constituents.csv"
+_FMP_BASE = "https://financialmodelingprep.com/stable"
 
 SEED_UNIVERSE = [
     "AAPL", "ABBV", "ABT", "ACN", "ADBE", "ADI", "ADP", "ADSK", "AES", "AFL",
@@ -57,24 +60,39 @@ SEED_UNIVERSE = [
     "ZBH", "ZBRA", "ZION", "ZTS",
 ]
 
+ETF_UNIVERSE = [
+    "SPY", "QQQ", "IWM", "DIA", "VTI", "VOO",
+    "XLF", "XLE", "XLK", "XLV", "XLI", "XLY", "XLP", "XLU", "XLRE", "XLC", "XLB",
+    "TLT", "HYG", "GLD",
+]
+
 GROWTH_FILTERS = {
     "min_roic": 0.05,
     "min_fcf_margin": 0.05,
     "max_debt_to_ebitda": 3.0,
 }
 
-TARGET_BUCKET_SIZE = 200
+TARGET_BUCKET_SIZE = 300
 
 
-async def fetch_sp500_tickers() -> list[str]:
-    """Fetch S&P 500 tickers from GitHub dataset CSV. Falls back to seed list."""
+def _is_valid_ticker(t: str) -> bool:
+    """Filter out mutual funds, warrants, and other non-equity symbols."""
+    if not t or len(t) > 5:
+        return False
+    if len(t) == 5 and t.endswith("X"):
+        return False
+    return t.isalpha() or "." in t
+
+
+async def _fetch_sp500() -> list[str]:
+    """Fetch S&P 500 tickers from GitHub dataset CSV."""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(_SP500_CSV_URL)
             if resp.status_code == 200:
                 lines = resp.text.strip().split("\n")
                 tickers = [line.split(",")[0] for line in lines[1:] if line.strip()]
-                tickers = [t for t in tickers if t.isalpha() or "." in t]
+                tickers = [t for t in tickers if _is_valid_ticker(t)]
                 if len(tickers) > 400:
                     return tickers
     except Exception:
@@ -82,10 +100,63 @@ async def fetch_sp500_tickers() -> list[str]:
     return SEED_UNIVERSE.copy()
 
 
+async def _fetch_fmp_screener(
+    market_cap_min: int,
+    market_cap_max: int,
+    limit: int = 1500,
+) -> list[str]:
+    """Fetch tickers from FMP company screener by market cap range."""
+    if not settings.fmp_api_key:
+        return []
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            params = {
+                "apikey": settings.fmp_api_key,
+                "marketCapMoreThan": market_cap_min,
+                "marketCapLowerThan": market_cap_max,
+                "exchange": "NYSE,NASDAQ",
+                "limit": limit,
+            }
+            resp = await client.get(f"{_FMP_BASE}/company-screener", params=params)
+            if resp.status_code == 200:
+                data = resp.json()
+                return [d["symbol"] for d in data if _is_valid_ticker(d.get("symbol", ""))]
+    except Exception as e:
+        print(f"[universe] FMP screener failed: {e}")
+    return []
+
+
+async def fetch_universe_tickers() -> list[str]:
+    """Fetch multi-index universe: S&P 500 + small-cap + mid-cap + ETFs."""
+    import asyncio
+
+    sp500, small_cap, mid_cap = await asyncio.gather(
+        _fetch_sp500(),
+        _fetch_fmp_screener(300_000_000, 2_000_000_000, limit=1500),
+        _fetch_fmp_screener(2_000_000_000, 10_000_000_000, limit=1000),
+    )
+
+    print(f"[universe] S&P 500: {len(sp500)}, Small-cap: {len(small_cap)}, Mid-cap: {len(mid_cap)}, ETFs: {len(ETF_UNIVERSE)}")
+
+    all_tickers = set(sp500) | set(small_cap) | set(mid_cap) | set(ETF_UNIVERSE)
+    result = sorted(all_tickers)
+    print(f"[universe] Total unique tickers: {len(result)}")
+    return result
+
+
+# Keep old name as alias for backwards compatibility in case anything imports it
+fetch_sp500_tickers = fetch_universe_tickers
+
+
 def screen_universe(fundamentals: dict[str, dict]) -> list[str]:
-    """Apply growth filters and return up to TARGET_BUCKET_SIZE tickers."""
+    """Apply quality filters and return up to TARGET_BUCKET_SIZE tickers."""
     scored = []
     for ticker, data in fundamentals.items():
+        # ETFs auto-pass with a mid-tier quality score
+        if ticker in ETF_UNIVERSE:
+            scored.append((ticker, 0.5))
+            continue
+
         roic = data.get("roic", 0) or 0
         fcf_margin = data.get("fcf_margin", 0) or 0
         debt_ebitda = data.get("debt_to_ebitda")

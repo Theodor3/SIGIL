@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config.settings import settings
 from api.data.context import PipelineContext
-from api.data.universe import SEED_UNIVERSE, fetch_sp500_tickers, screen_universe
+from api.data.fmp import FMPProvider
+from api.data.universe import SEED_UNIVERSE, fetch_universe_tickers, screen_universe
 from api.data.yahoo import YahooProvider
 from api.db.models import PipelineRun, SignalPrediction
 from api.model.scorer import score_universe
@@ -97,6 +98,10 @@ async def _fetch_yahoo_prices(yahoo: YahooProvider, bucket: list[str]) -> dict:
     return await yahoo.fetch_prices(bucket)
 
 
+async def _fetch_yahoo_fundamentals(yahoo: YahooProvider, bucket: list[str]) -> dict:
+    return await yahoo.fetch(bucket)
+
+
 async def run_pipeline(db: AsyncSession) -> dict:
     """Execute a full pipeline run: fetch → score → store."""
     run_id = str(uuid.uuid4())
@@ -110,12 +115,14 @@ async def run_pipeline(db: AsyncSession) -> dict:
     try:
         from api.data.registry import SourceStatus, update_source_status
 
-        # Phase 1: Fetch S&P 500 universe + fundamentals
+        # Phase 1: Fetch multi-index universe + lightweight FMP fundamentals for screening
         yahoo = YahooProvider(demo_mode=settings.demo_mode)
-        universe = await fetch_sp500_tickers()
-        print(f"[pipeline] Fetched {len(universe)} S&P 500 tickers")
-        fundamentals = await yahoo.fetch(universe)
-        update_source_status("yahoo_fundamentals", SourceStatus.ACTIVE, fetch_count=len(fundamentals))
+        fmp = FMPProvider()
+        universe = await fetch_universe_tickers()
+        print(f"[pipeline] Fetched {len(universe)} tickers across all indices")
+        fundamentals = await fmp.fetch_screening_data(universe)
+        print(f"[pipeline] FMP screening data: {len(fundamentals)}/{len(universe)} tickers")
+        update_source_status("fmp_fundamentals", SourceStatus.ACTIVE, fetch_count=len(fundamentals))
         update_source_status("universe_screener", SourceStatus.ACTIVE, fetch_count=len(universe))
 
         # Phase 2: Screen to growth bucket
@@ -127,18 +134,19 @@ async def run_pipeline(db: AsyncSession) -> dict:
         # Phase 3: Fetch ALL other data sources IN PARALLEL
         t0 = datetime.utcnow()
         results = await asyncio.gather(
-            _fetch_yahoo_prices(yahoo, bucket),    # 0
-            _fetch_finnhub(bucket),                # 1
-            _fetch_benchmarks(),                   # 2
-            _fetch_fred(),                         # 3
-            _fetch_wikipedia(bucket),              # 4
-            _fetch_gdelt(bucket),                  # 5
-            _fetch_insider(bucket),                # 6
-            _fetch_analyst(bucket),                # 7
-            _fetch_fmp(bucket),                    # 8
-            _fetch_tiingo_prices(bucket),          # 9
-            _fetch_alphavantage_earnings(bucket),  # 10
-            _fetch_bls(),                          # 11
+            _fetch_yahoo_prices(yahoo, bucket),        # 0
+            _fetch_finnhub(bucket),                    # 1
+            _fetch_benchmarks(),                       # 2
+            _fetch_fred(),                             # 3
+            _fetch_wikipedia(bucket),                  # 4
+            _fetch_gdelt(bucket),                      # 5
+            _fetch_insider(bucket),                    # 6
+            _fetch_analyst(bucket),                    # 7
+            _fetch_fmp(bucket),                        # 8  - full FMP fundamentals
+            _fetch_tiingo_prices(bucket),              # 9
+            _fetch_alphavantage_earnings(bucket),      # 10
+            _fetch_bls(),                              # 11
+            _fetch_yahoo_fundamentals(yahoo, bucket),  # 12 - Yahoo fundamentals on screened bucket
             return_exceptions=True,
         )
         fetch_time = (datetime.utcnow() - t0).total_seconds()
@@ -157,42 +165,59 @@ async def run_pipeline(db: AsyncSession) -> dict:
         tiingo_prices = results[9] if not isinstance(results[9], Exception) else {}
         av_earnings = results[10] if not isinstance(results[10], Exception) else {}
         bls_data = results[11] if not isinstance(results[11], Exception) else {}
+        yahoo_fund = results[12] if not isinstance(results[12], Exception) else {}
 
         # Log errors from any failed providers
         provider_names = [
             "yahoo_prices", "finnhub", "polygon_benchmarks", "fred", "wikipedia",
             "gdelt", "insider", "analyst", "fmp", "tiingo_prices",
-            "alphavantage", "bls",
+            "alphavantage", "bls", "yahoo_fundamentals",
         ]
         for i, name in enumerate(provider_names):
             if isinstance(results[i], Exception):
                 print(f"[pipeline] {name} failed: {results[i]}")
 
-        # Merge FMP into fundamentals — FMP values win where both exist and FMP is non-zero
+        # Merge full FMP + Yahoo fundamentals into the screening fundamentals
+        # Priority: FMP full > Yahoo > FMP screening data (already in fundamentals)
+        merge_keys = [
+            "roic", "fcf_margin", "asset_turnover", "debt_to_ebitda",
+            "total_debt", "total_equity", "market_cap", "trailing_pe",
+            "forward_pe", "price_to_sales", "ev_to_ebitda", "ev_to_revenue",
+            "dividend_yield", "payout_ratio", "buyback_ttm",
+        ]
+        extra_keys = ("roe", "roa", "operating_margin", "net_margin", "current_ratio", "interest_coverage")
+
+        # First merge Yahoo fundamentals (fills in what FMP screening didn't have)
+        if yahoo_fund:
+            update_source_status("yahoo_fundamentals", SourceStatus.ACTIVE, fetch_count=len(yahoo_fund))
+            print(f"[pipeline] Yahoo fundamentals: {len(yahoo_fund)} tickers")
+            for ticker, yf in yahoo_fund.items():
+                if ticker not in fundamentals:
+                    fundamentals[ticker] = yf
+                    continue
+                existing = fundamentals[ticker]
+                for key in merge_keys:
+                    if (existing.get(key) is None or existing.get(key) == 0) and yf.get(key) is not None and yf.get(key) != 0:
+                        existing[key] = yf[key]
+                for key in extra_keys:
+                    if existing.get(key) is None and yf.get(key) is not None:
+                        existing[key] = yf[key]
+
+        # Then merge full FMP (wins over both Yahoo and screening data)
         if fmp_data:
-            update_source_status("fmp_fundamentals", SourceStatus.ACTIVE, fetch_count=len(fmp_data))
-            print(f"[pipeline] FMP: {len(fmp_data)} tickers")
-            merge_keys = [
-                "roic", "fcf_margin", "asset_turnover", "debt_to_ebitda",
-                "total_debt", "total_equity", "market_cap", "trailing_pe",
-                "forward_pe", "price_to_sales", "ev_to_ebitda", "ev_to_revenue",
-                "dividend_yield", "payout_ratio", "buyback_ttm",
-            ]
+            print(f"[pipeline] FMP full: {len(fmp_data)} tickers")
             for ticker, fmp_fund in fmp_data.items():
                 if ticker not in fundamentals:
                     fundamentals[ticker] = fmp_fund
                     continue
-                yahoo_fund = fundamentals[ticker]
+                existing = fundamentals[ticker]
                 for key in merge_keys:
                     fmp_val = fmp_fund.get(key)
-                    yahoo_val = yahoo_fund.get(key)
                     if fmp_val is not None and fmp_val != 0:
-                        if yahoo_val is None or yahoo_val == 0:
-                            yahoo_fund[key] = fmp_val
-                # Always take FMP extras Yahoo doesn't have
-                for extra in ("roe", "roa", "operating_margin", "net_margin", "current_ratio", "interest_coverage"):
-                    if fmp_fund.get(extra) is not None:
-                        yahoo_fund[extra] = fmp_fund[extra]
+                        existing[key] = fmp_val
+                for key in extra_keys:
+                    if fmp_fund.get(key) is not None:
+                        existing[key] = fmp_fund[key]
         elif isinstance(results[8], Exception):
             update_source_status("fmp_fundamentals", SourceStatus.ERROR, error=str(results[8]))
 
