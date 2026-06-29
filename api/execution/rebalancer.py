@@ -72,7 +72,10 @@ def compute_rebalance(
         tgt_pct = scaled_targets.get(ticker, 0.0)
         delta_pct = tgt_pct - cur_pct
 
-        if abs(delta_pct) < tolerance_pct:
+        # Force-exit positions not in target set — don't let tolerance hide them
+        is_unwanted = ticker not in scaled_targets and cur_pct > 0
+
+        if not is_unwanted and abs(delta_pct) < tolerance_pct:
             if cur_pct > 0 or tgt_pct > 0:
                 skipped.append({
                     "ticker": ticker,
@@ -86,13 +89,27 @@ def compute_rebalance(
         if price <= 0:
             continue
 
+        if is_unwanted:
+            # Sell entire position
+            cur_shares = current_positions.get(ticker, {}).get("shares", 0)
+            if cur_shares > 0:
+                sells.append(RebalanceOrder(
+                    ticker=ticker,
+                    side="sell",
+                    shares=cur_shares,
+                    reason="exit",
+                    current_pct=round(cur_pct * 100, 2),
+                    target_pct=0.0,
+                    delta_pct=round(-cur_pct * 100, 2),
+                ))
+            continue
+
         dollar_delta = abs(delta_pct) * portfolio_value
         share_delta = int(dollar_delta / price)
         if share_delta == 0:
             continue
 
         if delta_pct < 0:
-            # Need to sell
             cur_shares = current_positions.get(ticker, {}).get("shares", 0)
             share_delta = min(share_delta, cur_shares)
             if share_delta == 0:
