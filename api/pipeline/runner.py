@@ -47,9 +47,9 @@ async def _fetch_wikipedia(bucket: list[str]) -> dict:
     return await WikipediaProvider().fetch(bucket)
 
 
-async def _fetch_gdelt(bucket: list[str]) -> dict:
+async def _fetch_gdelt(bucket: list[str], fundamentals: dict | None = None) -> dict:
     from api.data.gdelt import GdeltProvider
-    return await GdeltProvider().fetch(bucket)
+    return await GdeltProvider().fetch(bucket, fundamentals=fundamentals)
 
 
 async def _fetch_insider(bucket: list[str]) -> dict:
@@ -139,7 +139,7 @@ async def run_pipeline(db: AsyncSession) -> dict:
             _fetch_benchmarks(),                       # 2
             _fetch_fred(),                             # 3
             _fetch_wikipedia(bucket),                  # 4
-            _fetch_gdelt(bucket),                      # 5
+            _fetch_gdelt(bucket, fundamentals),           # 5
             _fetch_insider(bucket),                    # 6
             _fetch_analyst(bucket),                    # 7
             _fetch_fmp(bucket),                        # 8  - full FMP fundamentals
