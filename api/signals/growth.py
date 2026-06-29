@@ -1,12 +1,21 @@
-"""Growth signal — revenue CAGR 3y, FCF CAGR 3y."""
+"""Growth signal — revenue CAGR 3y, FCF CAGR 3y, earnings growth."""
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 from api.signals.base import Signal, SignalOutput
 
 if TYPE_CHECKING:
     from api.data.context import PipelineContext
+
+
+def _sigmoid_score(cagr: float, midpoint: float = 0.10, steepness: float = 12.0) -> float:
+    """Map a CAGR to 0-1 using a sigmoid centered at `midpoint`.
+
+    At midpoint CAGR → 0.5. Negative growth → below 0.5. High growth → above 0.5.
+    """
+    return 1.0 / (1.0 + math.exp(-steepness * (cagr - midpoint)))
 
 
 class GrowthSignal(Signal):
@@ -16,7 +25,7 @@ class GrowthSignal(Signal):
 
     @property
     def version(self) -> str:
-        return "1.0"
+        return "1.1"
 
     @property
     def default_weight(self) -> float:
@@ -45,24 +54,35 @@ class GrowthSignal(Signal):
             rev_cagr = fundamentals.get("revenue_cagr_3y", 0) or 0
             fcf_cagr = fundamentals.get("fcf_cagr_3y", 0) or 0
 
-            # If we have no growth data, emit neutral with zero confidence
             if rev_cagr == 0 and fcf_cagr == 0:
                 results.append(SignalOutput(ticker, 0.5, 0.0, {"reason": "no_growth_data"}))
                 continue
 
-            rev_score = min(max(rev_cagr, 0), 1.0)
-            fcf_score = min(max(fcf_cagr, 0), 1.5) / 1.5
+            rev_score = _sigmoid_score(rev_cagr, midpoint=0.10)
+            fcf_score = _sigmoid_score(fcf_cagr, midpoint=0.08)
 
-            score = (rev_score + fcf_score) / 2.0
-            confidence = 0.7 if rev_cagr > 0 or fcf_cagr > 0 else 0.0
+            has_rev = rev_cagr != 0
+            has_fcf = fcf_cagr != 0
+
+            if has_rev and has_fcf:
+                score = 0.60 * rev_score + 0.40 * fcf_score
+                confidence = 0.85
+            elif has_rev:
+                score = rev_score
+                confidence = 0.60
+            else:
+                score = fcf_score
+                confidence = 0.50
 
             results.append(SignalOutput(
                 ticker=ticker,
-                score=max(score, 0.0),
+                score=round(max(min(score, 1.0), 0.0), 4),
                 confidence=confidence,
                 metadata={
-                    "revenue_cagr_3y": rev_cagr,
-                    "fcf_cagr_3y": fcf_cagr,
+                    "revenue_cagr_3y": round(rev_cagr, 4),
+                    "fcf_cagr_3y": round(fcf_cagr, 4),
+                    "rev_score": round(rev_score, 4),
+                    "fcf_score": round(fcf_score, 4),
                 },
             ))
         return results

@@ -34,13 +34,47 @@ async def _get(client: httpx.AsyncClient, endpoint: str, params: dict | None = N
     return resp.json()
 
 
+def _cagr(recent: float, old: float, years: int) -> float | None:
+    """Compute compound annual growth rate. Returns None if inputs are invalid."""
+    if years <= 0 or old <= 0 or recent <= 0:
+        return None
+    return (recent / old) ** (1.0 / years) - 1.0
+
+
+def _compute_cagrs(income_data: list, cashflow_data_hist: list) -> tuple[float, float]:
+    """Compute 3Y revenue and FCF CAGRs from annual financial statements."""
+    rev_cagr = 0.0
+    fcf_cagr = 0.0
+
+    if len(income_data) >= 2:
+        revs = [_num(d.get("revenue")) for d in income_data]
+        revs = [r for r in revs if r and r > 0]
+        if len(revs) >= 2:
+            years = min(len(revs) - 1, 3)
+            c = _cagr(revs[0], revs[years], years)
+            if c is not None:
+                rev_cagr = c
+
+    if len(cashflow_data_hist) >= 2:
+        fcfs = [_num(d.get("freeCashFlow")) for d in cashflow_data_hist]
+        fcfs = [f for f in fcfs if f and f > 0]
+        if len(fcfs) >= 2:
+            years = min(len(fcfs) - 1, 3)
+            c = _cagr(fcfs[0], fcfs[years], years)
+            if c is not None:
+                fcf_cagr = c
+
+    return rev_cagr, fcf_cagr
+
+
 async def _fetch_ticker(client: httpx.AsyncClient, symbol: str) -> dict | None:
-    """Fetch profile + key metrics + ratios for one ticker."""
-    profile_data, metrics_data, ratios_data, cashflow_data = await asyncio.gather(
+    """Fetch profile + key metrics + ratios + historical financials for one ticker."""
+    profile_data, metrics_data, ratios_data, cashflow_data, income_data = await asyncio.gather(
         _get(client, "profile", {"symbol": symbol}),
         _get(client, "key-metrics-ttm", {"symbol": symbol}),
         _get(client, "ratios-ttm", {"symbol": symbol}),
-        _get(client, "cash-flow-statement", {"symbol": symbol, "limit": "1"}),
+        _get(client, "cash-flow-statement", {"symbol": symbol, "limit": "4"}),
+        _get(client, "income-statement", {"symbol": symbol, "limit": "4"}),
         return_exceptions=True,
     )
 
@@ -61,9 +95,10 @@ async def _fetch_ticker(client: httpx.AsyncClient, symbol: str) -> dict | None:
     if isinstance(ratios_data, list) and ratios_data:
         ratios = ratios_data[0]
 
-    cf = {}
-    if isinstance(cashflow_data, list) and cashflow_data:
-        cf = cashflow_data[0]
+    cf_list = cashflow_data if isinstance(cashflow_data, list) else []
+    cf = cf_list[0] if cf_list else {}
+
+    income_list = income_data if isinstance(income_data, list) else []
 
     market_cap = _num(profile.get("marketCap")) or _num(metrics.get("marketCap"))
     ebitda_ev = _num(metrics.get("evToEBITDATTM"))
@@ -82,12 +117,14 @@ async def _fetch_ticker(client: httpx.AsyncClient, symbol: str) -> dict | None:
 
     buyback_ttm = abs(_num(cf.get("commonStockRepurchased")) or 0)
 
+    rev_cagr, fcf_cagr = _compute_cagrs(income_list, cf_list)
+
     return {
         "roic": roic or (roa or 0),
         "fcf_margin": fcf_margin or 0,
         "asset_turnover": _num(ratios.get("assetTurnoverTTM")) or 0,
-        "revenue_cagr_3y": 0,
-        "fcf_cagr_3y": 0,
+        "revenue_cagr_3y": rev_cagr,
+        "fcf_cagr_3y": fcf_cagr,
         "debt_to_ebitda": net_debt_ebitda,
         "total_debt": 0,
         "total_equity": _num(ratios.get("bookValuePerShareTTM")) or 0,
