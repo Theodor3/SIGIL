@@ -44,7 +44,7 @@ class DividendSafetySignal(Signal):
             fcf_margin = f.get("fcf_margin", 0)
 
             if not div_yield or div_yield <= 0:
-                results.append(SignalOutput(ticker, 0.0, 0.0, {"reason": "no_dividend"}))
+                results.append(SignalOutput(ticker, 0.5, 0.0, {"reason": "no_dividend"}))
                 continue
 
             yield_score = 0.0

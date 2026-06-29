@@ -44,7 +44,7 @@ class ShortInterestSignal(Signal):
             short_pct = f.get("short_pct_float")
 
             if short_ratio is None and short_pct is None:
-                results.append(SignalOutput(ticker, 0.0, 0.0, {"reason": "no_short_data"}))
+                results.append(SignalOutput(ticker, 0.5, 0.0, {"reason": "no_short_data"}))
                 continue
 
             sr = short_ratio or 0

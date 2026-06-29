@@ -8,62 +8,90 @@ import httpx
 
 from api.data.base import DataProvider
 
-# Map tickers to Wikipedia article titles
-WIKI_MAP = {
-    "AAPL": "Apple_Inc.", "MSFT": "Microsoft", "NVDA": "Nvidia", "GOOGL": "Alphabet_Inc.",
+# Map tickers to Wikipedia article titles for tickers where the article name
+# isn't just the company name with spaces replaced by underscores
+WIKI_OVERRIDES = {
+    "AAPL": "Apple_Inc.", "GOOGL": "Alphabet_Inc.", "GOOG": "Alphabet_Inc.",
     "AMZN": "Amazon_(company)", "META": "Meta_Platforms", "TSLA": "Tesla,_Inc.",
-    "AVGO": "Broadcom_Inc.", "ADBE": "Adobe_Inc.", "CRM": "Salesforce",
-    "AMD": "Advanced_Micro_Devices", "NFLX": "Netflix", "INTC": "Intel",
-    "ORCL": "Oracle_Corporation", "CSCO": "Cisco", "QCOM": "Qualcomm",
-    "NOW": "ServiceNow", "INTU": "Intuit", "AMAT": "Applied_Materials",
-    "PANW": "Palo_Alto_Networks", "SNPS": "Synopsys", "CDNS": "Cadence_Design_Systems",
-    "PLTR": "Palantir_Technologies", "CRWD": "CrowdStrike", "MRVL": "Marvell_Technology",
-    "SHOP": "Shopify", "SQ": "Block,_Inc.", "NET": "Cloudflare",
-    "DDOG": "Datadog", "ZS": "Zscaler", "MDB": "MongoDB_Inc.",
-    "SNOW": "Snowflake_Inc.", "DELL": "Dell_Technologies", "HPE": "Hewlett_Packard_Enterprise",
-    "PTC": "PTC_(software_company)", "EPAM": "EPAM_Systems",
-    "COIN": "Coinbase", "ROKU": "Roku", "U": "Unity_Technologies",
-    "TTWO": "Take-Two_Interactive", "EA": "Electronic_Arts",
-    "PAYC": "Paycom", "ADP": "Automatic_Data_Processing", "PAYX": "Paychex",
-    "WDAY": "Workday,_Inc.", "VEEV": "Veeva_Systems", "HUBS": "HubSpot",
-    "TTD": "The_Trade_Desk", "BILL": "Bill.com", "TWLO": "Twilio",
-    "SPLK": "Splunk", "ZM": "Zoom_Video_Communications", "OKTA": "Okta",
-    "V": "Visa_Inc.", "MA": "Mastercard", "JPM": "JPMorgan_Chase",
-    "GS": "Goldman_Sachs", "MS": "Morgan_Stanley", "BLK": "BlackRock",
-    "SCHW": "Charles_Schwab_Corporation", "ICE": "Intercontinental_Exchange",
-    "CME": "CME_Group", "SPGI": "S%26P_Global",
-    "UNH": "UnitedHealth_Group", "JNJ": "Johnson_%26_Johnson", "LLY": "Eli_Lilly_and_Company",
-    "ABBV": "AbbVie", "TMO": "Thermo_Fisher_Scientific", "DHR": "Danaher_Corporation",
+    "AVGO": "Broadcom_Inc.", "AMD": "Advanced_Micro_Devices",
+    "BRK.B": "Berkshire_Hathaway", "V": "Visa_Inc.", "MA": "Mastercard",
+    "JPM": "JPMorgan_Chase", "BAC": "Bank_of_America",
+    "JNJ": "Johnson_%26_Johnson", "UNH": "UnitedHealth_Group",
+    "LLY": "Eli_Lilly_and_Company", "ABBV": "AbbVie",
+    "TMO": "Thermo_Fisher_Scientific", "DHR": "Danaher_Corporation",
     "ABT": "Abbott_Laboratories", "ISRG": "Intuitive_Surgical",
-    "LIN": "Linde_plc", "SHW": "Sherwin-Williams", "APD": "Air_Products",
-    "ECL": "Ecolab", "ITW": "Illinois_Tool_Works",
-    "CAT": "Caterpillar_Inc.", "DE": "John_Deere", "GE": "GE_Aerospace",
-    "HON": "Honeywell", "RTX": "RTX_Corporation",
+    "SQ": "Block,_Inc.", "SPGI": "S%26P_Global",
+    "DE": "John_Deere", "GE": "GE_Aerospace", "RTX": "RTX_Corporation",
+    "CAT": "Caterpillar_Inc.", "HON": "Honeywell", "BA": "Boeing",
+    "F": "Ford_Motor_Company", "GM": "General_Motors",
+    "HD": "The_Home_Depot", "WMT": "Walmart", "COST": "Costco",
+    "KO": "The_Coca-Cola_Company", "PEP": "PepsiCo", "MCD": "McDonald%27s",
+    "DIS": "The_Walt_Disney_Company", "NFLX": "Netflix",
+    "CRM": "Salesforce", "ORCL": "Oracle_Corporation",
+    "CSCO": "Cisco", "INTC": "Intel", "QCOM": "Qualcomm",
+    "T": "AT%26T", "VZ": "Verizon_Communications", "TMUS": "T-Mobile_US",
+    "XOM": "ExxonMobil", "CVX": "Chevron_Corporation",
+    "PFE": "Pfizer", "MRK": "Merck_%26_Co.", "MRNA": "Moderna",
+    "GS": "Goldman_Sachs", "MS": "Morgan_Stanley",
+    "C": "Citigroup", "WFC": "Wells_Fargo",
+    "PLTR": "Palantir_Technologies", "CRWD": "CrowdStrike",
+    "COIN": "Coinbase", "ROKU": "Roku",
+    "ZM": "Zoom_Video_Communications", "PYPL": "PayPal",
+    "SHW": "Sherwin-Williams", "LIN": "Linde_plc",
+    "NOW": "ServiceNow", "SNOW": "Snowflake_Inc.",
+    "PANW": "Palo_Alto_Networks", "DDOG": "Datadog",
+    "DELL": "Dell_Technologies", "HPQ": "Hewlett-Packard",
+    "PG": "Procter_%26_Gamble", "CL": "Colgate-Palmolive",
+    "ALL": "The_Allstate_Corporation",
 }
+
+
+def _ticker_to_article(ticker: str, fundamentals: dict | None = None) -> str | None:
+    """Convert a ticker to a Wikipedia article title."""
+    if ticker in WIKI_OVERRIDES:
+        return WIKI_OVERRIDES[ticker]
+
+    # Try building from company description
+    if fundamentals:
+        desc = fundamentals.get("description", "")
+        if desc:
+            # Extract company name from description start
+            name = desc.split(",")[0].split(" together")[0].strip()
+            name = name.replace(" Inc.", "").replace(" Corp.", "").replace(" Ltd.", "")
+            name = name.replace(" plc", "").replace(" Co.", "").strip()
+            if len(name) > 3 and len(name) < 50:
+                return name.replace(" ", "_")
+
+    return None
 
 
 class WikipediaProvider(DataProvider):
     BASE = "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article"
+    MAX_TICKERS = 80
 
     @property
     def name(self) -> str:
         return "wikipedia"
 
-    async def fetch(self, tickers: list[str], **kwargs) -> dict:
+    async def fetch(self, tickers: list[str], fundamentals: dict | None = None, **kwargs) -> dict:
         """Fetch 30-day pageview data and compute attention scores."""
+        fundamentals = fundamentals or {}
         today = date.today()
         end = (today - timedelta(days=1)).strftime("%Y%m%d")
         start_30d = (today - timedelta(days=31)).strftime("%Y%m%d")
-        start_7d = (today - timedelta(days=8)).strftime("%Y%m%d")
 
         nowcast: dict[str, dict] = {}
 
         async with httpx.AsyncClient(timeout=10) as client:
-            for i, ticker in enumerate(tickers):
-                article = WIKI_MAP.get(ticker)
-                if not article:
-                    continue
+            queries = []
+            for t in tickers:
+                article = _ticker_to_article(t, fundamentals.get(t))
+                if article:
+                    queries.append((t, article))
 
+            queries = queries[:self.MAX_TICKERS]
+
+            for i, (ticker, article) in enumerate(queries):
                 if i > 0 and i % 10 == 0:
                     await asyncio.sleep(1.0)
 
@@ -77,18 +105,15 @@ class WikipediaProvider(DataProvider):
                             continue
 
                         views = [item.get("views", 0) for item in items]
-                        if len(views) < 14:
+                        if len(views) < 7:
                             continue
 
                         avg_30d = sum(views) / len(views)
-                        avg_7d = sum(views[-7:]) / 7 if len(views) >= 7 else avg_30d
+                        avg_7d = sum(views[-7:]) / 7
                         avg_prior = sum(views[:-7]) / max(len(views) - 7, 1)
 
-                        # Attention spike: how much recent views exceed baseline
                         spike_ratio = avg_7d / avg_prior if avg_prior > 0 else 1.0
                         kpi_surprise = max(min((spike_ratio - 1.0) * 2, 1.0), -1.0)
-
-                        # Probability outperform: higher attention -> slight bullish bias
                         prob_outperform = 0.5 + kpi_surprise * 0.15
 
                         nowcast[ticker] = {
@@ -101,6 +126,7 @@ class WikipediaProvider(DataProvider):
                             "avg_views_30d": round(avg_30d),
                             "avg_views_7d": round(avg_7d),
                             "spike_ratio": round(spike_ratio, 3),
+                            "deviation": round(kpi_surprise * 0.3, 4),
                         }
                     elif resp.status_code == 429:
                         await asyncio.sleep(3)

@@ -39,7 +39,7 @@ class BuybackYieldSignal(Signal):
         for ticker in ctx.universe:
             f = ctx.fundamentals.get(ticker, {})
             if not f:
-                results.append(SignalOutput(ticker, 0.0, 0.0, {"reason": "no_data"}))
+                results.append(SignalOutput(ticker, 0.5, 0.0, {"reason": "no_data"}))
                 continue
 
             market_cap = f.get("market_cap")
@@ -48,7 +48,7 @@ class BuybackYieldSignal(Signal):
             roic = f.get("roic", 0) or 0
 
             if not market_cap or market_cap <= 0:
-                results.append(SignalOutput(ticker, 0.0, 0.2, {"reason": "no_market_cap"}))
+                results.append(SignalOutput(ticker, 0.5, 0.1, {"reason": "no_market_cap"}))
                 continue
 
             # buyback_ttm is negative in cashflow (cash outflow), so negate it
@@ -58,7 +58,7 @@ class BuybackYieldSignal(Signal):
             meta = {"buyback_yield": round(byield, 4), "buyback_amount": round(buyback_amount)}
 
             if byield <= 0:
-                results.append(SignalOutput(ticker, 0.0, 0.4, {**meta, "tier": "none"}))
+                results.append(SignalOutput(ticker, 0.5, 0.1, {**meta, "tier": "none"}))
                 continue
 
             # Graduated scoring: buyback yield as fraction of a generous cap

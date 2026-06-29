@@ -43,13 +43,13 @@ class PeerRelativeSignal(Signal):
         for ticker in ctx.universe:
             nowcast = (ctx.nowcast or {}).get(ticker)
             if not nowcast:
-                results.append(SignalOutput(ticker, 0.0, 0.0, {"source": "no_data"}))
+                results.append(SignalOutput(ticker, 0.5, 0.0, {"source": "no_data"}))
                 continue
 
             source_mix = nowcast.get("source_mix", "none")
             has_direct = source_mix in ("direct", "hybrid")
             if not has_direct:
-                results.append(SignalOutput(ticker, 0.0, 0.0, {"source": source_mix}))
+                results.append(SignalOutput(ticker, 0.5, 0.0, {"source": source_mix}))
                 continue
 
             deviation = nowcast.get("deviation", 0) or 0
@@ -58,7 +58,7 @@ class PeerRelativeSignal(Signal):
 
             components = [v for v in [deviation, centered_prob] if v is not None]
             if not components:
-                results.append(SignalOutput(ticker, 0.0, 0.0, {"source": source_mix}))
+                results.append(SignalOutput(ticker, 0.5, 0.0, {"source": source_mix}))
                 continue
 
             score = max(sum(components) / len(components), 0)

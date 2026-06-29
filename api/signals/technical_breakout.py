@@ -39,7 +39,7 @@ class TechnicalBreakoutSignal(Signal):
         for ticker in ctx.universe:
             md = ctx.market_data.get(ticker)
             if not md:
-                results.append(SignalOutput(ticker, 0.0, 0.0, {"reason": "no_market_data"}))
+                results.append(SignalOutput(ticker, 0.5, 0.0, {"reason": "no_market_data"}))
                 continue
 
             close = md.get("close", 0)
@@ -50,7 +50,7 @@ class TechnicalBreakoutSignal(Signal):
             vol_ratio = md.get("volume_ratio", 1.0)
 
             if not close or not high_20d or not low_20d or high_20d == low_20d:
-                results.append(SignalOutput(ticker, 0.0, 0.3, {"reason": "insufficient_data"}))
+                results.append(SignalOutput(ticker, 0.5, 0.1, {"reason": "insufficient_data"}))
                 continue
 
             range_position = (close - low_20d) / (high_20d - low_20d)

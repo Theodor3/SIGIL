@@ -39,7 +39,7 @@ class InsiderSignal(Signal):
         for ticker in ctx.universe:
             transactions = ctx.insider_transactions.get(ticker, [])
             if not transactions:
-                results.append(SignalOutput(ticker, 0.0, 0.0, {"reason": "no_data"}))
+                results.append(SignalOutput(ticker, 0.5, 0.0, {"reason": "no_data"}))
                 continue
 
             buy_value = 0.0
@@ -59,7 +59,7 @@ class InsiderSignal(Signal):
 
             total = buy_value + sell_value
             if total == 0:
-                results.append(SignalOutput(ticker, 0.0, 0.3, {"reason": "no_trades"}))
+                results.append(SignalOutput(ticker, 0.5, 0.1, {"reason": "no_trades"}))
                 continue
 
             net_ratio = (buy_value - sell_value) / total

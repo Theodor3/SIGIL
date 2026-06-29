@@ -39,7 +39,7 @@ class EarningsSurpriseStreakSignal(Signal):
         for ticker in ctx.universe:
             history = ctx.earnings_history.get(ticker)
             if not history or len(history) < 2:
-                results.append(SignalOutput(ticker, 0.0, 0.0, {"reason": "insufficient_history"}))
+                results.append(SignalOutput(ticker, 0.5, 0.0, {"reason": "insufficient_history"}))
                 continue
 
             # Count consecutive beats from most recent quarter backward

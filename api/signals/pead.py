@@ -46,7 +46,7 @@ class PEADSignal(Signal):
             next_earnings = ctx.earnings_calendar.get(ticker)
 
             if len(history) < MIN_SAMPLES:
-                results.append(SignalOutput(ticker, 0.0, 0.0, {"reason": "insufficient_data"}))
+                results.append(SignalOutput(ticker, 0.5, 0.0, {"reason": "insufficient_data"}))
                 continue
 
             returns = [e["return_5d"] for e in history]

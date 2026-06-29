@@ -39,7 +39,7 @@ class AnalystRevisionSignal(Signal):
         for ticker in ctx.universe:
             estimates = ctx.analyst_estimates.get(ticker)
             if not estimates:
-                results.append(SignalOutput(ticker, 0.0, 0.0, {"reason": "no_data"}))
+                results.append(SignalOutput(ticker, 0.5, 0.0, {"reason": "no_data"}))
                 continue
 
             buy = estimates.get("buy", 0) + estimates.get("strong_buy", 0)
@@ -53,7 +53,7 @@ class AnalystRevisionSignal(Signal):
             prev_total = prev_buy + prev_hold + prev_sell
 
             if total == 0:
-                results.append(SignalOutput(ticker, 0.0, 0.3, {"reason": "no_analysts"}))
+                results.append(SignalOutput(ticker, 0.5, 0.1, {"reason": "no_analysts"}))
                 continue
 
             current_sentiment = buy / total

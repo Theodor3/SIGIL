@@ -39,14 +39,22 @@ class GrowthSignal(Signal):
         for ticker in ctx.universe:
             fundamentals = ctx.fundamentals.get(ticker)
             if not fundamentals:
-                results.append(SignalOutput(ticker, 0.0, 0.0, {}))
+                results.append(SignalOutput(ticker, 0.5, 0.0, {}))
                 continue
 
-            rev_cagr = min(fundamentals.get("revenue_cagr_3y", 0), 1.0)
-            fcf_cagr = min(fundamentals.get("fcf_cagr_3y", 0), 1.5)
+            rev_cagr = fundamentals.get("revenue_cagr_3y", 0) or 0
+            fcf_cagr = fundamentals.get("fcf_cagr_3y", 0) or 0
 
-            score = (rev_cagr + fcf_cagr / 1.5) / 2.0
-            confidence = 0.7 if rev_cagr > 0 or fcf_cagr > 0 else 0.3
+            # If we have no growth data, emit neutral with zero confidence
+            if rev_cagr == 0 and fcf_cagr == 0:
+                results.append(SignalOutput(ticker, 0.5, 0.0, {"reason": "no_growth_data"}))
+                continue
+
+            rev_score = min(max(rev_cagr, 0), 1.0)
+            fcf_score = min(max(fcf_cagr, 0), 1.5) / 1.5
+
+            score = (rev_score + fcf_score) / 2.0
+            confidence = 0.7 if rev_cagr > 0 or fcf_cagr > 0 else 0.0
 
             results.append(SignalOutput(
                 ticker=ticker,

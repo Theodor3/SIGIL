@@ -43,13 +43,13 @@ class ProxyInferredSignal(Signal):
         for ticker in ctx.universe:
             nowcast = (ctx.nowcast or {}).get(ticker)
             if not nowcast:
-                results.append(SignalOutput(ticker, 0.0, 0.0, {"source": "no_data"}))
+                results.append(SignalOutput(ticker, 0.5, 0.0, {"source": "no_data"}))
                 continue
 
             source_mix = nowcast.get("source_mix", "none")
             has_proxy = source_mix in ("proxy_only", "hybrid")
             if not has_proxy:
-                results.append(SignalOutput(ticker, 0.0, 0.0, {"source": source_mix}))
+                results.append(SignalOutput(ticker, 0.5, 0.0, {"source": source_mix}))
                 continue
 
             kpi_surprise = nowcast.get("kpi_surprise", 0) or 0
@@ -59,7 +59,7 @@ class ProxyInferredSignal(Signal):
 
             components = [v for v in [kpi_surprise, deviation, centered_prob] if v is not None]
             if not components:
-                results.append(SignalOutput(ticker, 0.0, 0.0, {"source": source_mix}))
+                results.append(SignalOutput(ticker, 0.5, 0.0, {"source": source_mix}))
                 continue
 
             score = max(sum(components) / len(components), 0)
