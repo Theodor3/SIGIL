@@ -134,12 +134,12 @@ class LLMConvictionSignal(Signal):
 
     async def compute(self, ctx: PipelineContext) -> list[SignalOutput]:
         if not settings.anthropic_api_key:
-            return [SignalOutput(t, 0.0, 0.0, {"reason": "no_api_key"}) for t in ctx.universe]
+            return [SignalOutput(t, 0.5, 0.0, {"reason": "no_api_key"}) for t in ctx.universe]
 
         try:
             import anthropic
         except ImportError:
-            return [SignalOutput(t, 0.0, 0.0, {"reason": "anthropic_not_installed"}) for t in ctx.universe]
+            return [SignalOutput(t, 0.5, 0.0, {"reason": "anthropic_not_installed"}) for t in ctx.universe]
 
         # Build prompts for tickers that have enough data
         ticker_prompts: list[tuple[str, str]] = []
@@ -166,7 +166,7 @@ class LLMConvictionSignal(Signal):
             for (ticker, _), result in zip(batch, batch_results):
                 if isinstance(result, Exception):
                     print(f"[llm_conviction] {ticker} failed: {result}")
-                    results[ticker] = SignalOutput(ticker, 0.0, 0.0, {"reason": "api_error"})
+                    results[ticker] = SignalOutput(ticker, 0.5, 0.0, {"reason": "api_error"})
                 else:
                     results[ticker] = result
                 scored_tickers.add(ticker)
@@ -177,7 +177,7 @@ class LLMConvictionSignal(Signal):
             if ticker in results:
                 output.append(results[ticker])
             else:
-                output.append(SignalOutput(ticker, 0.0, 0.0, {"reason": "not_scored"}))
+                output.append(SignalOutput(ticker, 0.5, 0.0, {"reason": "not_scored"}))
 
         scored_count = sum(1 for o in output if o.score > 0)
         print(f"[llm_conviction] Scored {len(scored_tickers)} tickers, {scored_count} non-zero")
