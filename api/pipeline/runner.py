@@ -138,8 +138,8 @@ async def run_pipeline(db: AsyncSession) -> dict:
             _fetch_finnhub(bucket),                    # 1
             _fetch_benchmarks(),                       # 2
             _fetch_fred(),                             # 3
-            _fetch_wikipedia(bucket, fundamentals),      # 4
-            _fetch_gdelt(bucket, fundamentals),           # 5
+            _fetch_wikipedia(bucket, fundamentals),    # 4
+            _fetch_gdelt(bucket, fundamentals),        # 5
             _fetch_insider(bucket),                    # 6
             _fetch_analyst(bucket),                    # 7
             _fetch_fmp(bucket),                        # 8  - full FMP fundamentals
@@ -147,6 +147,9 @@ async def run_pipeline(db: AsyncSession) -> dict:
             _fetch_alphavantage_earnings(bucket),      # 10
             _fetch_bls(),                              # 11
             _fetch_yahoo_fundamentals(yahoo, bucket),  # 12 - Yahoo fundamentals on screened bucket
+            fmp.fetch_price_targets(bucket),           # 13 - analyst price targets
+            fmp.fetch_shares_float(bucket),            # 14 - shares float data
+            fmp.fetch_analyst_estimates(bucket),       # 15 - forward estimates
             return_exceptions=True,
         )
         fetch_time = (datetime.utcnow() - t0).total_seconds()
@@ -166,12 +169,16 @@ async def run_pipeline(db: AsyncSession) -> dict:
         av_earnings = results[10] if not isinstance(results[10], Exception) else {}
         bls_data = results[11] if not isinstance(results[11], Exception) else {}
         yahoo_fund = results[12] if not isinstance(results[12], Exception) else {}
+        price_targets = results[13] if not isinstance(results[13], Exception) else {}
+        shares_float = results[14] if not isinstance(results[14], Exception) else {}
+        forward_estimates = results[15] if not isinstance(results[15], Exception) else {}
 
         # Log errors from any failed providers
         provider_names = [
             "yahoo_prices", "finnhub", "polygon_benchmarks", "fred", "wikipedia",
             "gdelt", "insider", "analyst", "fmp", "tiingo_prices",
             "alphavantage", "bls", "yahoo_fundamentals",
+            "fmp_price_targets", "fmp_shares_float", "fmp_forward_estimates",
         ]
         for i, name in enumerate(provider_names):
             if isinstance(results[i], Exception):
@@ -302,6 +309,14 @@ async def run_pipeline(db: AsyncSession) -> dict:
         elif isinstance(results[11], Exception):
             update_source_status("bls_labor", SourceStatus.ERROR, error=str(results[11]))
 
+        # Log new FMP enrichment data
+        if price_targets:
+            print(f"[pipeline] FMP price targets: {len(price_targets)} tickers")
+        if shares_float:
+            print(f"[pipeline] FMP shares float: {len(shares_float)} tickers")
+        if forward_estimates:
+            print(f"[pipeline] FMP forward estimates: {len(forward_estimates)} tickers")
+
         # Build market context for regime detection
         market_context = {**benchmarks, **macro}
 
@@ -316,6 +331,9 @@ async def run_pipeline(db: AsyncSession) -> dict:
             nowcast=nowcast,
             insider_transactions=insider_data,
             analyst_estimates=analyst_data,
+            price_targets=price_targets,
+            shares_float=shares_float,
+            forward_estimates=forward_estimates,
             macro=macro,
             benchmarks=benchmarks,
         )

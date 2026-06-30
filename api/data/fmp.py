@@ -223,6 +223,101 @@ class FMPProvider(DataProvider):
 
         return results
 
+    async def fetch_price_targets(self, tickers: list[str]) -> dict[str, dict]:
+        """Fetch analyst consensus price targets."""
+        if not settings.fmp_api_key:
+            return {}
+
+        results: dict[str, dict] = {}
+        async with httpx.AsyncClient(timeout=30) as client:
+            for i in range(0, len(tickers), 15):
+                batch = tickers[i:i + 15]
+                tasks = [
+                    _get(client, "price-target-consensus", {"symbol": t})
+                    for t in batch
+                ]
+                batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+                for ticker, result in zip(batch, batch_results):
+                    if isinstance(result, Exception) or not result:
+                        continue
+                    row = result[0] if isinstance(result, list) and result else result
+                    if isinstance(row, dict) and row.get("targetConsensus"):
+                        results[ticker] = {
+                            "targetConsensus": _num(row.get("targetConsensus")),
+                            "targetMedian": _num(row.get("targetMedian")),
+                            "targetHigh": _num(row.get("targetHigh")),
+                            "targetLow": _num(row.get("targetLow")),
+                            "numberOfAnalysts": row.get("numberOfAnalysts", 0),
+                        }
+                if i + 15 < len(tickers):
+                    await asyncio.sleep(0.3)
+
+        return results
+
+    async def fetch_shares_float(self, tickers: list[str]) -> dict[str, dict]:
+        """Fetch shares float data for short interest calculations."""
+        if not settings.fmp_api_key:
+            return {}
+
+        results: dict[str, dict] = {}
+        async with httpx.AsyncClient(timeout=30) as client:
+            for i in range(0, len(tickers), 15):
+                batch = tickers[i:i + 15]
+                tasks = [
+                    _get(client, "shares-float", {"symbol": t})
+                    for t in batch
+                ]
+                batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+                for ticker, result in zip(batch, batch_results):
+                    if isinstance(result, Exception) or not result:
+                        continue
+                    row = result[0] if isinstance(result, list) and result else result
+                    if isinstance(row, dict) and row.get("floatShares"):
+                        results[ticker] = {
+                            "float_shares": _num(row.get("floatShares")),
+                            "outstanding_shares": _num(row.get("outstandingShares")),
+                            "free_float_pct": _num(row.get("freeFloat")),
+                        }
+                if i + 15 < len(tickers):
+                    await asyncio.sleep(0.3)
+
+        return results
+
+    async def fetch_analyst_estimates(self, tickers: list[str]) -> dict[str, dict]:
+        """Fetch forward analyst estimates for revenue and EPS."""
+        if not settings.fmp_api_key:
+            return {}
+
+        results: dict[str, dict] = {}
+        async with httpx.AsyncClient(timeout=30) as client:
+            for i in range(0, len(tickers), 15):
+                batch = tickers[i:i + 15]
+                tasks = [
+                    _get(client, "analyst-estimates", {"symbol": t, "period": "annual", "limit": "2"})
+                    for t in batch
+                ]
+                batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+                for ticker, result in zip(batch, batch_results):
+                    if isinstance(result, Exception) or not result:
+                        continue
+                    if isinstance(result, list) and result:
+                        est = result[0]
+                        results[ticker] = {
+                            "estimated_revenue_avg": _num(est.get("revenueAvg")),
+                            "estimated_revenue_low": _num(est.get("revenueLow")),
+                            "estimated_revenue_high": _num(est.get("revenueHigh")),
+                            "estimated_eps_avg": _num(est.get("epsAvg")),
+                            "estimated_eps_low": _num(est.get("epsLow")),
+                            "estimated_eps_high": _num(est.get("epsHigh")),
+                            "estimated_net_income_avg": _num(est.get("netIncomeAvg")),
+                            "number_analysts_revenue": est.get("numAnalystsRevenue", 0),
+                            "number_analysts_eps": est.get("numAnalystsEps", 0),
+                        }
+                if i + 15 < len(tickers):
+                    await asyncio.sleep(0.3)
+
+        return results
+
     async def fetch_screening_data(self, tickers: list[str]) -> dict[str, dict]:
         """Lightweight fundamentals for screening — 2 API calls per ticker instead of 4."""
         if not settings.fmp_api_key:
