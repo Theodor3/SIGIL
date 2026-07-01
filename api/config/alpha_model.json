@@ -34,7 +34,8 @@
         "value": 1.2,
         "buyback_yield": 0.8,
         "proxy_inferred": 0.6,
-        "price_target": 1.0
+        "price_target": 1.0,
+        "forward_value": 1.0
       }
     },
     "alternative": {

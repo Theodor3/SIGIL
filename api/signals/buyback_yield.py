@@ -51,11 +51,9 @@ class BuybackYieldSignal(Signal):
                 results.append(SignalOutput(ticker, 0.5, 0.1, {"reason": "no_market_cap"}))
                 continue
 
-            # buyback_ttm is negative in cashflow (cash outflow), so negate it
-            buyback_amount = abs(buyback_ttm) if buyback_ttm < 0 else 0.0
-            byield = buyback_amount / market_cap
+            byield = buyback_ttm / market_cap
 
-            meta = {"buyback_yield": round(byield, 4), "buyback_amount": round(buyback_amount)}
+            meta = {"buyback_yield": round(byield, 4), "buyback_amount": round(buyback_ttm)}
 
             if byield <= 0:
                 results.append(SignalOutput(ticker, 0.5, 0.1, {**meta, "tier": "none"}))

@@ -82,13 +82,13 @@ def score_universe(
 
         for sig_name, weight in resolved.items():
             out = scores.get(sig_name)
-            if out:
+            if out and out.confidence > 0:
                 tilt = regime.factor_tilts.get(sig_name, 1.0)
-                weighted_sum += out.score * weight * tilt
-                total_weight += weight
+                effective_weight = weight * out.confidence
+                weighted_sum += out.score * effective_weight * tilt
+                total_weight += effective_weight
                 signal_scores[sig_name] = round(out.score, 4)
-                if out.confidence > 0:
-                    confidences.append(out.confidence)
+                confidences.append(out.confidence)
 
         final = weighted_sum / max(total_weight, 0.01)
         avg_conf = sum(confidences) / max(len(confidences), 1) if confidences else 0.6

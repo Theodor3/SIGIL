@@ -309,11 +309,18 @@ async def run_pipeline(db: AsyncSession) -> dict:
         elif isinstance(results[11], Exception):
             update_source_status("bls_labor", SourceStatus.ERROR, error=str(results[11]))
 
+        # Merge shares float into fundamentals
+        if shares_float:
+            print(f"[pipeline] FMP shares float: {len(shares_float)} tickers")
+            for ticker, sf in shares_float.items():
+                if ticker in fundamentals:
+                    fundamentals[ticker]["shares_outstanding"] = sf.get("outstanding_shares")
+                    fundamentals[ticker]["float_shares"] = sf.get("float_shares")
+                    fundamentals[ticker]["free_float_pct"] = sf.get("free_float_pct")
+
         # Log new FMP enrichment data
         if price_targets:
             print(f"[pipeline] FMP price targets: {len(price_targets)} tickers")
-        if shares_float:
-            print(f"[pipeline] FMP shares float: {len(shares_float)} tickers")
         if forward_estimates:
             print(f"[pipeline] FMP forward estimates: {len(forward_estimates)} tickers")
 

@@ -45,14 +45,10 @@ class AccountingRedFlagsSignal(Signal):
             roic = f.get("roic", 0) or 0
             fcf_margin = f.get("fcf_margin", 0) or 0
             rev_growth = f.get("revenue_cagr_3y", 0) or 0
-            debt = f.get("total_debt", 0) or 0
-            equity = f.get("total_equity", 1) or 1
+            de_ratio = f.get("debt_to_equity")
             trailing_pe = f.get("trailing_pe")
             forward_pe = f.get("forward_pe")
             ev_to_revenue = f.get("ev_to_revenue")
-            operating_margins = None
-            if f.get("market_cap") and f.get("total_equity"):
-                operating_margins = roic * ((equity + debt) / f["market_cap"]) if f["market_cap"] > 0 else None
 
             penalties = []
             meta: dict = {}
@@ -115,14 +111,8 @@ class AccountingRedFlagsSignal(Signal):
                     penalties.append(0.05)
                     flags.append("optimistic_forward_estimates")
 
-            # Negative equity
-            if equity < 0:
-                penalties.append(0.25)
-                flags.append("negative_equity")
-
             # Leverage concerns (graduated)
-            if debt > 0 and equity > 0:
-                de_ratio = debt / equity
+            if de_ratio is not None:
                 meta["de_ratio"] = round(de_ratio, 2)
                 if de_ratio > 3.0:
                     penalties.append(0.15)

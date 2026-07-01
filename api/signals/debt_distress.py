@@ -16,7 +16,7 @@ class DebtDistressSignal(Signal):
 
     @property
     def version(self) -> str:
-        return "1.0"
+        return "1.1"
 
     @property
     def default_weight(self) -> float:
@@ -28,7 +28,7 @@ class DebtDistressSignal(Signal):
 
     @property
     def description(self) -> str:
-        return "Penalizes overleveraged companies — high debt-to-EBITDA, low equity cushion, and poor interest coverage"
+        return "Penalizes overleveraged companies — debt-to-equity, debt-to-EBITDA, interest coverage, and current ratio"
 
     @property
     def tags(self) -> list[str]:
@@ -42,17 +42,16 @@ class DebtDistressSignal(Signal):
                 results.append(SignalOutput(ticker, 0.5, 0.0, {"reason": "no_data"}))
                 continue
 
-            debt = f.get("total_debt", 0) or 0
-            equity = f.get("total_equity", 1) or 1
+            de_ratio = f.get("debt_to_equity")
             debt_to_ebitda = f.get("debt_to_ebitda")
             fcf_margin = f.get("fcf_margin", 0) or 0
+            interest_coverage = f.get("interest_coverage")
+            current_ratio = f.get("current_ratio")
 
             penalties = []
             meta: dict = {}
 
-            # Debt-to-equity ratio
-            if equity > 0:
-                de_ratio = debt / equity
+            if de_ratio is not None:
                 meta["debt_to_equity"] = round(de_ratio, 2)
                 if de_ratio > 3.0:
                     penalties.append(0.4)
@@ -62,11 +61,7 @@ class DebtDistressSignal(Signal):
                     penalties.append(0.15)
                 elif de_ratio > 1.0:
                     penalties.append(0.05)
-            elif debt > 0:
-                penalties.append(0.5)
-                meta["debt_to_equity"] = None
 
-            # Debt-to-EBITDA
             if debt_to_ebitda is not None:
                 meta["debt_to_ebitda"] = round(debt_to_ebitda, 2)
                 if debt_to_ebitda > 6:
@@ -76,8 +71,20 @@ class DebtDistressSignal(Signal):
                 elif debt_to_ebitda > 3:
                     penalties.append(0.1)
 
-            # Negative FCF with high debt is a red flag
-            if fcf_margin < 0 and debt > 0:
+            if interest_coverage is not None:
+                meta["interest_coverage"] = round(interest_coverage, 2)
+                if interest_coverage < 1.0:
+                    penalties.append(0.35)
+                elif interest_coverage < 2.0:
+                    penalties.append(0.2)
+                elif interest_coverage < 3.0:
+                    penalties.append(0.08)
+
+            if current_ratio is not None and current_ratio < 1.0:
+                penalties.append(0.15)
+                meta["low_current_ratio"] = round(current_ratio, 2)
+
+            if fcf_margin < 0 and (de_ratio or 0) > 1.0:
                 penalties.append(0.2)
                 meta["negative_fcf_with_debt"] = True
 
@@ -88,9 +95,8 @@ class DebtDistressSignal(Signal):
             total_penalty = min(sum(penalties), 0.9)
             score = 1.0 - total_penalty
 
-            has_debt_data = debt > 0 or equity > 0
-            has_ebitda = debt_to_ebitda is not None
-            confidence = 0.4 + 0.25 * (1.0 if has_debt_data else 0) + 0.2 * (1.0 if has_ebitda else 0) + 0.15 * min(len(penalties) / 2, 1.0)
+            data_points = sum(1 for v in [de_ratio, debt_to_ebitda, interest_coverage, current_ratio] if v is not None)
+            confidence = 0.35 + 0.15 * data_points + 0.1 * min(len(penalties) / 2, 1.0)
 
             meta["total_penalty"] = round(total_penalty, 3)
             results.append(SignalOutput(

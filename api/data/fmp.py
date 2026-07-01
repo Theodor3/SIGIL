@@ -126,8 +126,10 @@ async def _fetch_ticker(client: httpx.AsyncClient, symbol: str) -> dict | None:
         "revenue_cagr_3y": rev_cagr,
         "fcf_cagr_3y": fcf_cagr,
         "debt_to_ebitda": net_debt_ebitda,
-        "total_debt": 0,
-        "total_equity": _num(ratios.get("bookValuePerShareTTM")) or 0,
+        "total_debt": _num(metrics.get("totalDebtTTM")) or 0,
+        "total_equity": _num(metrics.get("bookValueTTM")) or 0,
+        "debt_to_equity": _num(ratios.get("debtEquityRatioTTM")),
+        "interest_coverage": _num(ratios.get("interestCoverageRatioTTM")),
         "market_cap": market_cap,
         "sector": profile.get("sector", ""),
         "industry": profile.get("industry", ""),
@@ -148,7 +150,6 @@ async def _fetch_ticker(client: httpx.AsyncClient, symbol: str) -> dict | None:
         "operating_margin": _num(ratios.get("operatingProfitMarginTTM")),
         "net_margin": _num(ratios.get("netProfitMarginTTM")),
         "current_ratio": _num(ratios.get("currentRatioTTM")),
-        "interest_coverage": _num(ratios.get("interestCoverageRatioTTM")),
         "_source": "fmp",
     }
 

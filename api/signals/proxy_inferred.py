@@ -1,8 +1,4 @@
-"""Proxy-inferred signal — market-proxy signals for names without direct alt data.
-
-Uses proxy nowcast sources (market-based indicators) when direct alt data
-(Wikipedia, GDELT) is unavailable. Applies a reliability discount vs direct signals.
-"""
+"""Proxy-inferred signal — composite quality+momentum for tickers with thin analyst coverage."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -20,7 +16,7 @@ class ProxyInferredSignal(Signal):
 
     @property
     def version(self) -> str:
-        return "1.0"
+        return "1.1"
 
     @property
     def default_weight(self) -> float:
@@ -32,55 +28,76 @@ class ProxyInferredSignal(Signal):
 
     @property
     def description(self) -> str:
-        return "Market-proxy signals for tickers without direct alt data, with reliability discount"
+        return "Composite quality+momentum proxy for tickers with thin analyst coverage"
 
     @property
     def tags(self) -> list[str]:
-        return ["alternative", "proxy", "nowcast"]
+        return ["alternative", "proxy", "composite"]
 
     async def compute(self, ctx: PipelineContext) -> list[SignalOutput]:
         results = []
         for ticker in ctx.universe:
-            nowcast = (ctx.nowcast or {}).get(ticker)
-            if not nowcast:
-                results.append(SignalOutput(ticker, 0.5, 0.0, {"source": "no_data"}))
+            f = ctx.fundamentals.get(ticker, {})
+            md = ctx.market_data.get(ticker, {})
+            fwd = ctx.forward_estimates.get(ticker, {})
+            pt = ctx.price_targets.get(ticker, {})
+
+            num_analysts = (fwd.get("number_analysts_eps", 0) or 0) + (pt.get("numberOfAnalysts", 0) or 0)
+            if num_analysts >= 10:
+                results.append(SignalOutput(ticker, 0.5, 0.0, {"reason": "well_covered"}))
                 continue
 
-            source_mix = nowcast.get("source_mix", "none")
-            has_proxy = source_mix in ("proxy_only", "hybrid")
-            if not has_proxy:
-                results.append(SignalOutput(ticker, 0.5, 0.0, {"source": source_mix}))
+            sub_scores = []
+            data_points = 0
+            meta: dict = {"num_analysts": num_analysts}
+
+            # Fundamental quality proxy
+            roic = f.get("roic", 0) or 0
+            fcf = f.get("fcf_margin", 0) or 0
+            if roic != 0:
+                q = 0.5 + min(roic, 0.3) * 1.5
+                sub_scores.append(max(min(q, 1.0), 0.0))
+                data_points += 1
+            if fcf != 0:
+                q = 0.5 + min(fcf, 0.25) * 1.5
+                sub_scores.append(max(min(q, 1.0), 0.0))
+                data_points += 1
+
+            # Momentum proxy
+            ret_20d = md.get("return_20d", 0)
+            if ret_20d != 0:
+                m = 0.5 + ret_20d * 3
+                sub_scores.append(max(min(m, 1.0), 0.0))
+                data_points += 1
+
+            # Volume surge as attention proxy
+            vol_ratio = md.get("volume_ratio", 1.0)
+            if vol_ratio > 1.3:
+                ret_5d = md.get("return_5d", 0)
+                if ret_5d > 0:
+                    sub_scores.append(min(0.5 + vol_ratio * 0.15, 0.85))
+                else:
+                    sub_scores.append(max(0.5 - vol_ratio * 0.1, 0.2))
+                data_points += 1
+
+            # Revenue growth as earnings proxy
+            rev_growth = f.get("revenue_cagr_3y", 0) or 0
+            if rev_growth != 0:
+                g = 0.5 + rev_growth * 2
+                sub_scores.append(max(min(g, 1.0), 0.0))
+                data_points += 1
+
+            if not sub_scores:
+                results.append(SignalOutput(ticker, 0.5, 0.0, {"reason": "no_data"}))
                 continue
 
-            kpi_surprise = nowcast.get("kpi_surprise", 0) or 0
-            deviation = nowcast.get("deviation", 0) or 0
-            prob_outperform = nowcast.get("probability_outperform")
-            centered_prob = (prob_outperform - 0.5) * 2 if prob_outperform is not None else None
-
-            components = [v for v in [kpi_surprise, deviation, centered_prob] if v is not None]
-            if not components:
-                results.append(SignalOutput(ticker, 0.5, 0.0, {"source": source_mix}))
-                continue
-
-            score = max(sum(components) / len(components), 0)
-
-            proxy_count = nowcast.get("proxy_source_count", 0)
-            nowcast_conf = nowcast.get("confidence", 0)
-            discount = 0.82 if source_mix == "proxy_only" else 0.92
-            confidence = min(
-                (0.55 * min(proxy_count / 2, 1.0) + 0.45 * nowcast_conf) * discount,
-                1.0,
-            )
+            score = sum(sub_scores) / len(sub_scores)
+            confidence = min(0.25 + 0.1 * data_points, 0.7)
 
             results.append(SignalOutput(
                 ticker=ticker,
-                score=min(score, 1.0),
-                confidence=confidence,
-                metadata={
-                    "source_mix": source_mix,
-                    "kpi_surprise": kpi_surprise,
-                    "deviation": deviation,
-                    "proxy_count": proxy_count,
-                },
+                score=round(max(min(score, 1.0), 0.0), 4),
+                confidence=round(confidence, 3),
+                metadata=meta,
             ))
         return results
