@@ -1,17 +1,129 @@
-"""Signal evaluator — grades predictions against actual returns at 5/20/60 day horizons."""
+"""Signal evaluator — grades predictions against real returns at 5/20/60 day horizons."""
 from __future__ import annotations
 
-import random
+import asyncio
+from bisect import bisect_left, bisect_right
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.models import SignalEvaluation, SignalPrediction
 
+BENCHMARK = "SPY"
+BATCH_LIMIT = 5000
+
+# Evaluations written before this moment came from the old simulated-return
+# grader; purged once per process start so they never pollute real stats.
+REAL_EVAL_EPOCH = datetime(2026, 7, 2)
+_purge_done = False
+
+# Predictions this far past their grading date with still no price data are
+# marked ungradable (null returns) so they stop being retried every cycle
+# (delisted or renamed tickers).
+STALE_GRACE_DAYS = 30
+
+
+def _download_history_sync(
+    tickers: list[str], start: date, end: date
+) -> dict[str, tuple[list[date], list[float]]]:
+    """Fetch adjusted daily closes as {ticker: (dates, closes)}, sorted by date."""
+    import yfinance as yf
+
+    try:
+        df = yf.download(
+            tickers,
+            start=start.isoformat(),
+            end=(end + timedelta(days=1)).isoformat(),
+            group_by="ticker",
+            auto_adjust=True,
+            progress=False,
+            threads=True,
+        )
+    except Exception as e:
+        print(f"[evaluator] Price download failed: {e}")
+        return {}
+    if df is None or df.empty:
+        return {}
+
+    history: dict[str, tuple[list[date], list[float]]] = {}
+    for ticker in tickers:
+        try:
+            if len(tickers) == 1:
+                tdf = df
+            else:
+                if ticker not in df.columns.get_level_values(0):
+                    continue
+                tdf = df[ticker]
+            closes = tdf["Close"].dropna()
+            if closes.empty:
+                continue
+            history[ticker] = (
+                [d.date() for d in closes.index],
+                [float(c) for c in closes.values],
+            )
+        except Exception:
+            continue
+    return history
+
+
+def _price_on_or_after(
+    series: tuple[list[date], list[float]], target: date, max_slip_days: int = 5
+) -> tuple[date, float] | None:
+    dates, closes = series
+    i = bisect_left(dates, target)
+    if i >= len(dates) or (dates[i] - target).days > max_slip_days:
+        return None
+    return dates[i], closes[i]
+
+
+def _price_on_or_before(
+    series: tuple[list[date], list[float]], target: date
+) -> tuple[date, float] | None:
+    dates, closes = series
+    i = bisect_right(dates, target) - 1
+    if i < 0:
+        return None
+    return dates[i], closes[i]
+
+
+def _window_return(
+    series: tuple[list[date], list[float]], run_date: date, horizon_days: int
+) -> tuple[date, date, float] | None:
+    """Compute (entry_date, exit_date, return) for run_date → run_date + horizon."""
+    entry = _price_on_or_after(series, run_date)
+    if entry is None:
+        return None
+    entry_date, entry_px = entry
+    exit_ = _price_on_or_before(series, run_date + timedelta(days=horizon_days))
+    if exit_ is None:
+        return None
+    exit_date, exit_px = exit_
+    # Demand most of the horizon actually elapsed (thin/partial data guard)
+    if (exit_date - entry_date).days < max(2, int(horizon_days * 0.6)):
+        return None
+    if entry_px <= 0:
+        return None
+    return entry_date, exit_date, exit_px / entry_px - 1.0
+
+
+async def _purge_simulated_evaluations(db: AsyncSession) -> None:
+    global _purge_done
+    if _purge_done:
+        return
+    result = await db.execute(
+        delete(SignalEvaluation).where(SignalEvaluation.evaluated_at < REAL_EVAL_EPOCH)
+    )
+    await db.commit()
+    _purge_done = True
+    if result.rowcount:
+        print(f"[evaluator] Purged {result.rowcount} simulated evaluations")
+
 
 async def evaluate_predictions(db: AsyncSession, horizon_days: int = 5) -> dict:
-    """Find predictions old enough to evaluate and grade them."""
+    """Find predictions old enough to evaluate and grade them against real prices."""
+    await _purge_simulated_evaluations(db)
+
     cutoff = date.today() - timedelta(days=horizon_days)
 
     already_eval = select(SignalEvaluation.prediction_id).where(
@@ -21,36 +133,81 @@ async def evaluate_predictions(db: AsyncSession, horizon_days: int = 5) -> dict:
         select(SignalPrediction)
         .where(SignalPrediction.run_date <= cutoff)
         .where(~SignalPrediction.id.in_(already_eval))
-        .limit(500)
+        .limit(BATCH_LIMIT)
     )
     ungraded = ungraded_q.scalars().all()
 
     if not ungraded:
         return {"evaluated": 0, "horizon_days": horizon_days}
 
-    evaluated = 0
+    tickers = sorted({p.ticker for p in ungraded})
+    start = min(p.run_date for p in ungraded) - timedelta(days=7)
+    loop = asyncio.get_running_loop()
+    history = await loop.run_in_executor(
+        None, _download_history_sync, tickers + [BENCHMARK], start, date.today()
+    )
+    benchmark = history.get(BENCHMARK)
+    if benchmark is None:
+        print("[evaluator] No benchmark price data; skipping evaluation cycle")
+        return {"evaluated": 0, "horizon_days": horizon_days, "error": "no benchmark data"}
+
+    stale_cutoff = date.today() - timedelta(days=horizon_days + STALE_GRACE_DAYS)
+    window_cache: dict[tuple[str, date], tuple[date, date, float] | None] = {}
+    now = datetime.utcnow()
+    evaluated = skipped = ungradable = 0
+
     for pred in ungraded:
-        # Simulated returns correlated with signal score (replace with real price data later)
-        rng = random.Random(hash(f"{pred.ticker}-{pred.run_date}-{horizon_days}"))
-        base_return = rng.gauss(0.005, 0.04)
-        signal_alpha = pred.score * 0.02 * rng.uniform(0.3, 1.5)
-        actual_return = base_return + signal_alpha
+        key = (pred.ticker, pred.run_date)
+        if key not in window_cache:
+            series = history.get(pred.ticker)
+            window_cache[key] = (
+                _window_return(series, pred.run_date, horizon_days) if series else None
+            )
+        window = window_cache[key]
 
-        signal_correct = (pred.score > 0.5 and actual_return > 0) or (pred.score <= 0.5 and actual_return <= 0)
+        if window is None:
+            if pred.run_date <= stale_cutoff:
+                # No prices long after the horizon passed — stop retrying
+                db.add(SignalEvaluation(
+                    prediction_id=pred.id,
+                    horizon_days=horizon_days,
+                    evaluated_at=now,
+                ))
+                ungradable += 1
+            else:
+                skipped += 1
+            continue
 
-        evaluation = SignalEvaluation(
+        entry_date, exit_date, actual_return = window
+
+        alpha = None
+        bench_entry = _price_on_or_before(benchmark, entry_date)
+        bench_exit = _price_on_or_before(benchmark, exit_date)
+        if bench_entry and bench_exit and bench_entry[1] > 0 and bench_exit[0] > bench_entry[0]:
+            alpha = actual_return - (bench_exit[1] / bench_entry[1] - 1.0)
+
+        # Scores are 0..1 with 0.5 neutral: above-neutral should beat the
+        # benchmark, at/below-neutral should not
+        basis = alpha if alpha is not None else actual_return
+        signal_correct = (pred.score > 0.5) == (basis > 0)
+
+        db.add(SignalEvaluation(
             prediction_id=pred.id,
             horizon_days=horizon_days,
             actual_return=round(actual_return, 6),
             signal_correct=signal_correct,
-            alpha_vs_benchmark=round(actual_return - base_return, 6),
-            evaluated_at=datetime.utcnow(),
-        )
-        db.add(evaluation)
+            alpha_vs_benchmark=round(alpha, 6) if alpha is not None else None,
+            evaluated_at=now,
+        ))
         evaluated += 1
 
     await db.commit()
-    return {"evaluated": evaluated, "horizon_days": horizon_days}
+    return {
+        "evaluated": evaluated,
+        "skipped_no_data": skipped,
+        "marked_ungradable": ungradable,
+        "horizon_days": horizon_days,
+    }
 
 
 async def get_signal_stats(db: AsyncSession) -> dict[str, dict]:
@@ -63,6 +220,7 @@ async def get_signal_stats(db: AsyncSession) -> dict[str, dict]:
             SignalEvaluation.alpha_vs_benchmark,
         )
         .join(SignalPrediction, SignalPrediction.id == SignalEvaluation.prediction_id)
+        .where(SignalEvaluation.actual_return.is_not(None))
     )
     rows = evals_q.all()
 
@@ -76,7 +234,8 @@ async def get_signal_stats(db: AsyncSession) -> dict[str, dict]:
         for horizon, entries in sorted(horizons.items()):
             n = len(entries)
             hit_count = sum(1 for c, _ in entries if c)
-            avg_alpha = sum(a for _, a in entries) / n if n else 0
+            alphas = [a for _, a in entries if a is not None]
+            avg_alpha = sum(alphas) / len(alphas) if alphas else 0
             stats[name][f"{horizon}d"] = {
                 "n": n,
                 "hit_rate": round(hit_count / n, 4) if n else 0,
