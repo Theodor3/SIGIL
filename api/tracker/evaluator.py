@@ -12,6 +12,9 @@ from api.db.models import SignalEvaluation, SignalPrediction
 
 BENCHMARK = "SPY"
 BATCH_LIMIT = 5000
+# Drain up to this many batches per cycle so grading keeps pace with the
+# ~2000-ticker universe instead of accumulating an unbounded backlog
+MAX_BATCHES = 8
 
 # Evaluations written before this moment came from the old simulated-return
 # grader; purged once per process start so they never pollute real stats.
@@ -121,9 +124,27 @@ async def _purge_simulated_evaluations(db: AsyncSession) -> None:
 
 
 async def evaluate_predictions(db: AsyncSession, horizon_days: int = 5) -> dict:
-    """Find predictions old enough to evaluate and grade them against real prices."""
+    """Grade all due predictions against real prices, draining in batches."""
     await _purge_simulated_evaluations(db)
 
+    totals = {"evaluated": 0, "skipped_no_data": 0, "marked_ungradable": 0,
+              "horizon_days": horizon_days}
+    for _ in range(MAX_BATCHES):
+        batch = await _evaluate_batch(db, horizon_days)
+        if "error" in batch:
+            totals["error"] = batch["error"]
+            break
+        totals["evaluated"] += batch["evaluated"]
+        totals["skipped_no_data"] = batch.get("skipped_no_data", 0)
+        totals["marked_ungradable"] += batch.get("marked_ungradable", 0)
+        # Stop when nothing was graded: either fully drained or only
+        # missing-data predictions remain (retrying them now would spin)
+        if batch["evaluated"] + batch.get("marked_ungradable", 0) == 0:
+            break
+    return totals
+
+
+async def _evaluate_batch(db: AsyncSession, horizon_days: int) -> dict:
     cutoff = date.today() - timedelta(days=horizon_days)
 
     already_eval = select(SignalEvaluation.prediction_id).where(
