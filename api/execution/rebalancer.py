@@ -36,8 +36,10 @@ def compute_rebalance(
     target_weights: dict[str, float],
     prices: dict[str, float],
     portfolio_value: float,
+    cash: float,
     exposure_target: float = 0.75,
     tolerance_pct: float = 0.01,
+    sell_proceeds_haircut: float = 0.02,
 ) -> RebalancePlan:
     """Compute the diff between current holdings and target allocation.
 
@@ -46,10 +48,13 @@ def compute_rebalance(
         target_weights: {ticker: weight} from portfolio constructor (sums to ~1.0)
         prices: {ticker: current_price}
         portfolio_value: total account equity
+        cash: available cash — buys are capped at cash + haircut sell proceeds,
+            so negative cash (margin debt) is paid down before new buys
         exposure_target: regime-driven gross exposure (e.g. 0.75 for risk_on)
         tolerance_pct: skip trades where |delta| < this (default 1%)
+        sell_proceeds_haircut: discount on expected sell proceeds when budgeting
+            buys, absorbing price movement between planning and fills
     """
-    deployed_capital = portfolio_value * exposure_target
 
     # Scale target weights by exposure target so they represent % of total equity
     scaled_targets: dict[str, float] = {}
@@ -85,12 +90,9 @@ def compute_rebalance(
                 })
             continue
 
-        price = prices.get(ticker, 0)
-        if price <= 0:
-            continue
-
         if is_unwanted:
-            # Sell entire position
+            # Sell entire position — a market sell needs no price, so exits
+            # must not be skipped when a quote is missing (price 0)
             cur_shares = current_positions.get(ticker, {}).get("shares", 0)
             if cur_shares > 0:
                 sells.append(RebalanceOrder(
@@ -102,6 +104,10 @@ def compute_rebalance(
                     target_pct=0.0,
                     delta_pct=round(-cur_pct * 100, 2),
                 ))
+            continue
+
+        price = prices.get(ticker, 0)
+        if price <= 0:
             continue
 
         dollar_delta = abs(delta_pct) * portfolio_value
@@ -137,6 +143,31 @@ def compute_rebalance(
             ))
 
     total_sell = sum(o.shares * prices.get(o.ticker, 0) for o in sells)
+
+    # Cap buys at available cash plus discounted sell proceeds. Buys are
+    # funded largest-underweight first; anything past the budget is dropped
+    # so the account can never be pushed (further) onto margin.
+    budget = cash + total_sell * (1 - sell_proceeds_haircut)
+    buys.sort(key=lambda o: o.delta_pct, reverse=True)
+    funded_buys: list[RebalanceOrder] = []
+    for order in buys:
+        price = prices.get(order.ticker, 0)
+        affordable = int(budget / price) if price > 0 and budget > 0 else 0
+        shares = min(order.shares, affordable)
+        if shares <= 0:
+            skipped.append({
+                "ticker": order.ticker,
+                "current_pct": order.current_pct,
+                "target_pct": order.target_pct,
+                "delta_pct": order.delta_pct,
+                "reason": "insufficient_cash",
+            })
+            continue
+        order.shares = shares
+        budget -= shares * price
+        funded_buys.append(order)
+    buys = funded_buys
+
     total_buy = sum(o.shares * prices.get(o.ticker, 0) for o in buys)
 
     current_count = len([t for t in current_positions if current_positions[t].get("shares", 0) > 0])

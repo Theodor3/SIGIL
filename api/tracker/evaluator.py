@@ -5,7 +5,7 @@ import asyncio
 from bisect import bisect_left, bisect_right
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.models import SignalEvaluation, SignalPrediction
@@ -25,6 +25,15 @@ _purge_done = False
 # marked ungradable (null returns) so they stop being retried every cycle
 # (delisted or renamed tickers).
 STALE_GRACE_DAYS = 30
+
+# A prediction at exactly the 0.5 neutral score or with zero confidence is
+# "no view", not a directional call — it must not be graded correct/incorrect.
+NEUTRAL_SCORE_EPSILON = 1e-6
+_neutral_reclass_done = False
+
+
+def _is_neutral(score: float, confidence: float) -> bool:
+    return confidence <= 0 or abs(score - 0.5) <= NEUTRAL_SCORE_EPSILON
 
 
 def _download_history_sync(
@@ -123,9 +132,37 @@ async def _purge_simulated_evaluations(db: AsyncSession) -> None:
         print(f"[evaluator] Purged {result.rowcount} simulated evaluations")
 
 
+async def _reclassify_neutral_evaluations(db: AsyncSession) -> None:
+    """One-time cleanup: evaluations of neutral predictions were graded as
+    directional calls by the old rule — null their signal_correct so stats
+    only count real calls. Return/alpha data is kept."""
+    global _neutral_reclass_done
+    if _neutral_reclass_done:
+        return
+    neutral_ids = select(SignalPrediction.id).where(
+        or_(
+            SignalPrediction.confidence <= 0,
+            func.abs(SignalPrediction.score - 0.5) <= NEUTRAL_SCORE_EPSILON,
+        )
+    )
+    result = await db.execute(
+        update(SignalEvaluation)
+        .where(
+            SignalEvaluation.prediction_id.in_(neutral_ids),
+            SignalEvaluation.signal_correct.is_not(None),
+        )
+        .values(signal_correct=None)
+    )
+    await db.commit()
+    _neutral_reclass_done = True
+    if result.rowcount:
+        print(f"[evaluator] Reclassified {result.rowcount} neutral evaluations as non-calls")
+
+
 async def evaluate_predictions(db: AsyncSession, horizon_days: int = 5) -> dict:
     """Grade all due predictions against real prices, draining in batches."""
     await _purge_simulated_evaluations(db)
+    await _reclassify_neutral_evaluations(db)
 
     totals = {"evaluated": 0, "skipped_no_data": 0, "marked_ungradable": 0,
               "horizon_days": horizon_days}
@@ -208,9 +245,13 @@ async def _evaluate_batch(db: AsyncSession, horizon_days: int) -> dict:
             alpha = actual_return - (bench_exit[1] / bench_entry[1] - 1.0)
 
         # Scores are 0..1 with 0.5 neutral: above-neutral should beat the
-        # benchmark, at/below-neutral should not
+        # benchmark, below-neutral should not. Neutral / zero-confidence
+        # predictions made no call, so they get no correctness grade.
         basis = alpha if alpha is not None else actual_return
-        signal_correct = (pred.score > 0.5) == (basis > 0)
+        if _is_neutral(pred.score, pred.confidence):
+            signal_correct = None
+        else:
+            signal_correct = (pred.score > 0.5) == (basis > 0)
 
         db.add(SignalEvaluation(
             prediction_id=pred.id,
@@ -232,22 +273,35 @@ async def _evaluate_batch(db: AsyncSession, horizon_days: int) -> dict:
 
 
 async def get_signal_stats(db: AsyncSession) -> dict[str, dict]:
-    """Compute hit rate and avg alpha per signal from evaluations."""
+    """Compute hit rate and avg directional alpha per signal from evaluations.
+
+    Only real directional calls count (signal_correct is null for neutral
+    predictions). Alpha is signed by the call direction — the alpha earned by
+    following the signal — so it differentiates signals instead of measuring
+    the shared ticker universe.
+    """
     evals_q = await db.execute(
         select(
             SignalPrediction.signal_name,
+            SignalPrediction.score,
             SignalEvaluation.horizon_days,
             SignalEvaluation.signal_correct,
             SignalEvaluation.alpha_vs_benchmark,
         )
         .join(SignalPrediction, SignalPrediction.id == SignalEvaluation.prediction_id)
         .where(SignalEvaluation.actual_return.is_not(None))
+        .where(SignalEvaluation.signal_correct.is_not(None))
     )
     rows = evals_q.all()
 
     buckets: dict[str, dict[int, list]] = {}
-    for signal_name, horizon, correct, alpha in rows:
-        buckets.setdefault(signal_name, {}).setdefault(horizon, []).append((correct, alpha))
+    for signal_name, score, horizon, correct, alpha in rows:
+        directional_alpha = None
+        if alpha is not None:
+            directional_alpha = alpha if score > 0.5 else -alpha
+        buckets.setdefault(signal_name, {}).setdefault(horizon, []).append(
+            (correct, directional_alpha)
+        )
 
     stats: dict[str, dict] = {}
     for name, horizons in buckets.items():

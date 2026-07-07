@@ -61,7 +61,10 @@ async def _scheduled_loop():
                         async with async_session() as db:
                             from api.routes.portfolio import _build_rebalance_inputs, _broker
                             from api.execution.rebalancer import compute_rebalance
-                            result, err = await _build_rebalance_inputs(db)
+                            if not await _broker.is_market_open():
+                                result, err = None, "market closed"
+                            else:
+                                result, err = await _build_rebalance_inputs(db)
                             if err:
                                 print(f"[scheduler] Rebalance skipped: {err}")
                             else:
@@ -70,6 +73,7 @@ async def _scheduled_loop():
                                     target_weights=result["target_weights"],
                                     prices=result["prices"],
                                     portfolio_value=result["account"].portfolio_value,
+                                    cash=result["account"].cash,
                                     exposure_target=result["exposure"],
                                 )
                                 if not plan.sells and not plan.buys:

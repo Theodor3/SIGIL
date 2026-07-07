@@ -174,9 +174,20 @@ class AlpacaBroker:
                 symbol: float(quote.ask_price or quote.bid_price or 0)
                 for symbol, quote in quotes.items()
             }
-        except Exception:
-            import hashlib
-            return {
-                t: 50 + (int(hashlib.md5(t.encode()).hexdigest()[:8], 16) % 400)
-                for t in tickers
-            }
+        except Exception as e:
+            # No fabricated prices in live mode — callers treat missing
+            # prices as "don't size a trade off this ticker"
+            print(f"[broker] Price fetch failed for {len(tickers)} tickers: {e}")
+            return {}
+
+    async def is_market_open(self) -> bool:
+        """True when the market is open for trading. Fails closed on errors."""
+        if self._demo:
+            return True
+        try:
+            client = self._get_client()
+            clock = client.get_clock()
+            return bool(clock.is_open)
+        except Exception as e:
+            print(f"[broker] Market clock check failed: {e}")
+            return False

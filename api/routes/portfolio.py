@@ -417,6 +417,7 @@ async def rebalance_preview(db: AsyncSession = Depends(get_db)):
         target_weights=result["target_weights"],
         prices=result["prices"],
         portfolio_value=result["account"].portfolio_value,
+        cash=result["account"].cash,
         exposure_target=result["exposure"],
     )
 
@@ -473,6 +474,7 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
         target_weights=result["target_weights"],
         prices=result["prices"],
         portfolio_value=result["account"].portfolio_value,
+        cash=result["account"].cash,
         exposure_target=result["exposure"],
     )
 
