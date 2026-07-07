@@ -194,70 +194,13 @@ async def generate_targets(db: AsyncSession = Depends(get_db)):
 
 @router.post("/execute")
 async def execute_targets(db: AsyncSession = Depends(get_db)):
-    """Execute portfolio targets — places orders and records trades."""
-    from api.db.models import PipelineRun
+    """Execute portfolio targets via the diff-based rebalancer.
 
-    # Generate targets first
-    targets_resp = await generate_targets(db)
-    if "error" in targets_resp:
-        return targets_resp
-
-    targets = targets_resp["targets"]
-    if not targets:
-        return {"message": "No targets to execute", "trades": []}
-
-    # Get current regime
-    run_q = await db.execute(
-        select(PipelineRun)
-        .where(PipelineRun.status == "completed")
-        .order_by(PipelineRun.started_at.desc())
-        .limit(1)
-    )
-    latest_run = run_q.scalar_one_or_none()
-    regime = latest_run.regime_id if latest_run else "unknown"
-
-    # Check existing positions (broker + DB) to avoid duplicates
-    existing_positions = await _broker.get_positions()
-    held_tickers = {p.ticker for p in existing_positions}
-    open_trades_q = await db.execute(
-        select(Trade.ticker).where(Trade.status == "open")
-    )
-    held_tickers.update(r[0] for r in open_trades_q.all())
-
-    results = []
-    skipped = []
-    for target in targets:
-        if target["ticker"] in held_tickers:
-            skipped.append(target["ticker"])
-            continue
-
-        order = await _broker.submit_order(
-            target["ticker"], target["shares"], "buy" if target["side"] == "long" else "sell"
-        )
-
-        trade = Trade(
-            opened_at=datetime.utcnow(),
-            ticker=target["ticker"],
-            side=target["side"],
-            entry_price=order.filled_price,
-            shares=target["shares"],
-            signal_drivers=target["signal_scores"],
-            regime_at_entry=regime,
-            status="open",
-        )
-        db.add(trade)
-        results.append({
-            "ticker": target["ticker"],
-            "shares": target["shares"],
-            "order_id": order.order_id,
-            "order_status": order.status,
-        })
-
-    await db.commit()
-    msg = f"Executed {len(results)} trades"
-    if skipped:
-        msg += f", skipped {len(skipped)} already held ({', '.join(skipped)})"
-    return {"message": msg, "is_demo": _broker.is_demo, "trades": results}
+    The old implementation bought every target sized off full equity with no
+    sells and no cash cap — repeated clicks stacked positions on margin. The
+    rebalancer trades only the diff and respects available cash.
+    """
+    return await rebalance_execute(db)
 
 
 @router.post("/close/{trade_id}")
@@ -489,29 +432,38 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
     for order in plan.sells:
         try:
             res = await _broker.submit_order(order.ticker, order.shares, "sell")
-            # Close or reduce matching DB trade
+            # Best known exit price: reported fill, else the planning quote.
+            # With neither, P&L on affected trades is recorded as 0, not as
+            # a fake total loss from treating the fill as $0.
+            fill = res.filled_price or result["prices"].get(order.ticker)
+
+            # Walk ALL open DB trades for this ticker (there can be several
+            # from older execute paths) — exits close every one of them,
+            # trims reduce FIFO by the sold share count.
             trade_q = await db.execute(
                 select(Trade)
                 .where(Trade.ticker == order.ticker, Trade.status == "open")
                 .order_by(Trade.opened_at.asc())
-                .limit(1)
             )
-            trade = trade_q.scalar_one_or_none()
-            if trade:
+            open_trades = trade_q.scalars().all()
+            remaining = order.shares
+            for trade in open_trades:
+                trade_shares = trade.shares or 0
                 if order.reason == "exit":
-                    trade.exit_price = res.filled_price
-                    entry = trade.entry_price or res.filled_price or 0
-                    trade.realized_pnl = round(
-                        ((res.filled_price or 0) - entry) * order.shares, 2
-                    )
+                    take = trade_shares
+                else:
+                    if remaining <= 0:
+                        break
+                    take = min(trade_shares, remaining)
+                    remaining -= take
+                if take >= trade_shares:
+                    entry = trade.entry_price or fill or 0
+                    trade.exit_price = fill
+                    trade.realized_pnl = round(((fill or entry) - entry) * trade_shares, 2)
                     trade.closed_at = datetime.utcnow()
                     trade.status = "closed"
                 else:
-                    trade.shares = max(trade.shares - order.shares, 0)
-                    if trade.shares == 0:
-                        trade.exit_price = res.filled_price
-                        trade.closed_at = datetime.utcnow()
-                        trade.status = "closed"
+                    trade.shares = trade_shares - take
 
             executed.append({
                 "ticker": order.ticker,
