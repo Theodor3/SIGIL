@@ -21,9 +21,10 @@ async def login(body: LoginRequest, response: Response):
 
     session_id = verify_password(body.password)
     if session_id:
+        from api.auth import SESSION_SECONDS
         response.set_cookie(
             "sigil_session", session_id,
-            httponly=True, samesite="lax", max_age=86400,
+            httponly=True, samesite="lax", max_age=SESSION_SECONDS,
         )
         return {"authenticated": True}
     return {"authenticated": False, "error": "Invalid password"}
