@@ -271,6 +271,34 @@ class YahooProvider(DataProvider):
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, _fetch_prices_batch_sync, tickers)
 
+    BENCHMARK_ETFS = ["SPY", "QQQ"]
+    SECTOR_ETFS = ["XLK", "XLF", "XLV", "XLE", "XLI", "XLC", "XLY", "XLP", "XLU", "XLB", "XLRE"]
+
+    async def fetch_benchmarks(self) -> dict:
+        """SPY/QQQ stats + sector breadth for regime detection.
+
+        Same output keys as the old Polygon fetch_benchmarks, but one batch
+        download instead of 13 rate-limited calls with 12s sleeps.
+        """
+        data = await self.fetch_prices(self.BENCHMARK_ETFS + self.SECTOR_ETFS)
+        benchmarks: dict = {}
+        for symbol in self.BENCHMARK_ETFS:
+            md = data.get(symbol)
+            if not md:
+                continue
+            key = symbol.lower()
+            benchmarks[f"{key}_return_5d"] = md["return_5d"]
+            benchmarks[f"{key}_return_20d"] = md["return_20d"]
+            benchmarks[f"{key}_realized_vol_20d"] = md["realized_vol_20d"]
+        sector_returns = [
+            data[etf]["return_20d"] for etf in self.SECTOR_ETFS if etf in data
+        ]
+        if sector_returns:
+            benchmarks["sector_positive_ratio_20d"] = round(
+                sum(1 for r in sector_returns if r > 0) / len(sector_returns), 3
+            )
+        return benchmarks
+
     def _fetch_demo(self, tickers: list[str]) -> dict[str, dict]:
         return {
             t: _generate_demo_data(t, hash(t) % 10000)

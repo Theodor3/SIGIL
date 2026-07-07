@@ -28,11 +28,10 @@ async def _fetch_finnhub(bucket: list[str]) -> dict:
 
 
 async def _fetch_benchmarks() -> dict:
-    if not settings.polygon_api_key:
-        return {}
-    from api.data.polygon import PolygonProvider
-    pg = PolygonProvider()
-    return await pg.fetch_benchmarks()
+    """Benchmark/breadth ETF stats via the Yahoo batch downloader — replaced
+    Polygon, whose free tier needed 12s sleeps between its 13 calls."""
+    yahoo = YahooProvider(demo_mode=settings.demo_mode)
+    return await yahoo.fetch_benchmarks()
 
 
 async def _fetch_fred() -> dict:
@@ -175,7 +174,7 @@ async def run_pipeline(db: AsyncSession) -> dict:
 
         # Log errors from any failed providers
         provider_names = [
-            "yahoo_prices", "finnhub", "polygon_benchmarks", "fred", "wikipedia",
+            "yahoo_prices", "finnhub", "yahoo_benchmarks", "fred", "wikipedia",
             "gdelt", "insider", "analyst", "fmp", "tiingo_prices",
             "alphavantage", "bls", "yahoo_fundamentals",
             "fmp_price_targets", "fmp_shares_float", "fmp_forward_estimates",
@@ -245,7 +244,7 @@ async def run_pipeline(db: AsyncSession) -> dict:
             update_source_status("finnhub_earnings", SourceStatus.ERROR, error=str(results[1]))
 
         if not isinstance(results[2], Exception):
-            print(f"[pipeline] Polygon benchmarks: {len(benchmarks)} fields")
+            print(f"[pipeline] Yahoo benchmarks: {len(benchmarks)} fields")
 
         if not isinstance(results[3], Exception):
             update_source_status("fred_macro", SourceStatus.ACTIVE, fetch_count=len(macro))

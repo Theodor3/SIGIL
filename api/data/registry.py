@@ -84,8 +84,8 @@ def init_default_sources():
     ))
     register_source(DataSource(
         name="polygon_market",
-        provider="Yahoo Finance + Polygon.io",
-        description="Market data — Yahoo batch download for per-ticker OHLCV, Polygon for benchmarks only",
+        provider="Yahoo Finance",
+        description="Market data — Yahoo batch download for per-ticker OHLCV plus SPY/QQQ/sector-ETF benchmarks",
         category="market",
         requires_key=False,
         status=SourceStatus.ACTIVE,
