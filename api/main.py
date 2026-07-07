@@ -111,6 +111,25 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
     discover_signals()
 
+    # Runs can only execute inside this process, so any row still "running"
+    # at boot was killed mid-flight (OOM, deploy) — close it out.
+    from datetime import datetime
+    from sqlalchemy import update as sa_update
+    from api.db.models import PipelineRun
+    async with async_session() as db:
+        res = await db.execute(
+            sa_update(PipelineRun)
+            .where(PipelineRun.status == "running")
+            .values(
+                status="failed",
+                finished_at=datetime.utcnow(),
+                error_message="interrupted by restart",
+            )
+        )
+        await db.commit()
+        if res.rowcount:
+            print(f"[startup] Marked {res.rowcount} interrupted pipeline runs as failed")
+
     from api.data.registry import init_default_sources
     init_default_sources()
 
