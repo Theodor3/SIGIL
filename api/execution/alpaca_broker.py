@@ -220,6 +220,30 @@ class AlpacaBroker:
             until = orders[-1].submitted_at
         return fills
 
+    async def get_equity_history(self, period: str = "3M") -> list[dict]:
+        """Daily account equity from Alpaca's portfolio-history endpoint —
+        used once to backfill the equity_snapshots table for the account's
+        life before SIGIL started recording its own."""
+        if self._demo:
+            return []
+        from alpaca.trading.requests import GetPortfolioHistoryRequest
+
+        client = self._get_client()
+        history = client.get_portfolio_history(
+            GetPortfolioHistoryRequest(period=period, timeframe="1D")
+        )
+        timestamps = history.timestamp or []
+        equities = history.equity or []
+        out = []
+        for ts, eq in zip(timestamps, equities):
+            if eq is None or eq <= 0:
+                continue
+            out.append({
+                "taken_at": datetime.utcfromtimestamp(int(ts)),
+                "equity": float(eq),
+            })
+        return out
+
     async def is_market_open(self) -> bool:
         """True when the market is open for trading. Fails closed on errors."""
         if self._demo:

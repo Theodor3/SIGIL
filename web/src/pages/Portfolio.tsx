@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
+import EquityCurve from "../components/EquityCurve";
+
 interface PortfolioData {
   account: {
     equity: number;
@@ -308,6 +310,8 @@ export default function Portfolio() {
           </div>
         </div>
       </div>
+
+      <EquityCurve />
 
       {/* Tab Navigation */}
       <div className="flex gap-1 border-b border-sigil-border overflow-x-auto">

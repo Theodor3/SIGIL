@@ -20,6 +20,22 @@ from api.routes.ws import router as ws_router
 from api.signals.registry import discover_signals
 
 _scheduler_task: asyncio.Task | None = None
+_equity_task: asyncio.Task | None = None
+
+
+async def _equity_loop():
+    """Hourly account-equity snapshot — the performance history heartbeat."""
+    from api.routes.portfolio import _broker
+    from api.tracker.equity import capture_snapshot
+
+    await asyncio.sleep(20)
+    while True:
+        try:
+            async with async_session() as db:
+                await capture_snapshot(db, _broker)
+        except Exception as e:
+            print(f"[equity] Snapshot failed: {e}")
+        await asyncio.sleep(3600)
 
 
 async def _scheduled_loop():
@@ -148,6 +164,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] Closed-trade rebuild skipped: {e}")
 
+    # One-time equity-history backfill from broker portfolio history
+    try:
+        from api.routes.portfolio import _broker
+        from api.tracker.equity import backfill_equity_history
+        async with async_session() as db:
+            await backfill_equity_history(db, _broker)
+    except Exception as e:
+        print(f"[startup] Equity backfill skipped: {e}")
+
     from api.data.registry import init_default_sources
     init_default_sources()
 
@@ -155,10 +180,15 @@ async def lifespan(app: FastAPI):
         _scheduler_task = asyncio.create_task(_scheduled_loop())
         print(f"[scheduler] Auto-pipeline enabled (every {settings.pipeline_interval_hours}h)")
 
+    global _equity_task
+    _equity_task = asyncio.create_task(_equity_loop())
+
     yield
 
     if _scheduler_task:
         _scheduler_task.cancel()
+    if _equity_task:
+        _equity_task.cancel()
 
 
 app = FastAPI(title="Sigil V2", version="0.1.0", lifespan=lifespan)

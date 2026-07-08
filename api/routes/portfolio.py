@@ -376,6 +376,107 @@ async def rebuild_closed_trades_endpoint(db: AsyncSession = Depends(get_db)):
     return await rebuild_closed_trades(db)
 
 
+def _max_drawdown_pct(equities: list[float]) -> float:
+    peak = float("-inf")
+    worst = 0.0
+    for e in equities:
+        peak = max(peak, e)
+        if peak > 0:
+            worst = min(worst, (e - peak) / peak)
+    return round(worst * 100, 2)
+
+
+async def _spy_series(start_date, end_date) -> tuple[list, list] | None:
+    """Daily SPY closes for the benchmark overlay, cached for an hour."""
+    from api import cache as app_cache
+    key = f"equity_spy:{start_date}:{end_date}"
+    cached = app_cache.get(key)
+    if cached is not None:
+        return cached
+    import asyncio as _asyncio
+    from api.tracker.evaluator import _download_history_sync
+    loop = _asyncio.get_running_loop()
+    history = await loop.run_in_executor(
+        None, _download_history_sync, ["SPY"], start_date, end_date
+    )
+    series = history.get("SPY")
+    if series:
+        app_cache.set(key, series, ttl=3600)
+    return series
+
+
+@router.get("/equity-history")
+async def equity_history(days: int = 30, db: AsyncSession = Depends(get_db)):
+    """Equity curve with SPY-equivalent benchmark and summary stats.
+
+    days <= 0 returns the full history. Stats are computed server-side from
+    the same series the chart renders, so they can never disagree.
+    """
+    from datetime import timedelta as _td
+    from api.db.models import EquitySnapshot
+    from api.tracker.evaluator import _price_on_or_before
+
+    q = select(EquitySnapshot).order_by(EquitySnapshot.taken_at.asc())
+    if days > 0:
+        q = q.where(EquitySnapshot.taken_at >= datetime.utcnow() - _td(days=days))
+    rows = (await db.execute(q)).scalars().all()
+    if not rows:
+        return {"points": [], "stats": None}
+
+    # SPY overlay: normalized to the window's starting equity — the
+    # "should have just bought SPY" line. Omitted if Yahoo is down.
+    spy = None
+    try:
+        spy = await _spy_series(
+            rows[0].taken_at.date() - _td(days=5), rows[-1].taken_at.date()
+        )
+    except Exception as e:
+        print(f"[equity] SPY benchmark unavailable: {e}")
+
+    first_equity = rows[0].equity
+    spy_base = None
+    if spy:
+        base = _price_on_or_before(spy, rows[0].taken_at.date())
+        spy_base = base[1] if base else None
+
+    points = []
+    last_spy_equiv = None
+    for r in rows:
+        point = {
+            "t": r.taken_at.isoformat(),
+            "equity": round(r.equity, 2),
+            "cash": round(r.cash, 2) if r.cash is not None else None,
+            "regime": r.regime_id,
+        }
+        if spy and spy_base:
+            px = _price_on_or_before(spy, r.taken_at.date())
+            if px:
+                last_spy_equiv = round(first_equity * (px[1] / spy_base), 2)
+        point["spy"] = last_spy_equiv
+        points.append(point)
+
+    last_equity = rows[-1].equity
+    return_pct = round((last_equity / first_equity - 1) * 100, 2) if first_equity else 0
+    spy_return_pct = None
+    if last_spy_equiv and first_equity:
+        spy_return_pct = round((last_spy_equiv / first_equity - 1) * 100, 2)
+
+    return {
+        "points": points,
+        "stats": {
+            "start": rows[0].taken_at.isoformat(),
+            "end": rows[-1].taken_at.isoformat(),
+            "return_pct": return_pct,
+            "max_drawdown_pct": _max_drawdown_pct([r.equity for r in rows]),
+            "spy_return_pct": spy_return_pct,
+            "vs_spy_pct": (
+                round(return_pct - spy_return_pct, 2)
+                if spy_return_pct is not None else None
+            ),
+        },
+    }
+
+
 @router.post("/close/{trade_id}")
 async def close_trade(trade_id: int, db: AsyncSession = Depends(get_db)):
     """Close an open trade — fetch current price, compute P&L, update DB."""

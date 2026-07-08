@@ -83,6 +83,21 @@ class ScreeningCache(Base):
     fetched_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
+class EquitySnapshot(Base):
+    """Hourly account equity record — the honest performance history.
+
+    Returns and drawdowns are always computed from equity at read time,
+    never stored, so a bug can't bake itself into the record."""
+    __tablename__ = "equity_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    taken_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    equity: Mapped[float] = mapped_column(Float, nullable=False)
+    cash: Mapped[float | None] = mapped_column(Float)
+    positions_count: Mapped[int | None] = mapped_column(Integer)
+    regime_id: Mapped[str | None] = mapped_column(String(32))
+
+
 class Trade(Base):
     __tablename__ = "trades"
 
