@@ -414,10 +414,15 @@ async def run_pipeline(db: AsyncSession) -> dict:
                 metadata_=rh_meta,
             ))
 
-        # Phase 6: Run all signals
+        # Phase 6: Run all signals — two passes. Everything except the LLM
+        # runs first; a preliminary ranking then picks the LLM's shortlist,
+        # so Claude studies the actual portfolio candidates instead of the
+        # first N names in screening order.
         registry = get_registry()
         signal_outputs = {}
         for sig_name, signal in registry.items():
+            if sig_name == "llm_conviction":
+                continue
             try:
                 outputs = await signal.compute(ctx)
                 signal_outputs[sig_name] = outputs
@@ -425,6 +430,19 @@ async def run_pipeline(db: AsyncSession) -> dict:
                 print(f"[pipeline] Signal {sig_name}: {active_count}/{len(outputs)} active scores")
             except Exception as e:
                 print(f"Signal {sig_name} failed: {e}")
+
+        if "llm_conviction" in registry:
+            try:
+                prelim_weights = {n: s.default_weight for n, s in registry.items()}
+                prelim = score_universe(signal_outputs, prelim_weights, regime)
+                ctx.llm_focus = [s.ticker for s in prelim[:60]]
+                print(f"[pipeline] LLM focus: top {len(ctx.llm_focus)} by preliminary rank")
+                outputs = await registry["llm_conviction"].compute(ctx)
+                signal_outputs["llm_conviction"] = outputs
+                active_count = sum(1 for o in outputs if o.confidence > 0)
+                print(f"[pipeline] Signal llm_conviction: {active_count}/{len(outputs)} active scores")
+            except Exception as e:
+                print(f"Signal llm_conviction failed: {e}")
 
         # Phase 7: Store predictions
         for sig_name, outputs in signal_outputs.items():

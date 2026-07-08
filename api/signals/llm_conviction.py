@@ -11,7 +11,7 @@ from api.signals.base import Signal, SignalOutput
 if TYPE_CHECKING:
     from api.data.context import PipelineContext
 
-MAX_TICKERS = 30
+MAX_TICKERS = 60
 MODEL = "claude-haiku-4-5-20251001"
 
 SYSTEM_PROMPT = """You are a quantitative equity analyst. Given data about a stock, output a JSON object with:
@@ -114,7 +114,7 @@ class LLMConvictionSignal(Signal):
 
     @property
     def version(self) -> str:
-        return "1.0"
+        return "1.1"
 
     @property
     def default_weight(self) -> float:
@@ -141,9 +141,21 @@ class LLMConvictionSignal(Signal):
         except ImportError:
             return [SignalOutput(t, 0.5, 0.0, {"reason": "anthropic_not_installed"}) for t in ctx.universe]
 
+        # Score in preliminary-ranking order when the runner provides it —
+        # the LLM should study the actual portfolio candidates, not the
+        # first N names in screening order (which is a different ranking
+        # and previously left most top positions unscored)
+        if ctx.llm_focus:
+            in_universe = set(ctx.universe)
+            order = [t for t in ctx.llm_focus if t in in_universe]
+            remaining = set(order)
+            order += [t for t in ctx.universe if t not in remaining]
+        else:
+            order = list(ctx.universe)
+
         # Build prompts for tickers that have enough data
         ticker_prompts: list[tuple[str, str]] = []
-        for ticker in ctx.universe:
+        for ticker in order:
             prompt = _build_ticker_prompt(ticker, ctx)
             if prompt:
                 ticker_prompts.append((ticker, prompt))
