@@ -296,7 +296,14 @@ export default function Portfolio() {
           <div className="text-sigil-muted text-xs uppercase tracking-wider mb-1">
             Holdings
           </div>
-          <div className="text-2xl font-bold">{stats?.open_count ?? 0}</div>
+          {/* broker positions are ground truth; DB open-trade count only
+              surfaces when it disagrees (reconciliation in flight) */}
+          <div className="text-2xl font-bold">{data?.positions?.length ?? 0}</div>
+          {stats != null && data != null && stats.open_count !== data.positions.length && (
+            <div className="text-xs text-sigil-muted mt-1">
+              {stats.open_count} tracked trades — reconciling
+            </div>
+          )}
         </div>
         <div className="rounded-xl border border-sigil-border bg-sigil-surface p-5">
           <div className="text-sigil-muted text-xs uppercase tracking-wider mb-1">
