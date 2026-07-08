@@ -70,6 +70,19 @@ class RegimeHistory(Base):
     metadata_: Mapped[dict | None] = mapped_column("metadata", JSON)
 
 
+class ScreeningCache(Base):
+    """Persistent per-ticker screening fundamentals.
+
+    FMP's free tier (~250 calls/day) can't re-screen the whole universe every
+    run, and fundamentals change quarterly anyway — cache them and refresh a
+    shuffled slice per run."""
+    __tablename__ = "screening_cache"
+
+    ticker: Mapped[str] = mapped_column(String(10), primary_key=True)
+    data: Mapped[dict | None] = mapped_column(JSON)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
 class Trade(Base):
     __tablename__ = "trades"
 

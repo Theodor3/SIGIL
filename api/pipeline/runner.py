@@ -124,8 +124,25 @@ async def run_pipeline(db: AsyncSession) -> dict:
         fmp = FMPProvider()
         universe = await fetch_universe_tickers()
         print(f"[pipeline] Fetched {len(universe)} tickers across all indices")
-        fundamentals = await fmp.fetch_screening_data(universe)
-        print(f"[pipeline] FMP screening data: {len(fundamentals)}/{len(universe)} tickers")
+
+        # Screening fundamentals come from the persistent cache; each run
+        # spends its FMP quota refreshing a shuffled slice, so coverage
+        # compounds across runs instead of resetting (and dying) every 6h
+        from api.data.screening_cache import (
+            choose_refresh, load_screening_cache, store_screening_cache,
+        )
+        cached = await load_screening_cache(db)
+        refresh_list = choose_refresh(universe, cached)
+        fresh = await fmp.fetch_screening_data(refresh_list)
+        await store_screening_cache(db, fresh)
+
+        universe_set = set(universe)
+        fundamentals = {
+            t: entry["data"] for t, entry in cached.items() if t in universe_set
+        }
+        fundamentals.update(fresh)
+        print(f"[pipeline] Screening coverage: {len(fundamentals)}/{len(universe)} tickers "
+              f"(cache {len(cached)}, refreshed {len(fresh)}/{len(refresh_list)})")
         update_source_status("fmp_fundamentals", SourceStatus.ACTIVE, fetch_count=len(fundamentals))
         update_source_status("universe_screener", SourceStatus.ACTIVE, fetch_count=len(universe))
 

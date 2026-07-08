@@ -320,21 +320,35 @@ class FMPProvider(DataProvider):
         return results
 
     async def fetch_screening_data(self, tickers: list[str]) -> dict[str, dict]:
-        """Lightweight fundamentals for screening — 2 API calls per ticker instead of 4."""
+        """Lightweight fundamentals for screening — 3 API calls per ticker.
+
+        Bails after consecutive all-empty batches: once the free-tier daily
+        quota is spent every call fails, and grinding through the rest of the
+        list wastes minutes of pipeline time for nothing."""
         if not settings.fmp_api_key:
             return {}
 
         results: dict[str, dict] = {}
+        empty_batches = 0
         async with httpx.AsyncClient(timeout=30) as client:
             for i in range(0, len(tickers), 20):
                 batch = tickers[i:i + 20]
                 tasks = [_fetch_screening_data(client, t) for t in batch]
                 batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+                batch_hits = 0
                 for ticker, result in zip(batch, batch_results):
                     if isinstance(result, Exception):
                         continue
                     if result:
                         results[ticker] = result
+                        batch_hits += 1
+                if batch_hits == 0:
+                    empty_batches += 1
+                    if empty_batches >= 3:
+                        print(f"[fmp] Screening fetch bailed at {i + len(batch)}/{len(tickers)} — quota likely exhausted")
+                        break
+                else:
+                    empty_batches = 0
                 if i + 20 < len(tickers):
                     await asyncio.sleep(0.3)
 

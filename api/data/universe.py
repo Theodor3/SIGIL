@@ -126,15 +126,59 @@ async def _fetch_fmp_screener(
     return []
 
 
+_GITHUB_LISTINGS = [
+    "https://raw.githubusercontent.com/rreichel3/US-Stock-Symbols/main/nasdaq/nasdaq_full_tickers.json",
+    "https://raw.githubusercontent.com/rreichel3/US-Stock-Symbols/main/nyse/nyse_full_tickers.json",
+]
+
+SMALL_CAP_RANGE = (300_000_000, 2_000_000_000)
+MID_CAP_RANGE = (2_000_000_000, 10_000_000_000)
+
+
+async def _fetch_cap_buckets() -> tuple[list[str], list[str]]:
+    """Small/mid-cap tickers from the daily-updated US-Stock-Symbols GitHub
+    dataset — keyless, quota-free replacement for the FMP screener (which
+    silently returns nothing once the free-tier quota is spent)."""
+    small: set[str] = set()
+    mid: set[str] = set()
+    try:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            for url in _GITHUB_LISTINGS:
+                resp = await client.get(url)
+                if resp.status_code != 200:
+                    continue
+                for row in resp.json():
+                    symbol = (row.get("symbol") or "").strip()
+                    if not _is_valid_ticker(symbol):
+                        continue
+                    try:
+                        cap = float(row.get("marketCap") or 0)
+                    except (TypeError, ValueError):
+                        continue
+                    if SMALL_CAP_RANGE[0] <= cap < SMALL_CAP_RANGE[1]:
+                        small.add(symbol)
+                    elif MID_CAP_RANGE[0] <= cap < MID_CAP_RANGE[1]:
+                        mid.add(symbol)
+    except Exception as e:
+        print(f"[universe] GitHub listings fetch failed: {e}")
+    return sorted(small), sorted(mid)
+
+
 async def fetch_universe_tickers() -> list[str]:
     """Fetch multi-index universe: S&P 500 + small-cap + mid-cap + ETFs."""
     import asyncio
 
-    sp500, small_cap, mid_cap = await asyncio.gather(
+    sp500, (small_cap, mid_cap) = await asyncio.gather(
         _fetch_sp500(),
-        _fetch_fmp_screener(300_000_000, 2_000_000_000, limit=1500),
-        _fetch_fmp_screener(2_000_000_000, 10_000_000_000, limit=1000),
+        _fetch_cap_buckets(),
     )
+
+    # Fallback to the FMP screener only if the keyless source came up empty
+    if not small_cap and not mid_cap:
+        small_cap, mid_cap = await asyncio.gather(
+            _fetch_fmp_screener(*SMALL_CAP_RANGE, limit=1500),
+            _fetch_fmp_screener(*MID_CAP_RANGE, limit=1000),
+        )
 
     print(f"[universe] S&P 500: {len(sp500)}, Small-cap: {len(small_cap)}, Mid-cap: {len(mid_cap)}, ETFs: {len(ETF_UNIVERSE)}")
 
