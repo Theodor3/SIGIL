@@ -61,12 +61,15 @@ def _download_history_sync(
     history: dict[str, tuple[list[date], list[float]]] = {}
     for ticker in tickers:
         try:
-            if len(tickers) == 1:
+            # group_by="ticker" yields MultiIndex columns even for a single
+            # ticker on current yfinance; fall back to flat columns only
+            # when the ticker level is genuinely absent
+            if ticker in df.columns.get_level_values(0):
+                tdf = df[ticker]
+            elif len(tickers) == 1:
                 tdf = df
             else:
-                if ticker not in df.columns.get_level_values(0):
-                    continue
-                tdf = df[ticker]
+                continue
             closes = tdf["Close"].dropna()
             if closes.empty:
                 continue
