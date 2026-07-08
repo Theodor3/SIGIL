@@ -693,7 +693,18 @@ async def rebalance_preview(db: AsyncSession = Depends(get_db)):
 
 @router.post("/rebalance/execute")
 async def rebalance_execute(db: AsyncSession = Depends(get_db)):
-    """Execute the rebalance plan — sells first, then buys."""
+    """Execute the rebalance plan — cancel-and-replace, sells first, then buys.
+
+    Pending orders are cancelled before planning: the planner prices the
+    account as if nothing is in flight, so a queued set from an earlier
+    click (e.g. pre-market) would stack with this plan and fill on top of
+    it at the open. Repeated clicks now mean "replace the plan", never
+    "add another one".
+    """
+    cancelled = await _broker.cancel_all_orders()
+    if cancelled:
+        print(f"[rebalance] Cancelled {cancelled} pending orders before replanning")
+
     result, error = await _build_rebalance_inputs(db)
     if error:
         return {"error": error}

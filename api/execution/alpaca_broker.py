@@ -180,6 +180,21 @@ class AlpacaBroker:
             print(f"[broker] Price fetch failed for {len(tickers)} tickers: {e}")
             return {}
 
+    async def cancel_all_orders(self) -> int:
+        """Cancel every open order. Rebalancing is cancel-and-replace: the
+        planner prices the account as if no orders are in flight, so any
+        pending set (e.g. queued pre-market by an earlier click) would
+        stack with the new plan and fill on top of it at the open."""
+        if self._demo:
+            return 0
+        client = self._get_client()
+        try:
+            res = client.cancel_orders()
+            return len(res or [])
+        except Exception as e:
+            print(f"[broker] Cancel open orders failed: {e}")
+            return 0
+
     async def get_fills(self, max_orders: int = 3000) -> list[dict]:
         """All filled orders from account history, oldest data included via
         pagination. The order log is the ground truth for what actually
