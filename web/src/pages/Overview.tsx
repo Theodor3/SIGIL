@@ -235,13 +235,19 @@ export default function Overview() {
                     h.regime_id === "high_vol" ? "bg-yellow-400" :
                     h.regime_id === "trend_growth" ? "bg-emerald-400" :
                     "bg-sigil-accent";
+                  const conf = h.confidence ?? 0.5;
+                  const firstOfDay = i === 0 || data.regime.history[i - 1].date !== h.date;
                   return (
-                    <div key={i} className="flex-1 flex flex-col items-center gap-0.5" title={`${h.date}: ${h.regime_id} (${(h.confidence * 100).toFixed(0)}%)`}>
+                    // column must be h-full — a %-height bar inside an
+                    // auto-height flex column collapses to 0px
+                    <div key={i} className="flex-1 h-full flex flex-col items-center justify-end gap-0.5" title={`${h.date}: ${h.regime_id} (${(conf * 100).toFixed(0)}%)`}>
                       <div
                         className={`w-full rounded-sm ${color}`}
-                        style={{ height: `${Math.max(h.confidence * 100, 20)}%` }}
+                        style={{ height: `${Math.max(conf * 100, 20)}%` }}
                       />
-                      <span className="text-[9px] text-sigil-muted">{h.date}</span>
+                      <span className="text-[9px] text-sigil-muted h-3">
+                        {firstOfDay ? h.date : ""}
+                      </span>
                     </div>
                   );
                 })}
