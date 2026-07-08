@@ -24,11 +24,15 @@ _equity_task: asyncio.Task | None = None
 
 
 async def _equity_loop():
-    """Hourly account-equity snapshot — the performance history heartbeat."""
+    """Hourly account-equity snapshot — the performance history heartbeat.
+
+    First capture waits out the boot window: startup backfill, the boot
+    pipeline run, and evaluation all contend for SQLite's single writer,
+    and the snapshot is the one writer that can afford to be late."""
     from api.routes.portfolio import _broker
     from api.tracker.equity import capture_snapshot
 
-    await asyncio.sleep(20)
+    await asyncio.sleep(300)
     while True:
         try:
             async with async_session() as db:
