@@ -14,10 +14,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.models import ScreeningCache
 
-STALE_AFTER_DAYS = 30
-# Per-run refresh budget in tickers (3 FMP calls each). The first run after
-# FMP's midnight-UTC quota reset covers most of this; later runs bail early.
-REFRESH_BUDGET = 80
+STALE_AFTER_DAYS = 14
+# Per-run refresh budget in tickers (3 FMP calls each). Sized for FMP
+# Starter's 300/min limit with the global pacer: 500 tickers ≈ 1,500 calls
+# ≈ 5.5 min per run, full ~3,200-ticker coverage in ~7 runs (<2 days),
+# then steady-state re-refresh every 14 days fits inside one run's budget.
+REFRESH_BUDGET = 500
 
 
 async def load_screening_cache(db: AsyncSession) -> dict[str, dict]:

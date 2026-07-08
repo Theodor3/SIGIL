@@ -22,12 +22,33 @@ def _num(v: Any) -> float | None:
         return None
 
 
+# Global pacer: FMP Starter allows 300 calls/min. Un-paced batch blasts
+# (20 tickers x 3 calls with 0.3s sleeps) hit the wall inside a minute and
+# drown in 429s — which looked like a dead quota. ~270/min leaves headroom.
+_CALLS_PER_SECOND = 4.5
+_pace_lock = asyncio.Lock()
+_next_slot = 0.0
+
+
+async def _throttle() -> None:
+    global _next_slot
+    loop = asyncio.get_running_loop()
+    async with _pace_lock:
+        now = loop.time()
+        wait = max(0.0, _next_slot - now)
+        _next_slot = max(now, _next_slot) + 1.0 / _CALLS_PER_SECOND
+    if wait > 0:
+        await asyncio.sleep(wait)
+
+
 async def _get(client: httpx.AsyncClient, endpoint: str, params: dict | None = None) -> Any:
     params = params or {}
     params["apikey"] = settings.fmp_api_key
+    await _throttle()
     resp = await client.get(f"{_BASE}/{endpoint}", params=params)
     if resp.status_code == 429:
-        await asyncio.sleep(2)
+        await asyncio.sleep(5)
+        await _throttle()
         resp = await client.get(f"{_BASE}/{endpoint}", params=params)
     if resp.status_code != 200:
         return None
