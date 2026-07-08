@@ -139,6 +139,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] Trade reconcile skipped: {e}")
 
+    # Repair missing exit prices/P&L from broker fill history;
+    # no-op once every closed trade carries real numbers
+    try:
+        from api.routes.portfolio import backfill_trade_pnl
+        async with async_session() as db:
+            await backfill_trade_pnl(db)
+    except Exception as e:
+        print(f"[startup] P&L backfill skipped: {e}")
+
     from api.data.registry import init_default_sources
     init_default_sources()
 

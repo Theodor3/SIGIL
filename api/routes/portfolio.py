@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db import get_db
@@ -72,6 +72,26 @@ async def get_portfolio(db: AsyncSession = Depends(get_db)):
         pct = (pos.market_value / total_value) * 100 if total_value else 0
         sector_exposure[sector] = sector_exposure.get(sector, 0) + pct
 
+    # Aggregates over ALL closed trades, not just the 50 shown — and an
+    # account-level P&L (equity vs starting capital) that no bookkeeping
+    # bug can distort. Win rate counts only trades with a recorded P&L.
+    from api.config.settings import settings as app_settings
+    agg_q = await db.execute(
+        select(
+            func.count(Trade.id),
+            func.coalesce(func.sum(Trade.realized_pnl), 0.0),
+            func.count(Trade.realized_pnl),
+            func.sum(case((Trade.realized_pnl > 0, 1), else_=0)),
+        ).where(Trade.status == "closed")
+    )
+    closed_count, total_realized_pnl, graded_count, win_count = agg_q.one()
+    total_realized_pnl = round(total_realized_pnl or 0, 2)
+    win_rate = (win_count or 0) / graded_count if graded_count else 0
+    account_pnl = (
+        round(account.equity - app_settings.paper_starting_equity, 2)
+        if not _broker.is_demo else 0.0
+    )
+
     return {
         "account": {
             "equity": account.equity,
@@ -97,14 +117,12 @@ async def get_portfolio(db: AsyncSession = Depends(get_db)):
         "closed_trades": closed_trades,
         "sector_exposure": sector_exposure,
         "stats": {
-            "total_trades": len(open_trades) + len(closed_trades),
+            "total_trades": len(open_trades) + closed_count,
             "open_count": len(open_trades),
-            "closed_count": len(closed_trades),
-            "total_realized_pnl": sum(t.get("realized_pnl", 0) or 0 for t in closed_trades),
-            "win_rate": (
-                sum(1 for t in closed_trades if (t.get("realized_pnl") or 0) > 0) / len(closed_trades)
-                if closed_trades else 0
-            ),
+            "closed_count": closed_count,
+            "total_realized_pnl": total_realized_pnl,
+            "account_pnl": account_pnl,
+            "win_rate": win_rate,
         },
     }
 
@@ -264,6 +282,64 @@ async def reconcile_trades(db: AsyncSession) -> dict:
 async def reconcile_endpoint(db: AsyncSession = Depends(get_db)):
     """Manually sync open trades to actual broker positions."""
     return await reconcile_trades(db)
+
+
+async def backfill_trade_pnl(db: AsyncSession) -> dict:
+    """Repair closed trades with missing or fabricated P&L using the broker's
+    order-fill history — the ground truth for what executed at what price.
+
+    Targets trades whose exit_price is null/zero: reconciled orphans (closed
+    with no price on purpose) and the old fake-loss closes (P&L computed from
+    a missing fill treated as $0). Exit price is the ticker's volume-weighted
+    average sell fill; an approximation when a ticker was exited in several
+    waves, but grounded in real executions.
+    """
+    if _broker.is_demo:
+        return {"repaired": 0, "skipped": "demo mode"}
+
+    broken_q = await db.execute(
+        select(Trade).where(
+            Trade.status == "closed",
+            (Trade.exit_price.is_(None)) | (Trade.exit_price <= 0),
+        )
+    )
+    broken = broken_q.scalars().all()
+    if not broken:
+        return {"repaired": 0}
+
+    fills = await _broker.get_fills()
+    sell_notional: dict[str, float] = {}
+    sell_qty: dict[str, float] = {}
+    for f in fills:
+        if f["side"] == "sell":
+            sell_notional[f["ticker"]] = sell_notional.get(f["ticker"], 0) + f["qty"] * f["price"]
+            sell_qty[f["ticker"]] = sell_qty.get(f["ticker"], 0) + f["qty"]
+
+    repaired = 0
+    for trade in broken:
+        qty = sell_qty.get(trade.ticker, 0)
+        if qty <= 0:
+            continue  # no recorded sells for this ticker — leave honest null
+        vwap = sell_notional[trade.ticker] / qty
+        shares = trade.shares or 0
+        entry = trade.entry_price
+        trade.exit_price = round(vwap, 4)
+        if entry and shares:
+            trade.realized_pnl = round((vwap - entry) * shares, 2)
+        else:
+            trade.realized_pnl = 0.0
+        repaired += 1
+
+    await db.commit()
+    if repaired:
+        print(f"[backfill] Repaired exit price/P&L on {repaired} closed trades from broker fills")
+    return {"repaired": repaired, "unmatched": len(broken) - repaired}
+
+
+@router.post("/backfill-pnl")
+async def backfill_pnl_endpoint(db: AsyncSession = Depends(get_db)):
+    """Manually repair closed-trade P&L from broker fill history."""
+    return await backfill_trade_pnl(db)
 
 
 @router.post("/close/{trade_id}")

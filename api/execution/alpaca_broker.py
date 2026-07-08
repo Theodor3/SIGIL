@@ -180,6 +180,46 @@ class AlpacaBroker:
             print(f"[broker] Price fetch failed for {len(tickers)} tickers: {e}")
             return {}
 
+    async def get_fills(self, max_orders: int = 3000) -> list[dict]:
+        """All filled orders from account history, oldest data included via
+        pagination. The order log is the ground truth for what actually
+        executed at what price — used to backfill trade P&L the DB lost."""
+        if self._demo:
+            return []
+        from alpaca.trading.requests import GetOrdersRequest
+        from alpaca.trading.enums import QueryOrderStatus
+
+        client = self._get_client()
+        fills: list[dict] = []
+        seen_ids: set[str] = set()
+        until = None
+        while len(fills) < max_orders:
+            req = GetOrdersRequest(
+                status=QueryOrderStatus.CLOSED, limit=500, until=until, direction="desc"
+            )
+            orders = client.get_orders(filter=req)
+            if not orders:
+                break
+            for o in orders:
+                oid = str(o.id)
+                if oid in seen_ids:
+                    continue
+                seen_ids.add(oid)
+                qty = float(o.filled_qty or 0)
+                price = float(o.filled_avg_price) if o.filled_avg_price else 0.0
+                if qty > 0 and price > 0 and o.filled_at:
+                    fills.append({
+                        "ticker": o.symbol,
+                        "side": str(o.side).split(".")[-1].lower(),  # buy / sell
+                        "qty": qty,
+                        "price": price,
+                        "filled_at": o.filled_at,
+                    })
+            if len(orders) < 500:
+                break
+            until = orders[-1].submitted_at
+        return fills
+
     async def is_market_open(self) -> bool:
         """True when the market is open for trading. Fails closed on errors."""
         if self._demo:

@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     auto_rebalance: bool = True
     pipeline_interval_hours: float = 6
     auth_password: str = ""
+    paper_starting_equity: float = 100_000.0
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

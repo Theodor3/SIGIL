@@ -45,6 +45,7 @@ interface PortfolioData {
     open_count: number;
     closed_count: number;
     total_realized_pnl: number;
+    account_pnl?: number;
     win_rate: number;
   };
 }
@@ -297,10 +298,13 @@ export default function Portfolio() {
         </div>
         <div className="rounded-xl border border-sigil-border bg-sigil-surface p-5">
           <div className="text-sigil-muted text-xs uppercase tracking-wider mb-1">
-            Realized P&L
+            Total P&L
           </div>
           <div className="text-2xl font-bold">
-            <PnlText value={stats?.total_realized_pnl} />
+            <PnlText value={stats?.account_pnl ?? stats?.total_realized_pnl} />
+          </div>
+          <div className="text-xs text-sigil-muted mt-1">
+            realized <PnlText value={stats?.total_realized_pnl} />
           </div>
         </div>
       </div>
