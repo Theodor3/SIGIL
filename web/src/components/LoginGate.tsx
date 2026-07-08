@@ -12,7 +12,8 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
       .then((r) => r.json())
       .then((data) => {
         setNeedsAuth(data.auth_required);
-        if (!data.auth_required) setAuthenticated(true);
+        // an already-valid session cookie means no login form on refresh
+        if (!data.auth_required || data.authenticated) setAuthenticated(true);
       })
       .catch(() => setAuthenticated(true))
       .finally(() => setChecking(false));

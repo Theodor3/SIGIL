@@ -66,6 +66,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
+def verify_session(token: str | None) -> bool:
+    """True when the given session cookie value is valid and unexpired."""
+    if not settings.auth_password:
+        return True
+    return bool(token) and _verify_token(token)
+
+
 def verify_password(password: str) -> str | None:
     if not settings.auth_password:
         return None
