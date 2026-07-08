@@ -218,6 +218,9 @@ app.include_router(portfolio_router)
 app.include_router(research_router)
 app.include_router(ws_router)
 
+from api.routes.watchlist import router as watchlist_router  # noqa: E402
+app.include_router(watchlist_router)
+
 
 @app.get("/health")
 async def health():

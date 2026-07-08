@@ -36,10 +36,18 @@ def choose_refresh(
     universe: list[str],
     cached: dict[str, dict],
     budget: int = REFRESH_BUDGET,
+    priority: list[str] | None = None,
 ) -> list[str]:
-    """Pick which tickers to spend this run's FMP quota on."""
+    """Pick which tickers to spend this run's FMP quota on.
+
+    priority tickers (e.g. the watchlist) jump the queue when uncached,
+    so force-included names have fundamentals by their first run."""
     missing = [t for t in universe if t not in cached]
     random.shuffle(missing)
+    if priority:
+        front = [t for t in priority if t in set(missing)]
+        rest = [t for t in missing if t not in set(front)]
+        missing = front + rest
     if len(missing) >= budget:
         return missing[:budget]
 

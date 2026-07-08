@@ -83,6 +83,20 @@ class ScreeningCache(Base):
     fetched_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
+class WatchlistTicker(Base):
+    """Force-included research tickers (e.g. a friend's holdings).
+
+    Watchlist tickers flow through screening, every signal, grading, and
+    Research — but are excluded from portfolio target construction. An
+    empty table means the pipeline behaves exactly as if this feature
+    didn't exist."""
+    __tablename__ = "watchlist"
+
+    ticker: Mapped[str] = mapped_column(String(10), primary_key=True)
+    added_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    note: Mapped[str | None] = mapped_column(String(120))
+
+
 class EquitySnapshot(Base):
     """Hourly account equity record — the honest performance history.
 

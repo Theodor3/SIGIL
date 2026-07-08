@@ -178,6 +178,12 @@ async def generate_targets(db: AsyncSession = Depends(get_db)):
     )
     scored = score_universe(signal_outputs, weights, regime)
 
+    # Watchlist tickers are research-only — never portfolio candidates
+    from api.routes.watchlist import get_watchlist_tickers
+    watch = set(await get_watchlist_tickers(db))
+    if watch:
+        scored = [s for s in scored if s.ticker not in watch]
+
     account = await _broker.get_account()
     tickers = [s.ticker for s in scored[:20] if s.eligible]
     prices = await _broker.get_prices(tickers)
@@ -586,6 +592,12 @@ async def _build_rebalance_inputs(db: AsyncSession):
         factor_tilts=REGIME_DEFAULTS["factor_tilts"].get(regime_id, {}),
     )
     scored = score_universe(signal_outputs, weights, regime)
+
+    # Watchlist tickers are research-only — never portfolio candidates
+    from api.routes.watchlist import get_watchlist_tickers
+    watch = set(await get_watchlist_tickers(db))
+    if watch:
+        scored = [s for s in scored if s.ticker not in watch]
 
     account = await _broker.get_account()
     positions = await _broker.get_positions()

@@ -125,6 +125,15 @@ async def run_pipeline(db: AsyncSession) -> dict:
         universe = await fetch_universe_tickers()
         print(f"[pipeline] Fetched {len(universe)} tickers across all indices")
 
+        # Watchlist tickers are force-included in the universe (and jump
+        # the screening-refresh queue); an empty watchlist is a no-op
+        from api.routes.watchlist import get_watchlist_tickers
+        watchlist = await get_watchlist_tickers(db)
+        if watchlist:
+            universe_set = set(universe)
+            universe += [t for t in watchlist if t not in universe_set]
+            print(f"[pipeline] Watchlist: {len(watchlist)} force-included tickers")
+
         # Screening fundamentals come from the persistent cache; each run
         # spends its FMP quota refreshing a shuffled slice, so coverage
         # compounds across runs instead of resetting (and dying) every 6h
@@ -132,7 +141,7 @@ async def run_pipeline(db: AsyncSession) -> dict:
             choose_refresh, load_screening_cache, store_screening_cache,
         )
         cached = await load_screening_cache(db)
-        refresh_list = choose_refresh(universe, cached)
+        refresh_list = choose_refresh(universe, cached, priority=watchlist)
         fresh = await fmp.fetch_screening_data(refresh_list)
         await store_screening_cache(db, fresh)
 
@@ -150,6 +159,9 @@ async def run_pipeline(db: AsyncSession) -> dict:
         bucket = screen_universe(fundamentals)
         if not bucket:
             bucket = list(fundamentals.keys())[:75]
+        if watchlist:
+            in_bucket = set(bucket)
+            bucket += [t for t in watchlist if t not in in_bucket]
         print(f"[pipeline] Universe: {len(bucket)} tickers after screening")
 
         # Phase 3: Fetch ALL other data sources IN PARALLEL
