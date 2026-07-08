@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
+import WatchlistCard from "../components/WatchlistCard";
+
 interface SignalBreakdown {
   signal: string;
   score: number;
@@ -153,6 +155,10 @@ export default function Research() {
           Research
         </button>
       </form>
+
+      {!data && !loading && (
+        <WatchlistCard onSelect={(t) => { setQuery(t); loadTicker(t); }} />
+      )}
 
       {loading && <div className="text-sigil-muted text-sm">Loading research for {ticker}...</div>}
       {error && <div className="text-sigil-danger text-sm">{error}</div>}
