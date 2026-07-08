@@ -203,6 +203,69 @@ async def execute_targets(db: AsyncSession = Depends(get_db)):
     return await rebalance_execute(db)
 
 
+async def reconcile_trades(db: AsyncSession) -> dict:
+    """Sync open DB trades to broker truth.
+
+    Historical bookkeeping bugs left trades open after the broker position
+    was sold (only the earliest trade per ticker got closed). Any open-trade
+    shares beyond what the broker actually holds were sold at some
+    unrecorded point: close them oldest-first (matching the FIFO sell
+    convention) with no exit price or P&L rather than inventing numbers.
+    Zero-share ghost trades are closed unconditionally.
+    """
+    if _broker.is_demo:
+        # Demo broker holds no positions — DB trades ARE the demo state
+        return {"closed": 0, "reduced": 0, "skipped": "demo mode"}
+
+    positions = await _broker.get_positions()
+    broker_qty: dict[str, int] = {}
+    for p in positions:
+        broker_qty[p.ticker] = broker_qty.get(p.ticker, 0) + max(int(p.qty), 0)
+
+    open_q = await db.execute(
+        select(Trade).where(Trade.status == "open").order_by(Trade.opened_at.asc())
+    )
+    open_trades = open_q.scalars().all()
+
+    by_ticker: dict[str, list[Trade]] = {}
+    now = datetime.utcnow()
+    closed = reduced = 0
+
+    for trade in open_trades:
+        if (trade.shares or 0) <= 0:
+            trade.closed_at = now
+            trade.status = "closed"
+            closed += 1
+            continue
+        by_ticker.setdefault(trade.ticker, []).append(trade)
+
+    for ticker, trades in by_ticker.items():
+        excess = sum(t.shares or 0 for t in trades) - broker_qty.get(ticker, 0)
+        for trade in trades:  # oldest first
+            if excess <= 0:
+                break
+            take = min(trade.shares, excess)
+            if take >= trade.shares:
+                trade.closed_at = now
+                trade.status = "closed"
+                closed += 1
+            else:
+                trade.shares -= take
+                reduced += 1
+            excess -= take
+
+    await db.commit()
+    if closed or reduced:
+        print(f"[reconcile] Closed {closed} orphaned trades, reduced {reduced} to broker quantities")
+    return {"closed": closed, "reduced": reduced}
+
+
+@router.post("/reconcile")
+async def reconcile_endpoint(db: AsyncSession = Depends(get_db)):
+    """Manually sync open trades to actual broker positions."""
+    return await reconcile_trades(db)
+
+
 @router.post("/close/{trade_id}")
 async def close_trade(trade_id: int, db: AsyncSession = Depends(get_db)):
     """Close an open trade — fetch current price, compute P&L, update DB."""
@@ -521,6 +584,12 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
             errors.append({"ticker": order.ticker, "side": "buy", "error": str(e)})
 
     await db.commit()
+
+    # Sweep up any orphaned open trades now that orders are placed
+    try:
+        await reconcile_trades(db)
+    except Exception as e:
+        print(f"[reconcile] Post-rebalance reconcile failed: {e}")
 
     sell_count = sum(1 for o in executed if o["side"] == "sell")
     buy_count = sum(1 for o in executed if o["side"] == "buy")

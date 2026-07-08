@@ -130,6 +130,15 @@ async def lifespan(app: FastAPI):
         if res.rowcount:
             print(f"[startup] Marked {res.rowcount} interrupted pipeline runs as failed")
 
+    # One-time sweep of open trades orphaned by pre-FIFO bookkeeping;
+    # cheap no-op when the table is already in sync
+    try:
+        from api.routes.portfolio import reconcile_trades
+        async with async_session() as db:
+            await reconcile_trades(db)
+    except Exception as e:
+        print(f"[startup] Trade reconcile skipped: {e}")
+
     from api.data.registry import init_default_sources
     init_default_sources()
 
