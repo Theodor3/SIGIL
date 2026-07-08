@@ -1,12 +1,15 @@
 """Insider activity signal — net insider buying/selling from SEC filings."""
 from __future__ import annotations
 
+from datetime import date, timedelta
 from typing import TYPE_CHECKING
 
 from api.signals.base import Signal, SignalOutput
 
 if TYPE_CHECKING:
     from api.data.context import PipelineContext
+
+RECENT_WINDOW_DAYS = 90
 
 
 class InsiderSignal(Signal):
@@ -16,7 +19,7 @@ class InsiderSignal(Signal):
 
     @property
     def version(self) -> str:
-        return "1.0"
+        return "1.1"
 
     @property
     def default_weight(self) -> float:
@@ -35,9 +38,13 @@ class InsiderSignal(Signal):
         return ["event", "insider", "sentiment"]
 
     async def compute(self, ctx: PipelineContext) -> list[SignalOutput]:
+        # ctx now carries 12 months of history (for insider_pattern_break);
+        # this signal keeps its original "recent net buying" meaning
+        cutoff = (date.today() - timedelta(days=RECENT_WINDOW_DAYS)).isoformat()
         results = []
         for ticker in ctx.universe:
-            transactions = ctx.insider_transactions.get(ticker, [])
+            all_tx = ctx.insider_transactions.get(ticker, [])
+            transactions = [t for t in all_tx if (t.get("date") or "") >= cutoff]
             if not transactions:
                 results.append(SignalOutput(ticker, 0.5, 0.0, {"reason": "no_data"}))
                 continue

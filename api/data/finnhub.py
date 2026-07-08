@@ -88,9 +88,16 @@ class FinnhubProvider(DataProvider):
         return {"calendar": calendar, "history": history}
 
     async def fetch_insider_transactions(self, tickers: list[str]) -> dict[str, list[dict]]:
+        """12 months of insider transactions per ticker.
+
+        The window must be long enough to establish per-insider selling
+        cadence — the insider_pattern_break signal needs history, not just
+        the latest filings. transactionCode is the SEC Form 4 code
+        (P=open-market buy, S=open-market sale, etc.)."""
         if not settings.finnhub_api_key:
             return {}
         result: dict[str, list[dict]] = {}
+        from_date = (date.today() - timedelta(days=365)).isoformat()
         async with httpx.AsyncClient(timeout=15) as client:
             for i, ticker in enumerate(tickers):
                 if i > 0 and i % 25 == 0:
@@ -98,7 +105,11 @@ class FinnhubProvider(DataProvider):
                 try:
                     resp = await client.get(
                         f"{self.BASE}/stock/insider-transactions",
-                        params={"symbol": ticker, "token": settings.finnhub_api_key},
+                        params={
+                            "symbol": ticker,
+                            "from": from_date,
+                            "token": settings.finnhub_api_key,
+                        },
                     )
                     if resp.status_code == 200:
                         data = resp.json().get("data", [])
@@ -108,9 +119,11 @@ class FinnhubProvider(DataProvider):
                                 "share": t.get("share", 0),
                                 "change": t.get("change", 0),
                                 "transaction_type": t.get("transactionType", ""),
+                                "code": t.get("transactionCode", "") or "",
+                                "price": t.get("transactionPrice", 0) or 0,
                                 "date": t.get("transactionDate", ""),
                             }
-                            for t in data[:10]
+                            for t in data[:200]
                         ]
                         if recent:
                             result[ticker] = recent

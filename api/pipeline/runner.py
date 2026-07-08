@@ -41,6 +41,11 @@ async def _fetch_fred() -> dict:
     return await FredProvider().fetch()
 
 
+async def _fetch_edgar(bucket: list[str]) -> dict:
+    from api.data.edgar import EdgarProvider
+    return await EdgarProvider().fetch(bucket)
+
+
 async def _fetch_wikipedia(bucket: list[str], fundamentals: dict | None = None) -> dict:
     from api.data.wikipedia import WikipediaProvider
     return await WikipediaProvider().fetch(bucket, fundamentals=fundamentals)
@@ -149,6 +154,7 @@ async def run_pipeline(db: AsyncSession) -> dict:
             fmp.fetch_price_targets(bucket),           # 13 - analyst price targets
             fmp.fetch_shares_float(bucket),            # 14 - shares float data
             fmp.fetch_analyst_estimates(bucket),       # 15 - forward estimates
+            _fetch_edgar(bucket),                      # 16 - SEC filing red flags
             return_exceptions=True,
         )
         fetch_time = (datetime.utcnow() - t0).total_seconds()
@@ -171,6 +177,7 @@ async def run_pipeline(db: AsyncSession) -> dict:
         price_targets = results[13] if not isinstance(results[13], Exception) else {}
         shares_float = results[14] if not isinstance(results[14], Exception) else {}
         forward_estimates = results[15] if not isinstance(results[15], Exception) else {}
+        filing_flags = results[16] if not isinstance(results[16], Exception) else {}
 
         # Log errors from any failed providers
         provider_names = [
@@ -178,6 +185,7 @@ async def run_pipeline(db: AsyncSession) -> dict:
             "gdelt", "insider", "analyst", "fmp", "tiingo_prices",
             "alphavantage", "bls", "yahoo_fundamentals",
             "fmp_price_targets", "fmp_shares_float", "fmp_forward_estimates",
+            "edgar_filings",
         ]
         for i, name in enumerate(provider_names):
             if isinstance(results[i], Exception):
@@ -323,6 +331,14 @@ async def run_pipeline(db: AsyncSession) -> dict:
         if forward_estimates:
             print(f"[pipeline] FMP forward estimates: {len(forward_estimates)} tickers")
 
+        # SEC EDGAR filing red flags
+        if not isinstance(results[16], Exception) and filing_flags:
+            flagged = sum(1 for f in filing_flags.values() if any(f.values()))
+            update_source_status("edgar_filings", SourceStatus.ACTIVE, fetch_count=len(filing_flags))
+            print(f"[pipeline] EDGAR: {len(filing_flags)} tickers checked, {flagged} flagged")
+        elif isinstance(results[16], Exception):
+            update_source_status("edgar_filings", SourceStatus.ERROR, error=str(results[16]))
+
         # Build market context for regime detection
         market_context = {**benchmarks, **macro}
 
@@ -340,6 +356,7 @@ async def run_pipeline(db: AsyncSession) -> dict:
             price_targets=price_targets,
             shares_float=shares_float,
             forward_estimates=forward_estimates,
+            filing_flags=filing_flags,
             macro=macro,
             benchmarks=benchmarks,
         )

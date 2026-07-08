@@ -156,6 +156,15 @@ def init_default_sources():
         config={"note": "Free tier: 25 req/day — only fetches top 20 tickers"},
     ))
     register_source(DataSource(
+        name="edgar_filings",
+        provider="SEC EDGAR",
+        description="Filing red flags — NT late filings, auditor changes (8-K 4.01), restatements (8-K 4.02)",
+        category="alt",
+        requires_key=False,
+        status=SourceStatus.ACTIVE,
+        config={"note": "data.sec.gov submissions API, fair-use rate limited"},
+    ))
+    register_source(DataSource(
         name="bls_labor",
         provider="Bureau of Labor Statistics",
         description="CPI, core CPI, nonfarm payrolls, unemployment, PPI, hourly earnings + YoY changes",

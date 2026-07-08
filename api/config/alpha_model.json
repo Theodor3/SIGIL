@@ -7,7 +7,8 @@
         "earnings_surprise_streak": 1.0,
         "earnings_miss_risk": 0.8,
         "analyst_revision": 0.8,
-        "earnings_momentum": 1.0
+        "earnings_momentum": 1.0,
+        "mgmt_credibility": 0.8
       }
     },
     "quality": {
@@ -16,7 +17,8 @@
         "quality": 1.2,
         "accounting_red_flags": 0.8,
         "debt_distress": 0.8,
-        "dividend_safety": 0.6
+        "dividend_safety": 0.6,
+        "filing_red_flags": 0.8
       }
     },
     "momentum": {
@@ -42,6 +44,7 @@
       "budget": 0.05,
       "signals": {
         "insider": 1.0,
+        "insider_pattern_break": 1.0,
         "short_interest": 0.8,
         "growth": 1.2
       }
@@ -64,7 +67,7 @@
   },
   "freeze": {
     "weights_frozen_days": 7,
-    "last_weight_change_date": "2026-06-26"
+    "last_weight_change_date": "2026-07-08"
   },
   "promotion": {
     "min_backtest_sample_n": 40,

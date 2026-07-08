@@ -27,6 +27,9 @@ class PipelineContext:
     shares_float: dict[str, dict] = field(default_factory=dict)
     forward_estimates: dict[str, dict] = field(default_factory=dict)
 
+    # SEC EDGAR filing red flags (NT filings, 8-K items 4.01/4.02)
+    filing_flags: dict[str, dict] = field(default_factory=dict)
+
     # Market-wide
     macro: dict = field(default_factory=dict)
     benchmarks: dict = field(default_factory=dict)
