@@ -284,62 +284,96 @@ async def reconcile_endpoint(db: AsyncSession = Depends(get_db)):
     return await reconcile_trades(db)
 
 
-async def backfill_trade_pnl(db: AsyncSession) -> dict:
-    """Repair closed trades with missing or fabricated P&L using the broker's
-    order-fill history — the ground truth for what executed at what price.
+async def rebuild_closed_trades(db: AsyncSession) -> dict:
+    """Rebuild closed-trade history from the broker's fill log.
 
-    Targets trades whose exit_price is null/zero: reconciled orphans (closed
-    with no price on purpose) and the old fake-loss closes (P&L computed from
-    a missing fill treated as $0). Exit price is the ticker's volume-weighted
-    average sell fill; an approximation when a ticker was exited in several
-    waves, but grounded in real executions.
+    The legacy closed rows are unreliable: duplicate phantom lots from the
+    old execute path, entry prices from fake quotes, and P&L computed from
+    missing fills. Individual repair is impossible because those rows never
+    mapped to real executions. Instead, FIFO-match actual buy fills against
+    actual sell fills and emit true round-trips with real entry and exit
+    prices. Existing closed rows are marked status="void" (kept for audit,
+    invisible to the UI and stats), then replaced.
+
+    Runs once: the presence of void rows marks the rebuild as done, so
+    legitimately closed trades accumulating afterwards are never touched.
     """
     if _broker.is_demo:
-        return {"repaired": 0, "skipped": "demo mode"}
+        return {"rebuilt": 0, "skipped": "demo mode"}
 
-    broken_q = await db.execute(
-        select(Trade).where(
-            Trade.status == "closed",
-            (Trade.exit_price.is_(None)) | (Trade.exit_price <= 0),
-        )
+    void_exists = await db.execute(
+        select(Trade.id).where(Trade.status == "void").limit(1)
     )
-    broken = broken_q.scalars().all()
-    if not broken:
-        return {"repaired": 0}
+    if void_exists.scalar_one_or_none() is not None:
+        return {"rebuilt": 0, "skipped": "already rebuilt"}
 
-    fills = await _broker.get_fills()
-    sell_notional: dict[str, float] = {}
-    sell_qty: dict[str, float] = {}
+    fills = await _broker.get_fills(max_orders=10_000)
+    if not fills:
+        return {"rebuilt": 0, "skipped": "no fill history"}
+    fills.sort(key=lambda f: f["filled_at"])
+
+    # FIFO match: buys stack up as open lots, sells consume them oldest-first
+    open_lots: dict[str, list[dict]] = {}
+    round_trips: list[dict] = []
     for f in fills:
-        if f["side"] == "sell":
-            sell_notional[f["ticker"]] = sell_notional.get(f["ticker"], 0) + f["qty"] * f["price"]
-            sell_qty[f["ticker"]] = sell_qty.get(f["ticker"], 0) + f["qty"]
+        if f["side"] == "buy":
+            open_lots.setdefault(f["ticker"], []).append(
+                {"qty": f["qty"], "price": f["price"], "at": f["filled_at"]}
+            )
+            continue
+        remaining = f["qty"]
+        lots = open_lots.get(f["ticker"], [])
+        while remaining > 0 and lots:
+            lot = lots[0]
+            take = min(lot["qty"], remaining)
+            round_trips.append({
+                "ticker": f["ticker"],
+                "shares": take,
+                "entry_price": lot["price"],
+                "exit_price": f["price"],
+                "opened_at": lot["at"],
+                "closed_at": f["filled_at"],
+                "pnl": round((f["price"] - lot["price"]) * take, 2),
+            })
+            lot["qty"] -= take
+            remaining -= take
+            if lot["qty"] <= 0:
+                lots.pop(0)
+        # remaining > 0 with no lots = sell without a recorded buy; skip —
+        # P&L is unknowable without an entry
 
-    repaired = 0
-    for trade in broken:
-        qty = sell_qty.get(trade.ticker, 0)
-        if qty <= 0:
-            continue  # no recorded sells for this ticker — leave honest null
-        vwap = sell_notional[trade.ticker] / qty
-        shares = trade.shares or 0
-        entry = trade.entry_price
-        trade.exit_price = round(vwap, 4)
-        if entry and shares:
-            trade.realized_pnl = round((vwap - entry) * shares, 2)
-        else:
-            trade.realized_pnl = 0.0
-        repaired += 1
+    closed_q = await db.execute(select(Trade).where(Trade.status == "closed"))
+    voided = 0
+    for trade in closed_q.scalars().all():
+        trade.status = "void"
+        voided += 1
+
+    for rt in round_trips:
+        db.add(Trade(
+            opened_at=rt["opened_at"].replace(tzinfo=None),
+            closed_at=rt["closed_at"].replace(tzinfo=None),
+            ticker=rt["ticker"],
+            side="long",
+            entry_price=round(rt["entry_price"], 4),
+            exit_price=round(rt["exit_price"], 4),
+            shares=int(rt["shares"]),
+            realized_pnl=rt["pnl"],
+            signal_drivers={},
+            regime_at_entry="reconstructed",
+            status="closed",
+        ))
 
     await db.commit()
-    if repaired:
-        print(f"[backfill] Repaired exit price/P&L on {repaired} closed trades from broker fills")
-    return {"repaired": repaired, "unmatched": len(broken) - repaired}
+    total_pnl = round(sum(rt["pnl"] for rt in round_trips), 2)
+    print(f"[rebuild] Voided {voided} legacy closed trades, wrote {len(round_trips)} "
+          f"fill-derived round-trips (realized P&L {total_pnl:+.2f})")
+    return {"rebuilt": len(round_trips), "voided": voided, "realized_pnl": total_pnl}
 
 
-@router.post("/backfill-pnl")
-async def backfill_pnl_endpoint(db: AsyncSession = Depends(get_db)):
-    """Manually repair closed-trade P&L from broker fill history."""
-    return await backfill_trade_pnl(db)
+@router.post("/rebuild-closed-trades")
+async def rebuild_closed_trades_endpoint(db: AsyncSession = Depends(get_db)):
+    """Rebuild closed-trade history from broker fills (one-time)."""
+    return await rebuild_closed_trades(db)
 
 
 @router.post("/close/{trade_id}")
