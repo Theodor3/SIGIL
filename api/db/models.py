@@ -112,6 +112,28 @@ class EquitySnapshot(Base):
     regime_id: Mapped[str | None] = mapped_column(String(32))
 
 
+class OrderExecution(Base):
+    """Every order the rebalancer submits, with the planning quote it was
+    priced against — the raw material for execution-cost analysis. Slippage
+    is signed so positive always means cost: buys filling above plan and
+    sells filling below plan both count against you."""
+    __tablename__ = "order_executions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    order_id: Mapped[str] = mapped_column(String(48), unique=True, nullable=False)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    ticker: Mapped[str] = mapped_column(String(10), nullable=False)
+    side: Mapped[str] = mapped_column(String(4), nullable=False)
+    shares: Mapped[int] = mapped_column(Integer, nullable=False)
+    reason: Mapped[str | None] = mapped_column(String(16))
+    planning_price: Mapped[float | None] = mapped_column(Float)
+    limit_price: Mapped[float | None] = mapped_column(Float)
+    status: Mapped[str] = mapped_column(String(24), default="submitted")
+    filled_qty: Mapped[float | None] = mapped_column(Float)
+    filled_price: Mapped[float | None] = mapped_column(Float)
+    slippage_bps: Mapped[float | None] = mapped_column(Float)
+
+
 class SystemState(Base):
     """Small key-value store for operational state that must survive
     restarts — e.g. last_rebalance_at, so a redeploy can't trigger a

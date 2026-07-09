@@ -413,6 +413,18 @@ async def _spy_series(start_date, end_date) -> tuple[list, list] | None:
     return series
 
 
+@router.get("/execution-quality")
+async def get_execution_quality(days: int = 30, db: AsyncSession = Depends(get_db)):
+    """Slippage and churn-cost stats: planning quote vs actual fill, per day
+    and cumulative. Reconciles any pending fills from the broker first."""
+    from api.tracker.execution import execution_quality, reconcile_executions
+    try:
+        await reconcile_executions(db, _broker)
+    except Exception as e:
+        print(f"[execution] Reconcile on view failed: {e}")
+    return await execution_quality(db, days=days)
+
+
 @router.get("/equity-history")
 async def equity_history(days: int = 30, db: AsyncSession = Depends(get_db)):
     """Equity curve with SPY-equivalent benchmark and summary stats.
@@ -743,12 +755,27 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
             return None
         return px * (1 + collar) if side == "buy" else px * (1 - collar)
 
+    from api.tracker.execution import record_order
+
     # Sells first to free up cash
     for order in plan.sells:
         try:
+            sell_limit = _limit_for(order.ticker, "sell")
             res = await _broker.submit_order(
                 order.ticker, order.shares, "sell",
-                limit_price=_limit_for(order.ticker, "sell"),
+                limit_price=sell_limit,
+            )
+            record_order(
+                db,
+                order_id=res.order_id,
+                ticker=order.ticker,
+                side="sell",
+                shares=order.shares,
+                reason=order.reason,
+                planning_price=result["prices"].get(order.ticker),
+                limit_price=sell_limit,
+                status=res.status,
+                filled_price=res.filled_price,
             )
             # Best known exit price: reported fill, else the planning quote.
             # With neither, P&L on affected trades is recorded as 0, not as
@@ -798,9 +825,22 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
     # Then buys
     for order in plan.buys:
         try:
+            buy_limit = _limit_for(order.ticker, "buy")
             res = await _broker.submit_order(
                 order.ticker, order.shares, "buy",
-                limit_price=_limit_for(order.ticker, "buy"),
+                limit_price=buy_limit,
+            )
+            record_order(
+                db,
+                order_id=res.order_id,
+                ticker=order.ticker,
+                side="buy",
+                shares=order.shares,
+                reason=order.reason,
+                planning_price=result["prices"].get(order.ticker),
+                limit_price=buy_limit,
+                status=res.status,
+                filled_price=res.filled_price,
             )
             if order.reason == "new":
                 target_match = next(

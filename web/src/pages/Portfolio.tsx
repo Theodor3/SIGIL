@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import EquityCurve from "../components/EquityCurve";
+import ExecutionQuality from "../components/ExecutionQuality";
 
 interface PortfolioData {
   account: {
@@ -319,6 +320,8 @@ export default function Portfolio() {
       </div>
 
       <EquityCurve />
+
+      <ExecutionQuality />
 
       {/* Tab Navigation */}
       <div className="flex gap-1 border-b border-sigil-border overflow-x-auto">

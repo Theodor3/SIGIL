@@ -208,6 +208,22 @@ class AlpacaBroker:
             print(f"[broker] Cancel open orders failed: {e}")
             return 0
 
+    async def get_order_fill(self, order_id: str) -> dict | None:
+        """Current status and fill data for one order. None if unavailable."""
+        if self._demo:
+            return None
+        try:
+            client = self._get_client()
+            o = client.get_order_by_id(order_id)
+            return {
+                "status": str(o.status).split(".")[-1].lower(),
+                "filled_qty": float(o.filled_qty or 0),
+                "filled_price": float(o.filled_avg_price) if o.filled_avg_price else None,
+            }
+        except Exception as e:
+            print(f"[broker] Order lookup failed for {order_id}: {e}")
+            return None
+
     async def get_fills(self, max_orders: int = 3000) -> list[dict]:
         """All filled orders from account history, oldest data included via
         pagination. The order log is the ground truth for what actually

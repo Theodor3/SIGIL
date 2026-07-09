@@ -83,6 +83,19 @@ async def _scheduled_loop():
 
                 await broadcast("evaluation_complete", {"status": "done"})
 
+                # Backfill fill prices for any orders still pending from
+                # earlier rebalances (limit orders can fill after the
+                # submit-time poll gives up)
+                try:
+                    from api.tracker.execution import reconcile_executions
+                    from api.routes.portfolio import _broker as _reb_broker
+                    async with async_session() as db:
+                        r = await reconcile_executions(db, _reb_broker)
+                        if r["reconciled"]:
+                            print(f"[scheduler] Reconciled {r['reconciled']} order fills")
+                except Exception as e:
+                    print(f"[scheduler] Execution reconcile failed: {e}")
+
                 # Auto-rebalance after pipeline
                 if settings.auto_rebalance:
                     try:
