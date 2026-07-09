@@ -56,7 +56,10 @@ class AlphaVantageProvider(DataProvider):
                                     if est != 0:
                                         surprise_history.append({
                                             "date": q.get("reportedDate"),
-                                            "surprise_pct": (rep - est) / abs(est),
+                                            # Percent units, matching Finnhub's
+                                            # surprisePercent — every earnings
+                                            # signal assumes percent scale
+                                            "surprise_pct": (rep - est) / abs(est) * 100.0,
                                             "estimated": est,
                                             "reported": rep,
                                         })

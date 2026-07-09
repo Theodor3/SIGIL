@@ -1,4 +1,15 @@
-"""PEAD signal — post-earnings announcement drift."""
+"""PEAD signal — post-earnings announcement drift.
+
+Stocks that persistently beat EPS estimates tend to keep drifting up in
+the weeks after reporting (and persistent missers keep drifting down).
+Scores are centered at the 0.5 neutral: above = expected positive drift,
+below = expected negative drift.
+
+v1 emitted raw surprise magnitudes capped at 0.12 — in a 0.5-neutral
+scoring system every prediction landed in short territory, so the
+evaluator graded its (correct) long picks as failed shorts and the
+composite scorer penalized its favorite tickers hardest.
+"""
 from __future__ import annotations
 
 from statistics import mean
@@ -12,6 +23,10 @@ if TYPE_CHECKING:
 MIN_SAMPLES = 2
 MAX_DAYS_TO_EARNINGS = 45
 PROXIMITY_FLOOR = 0.2
+# Average EPS surprise (percent) at which the drift tilt saturates
+SURPRISE_SATURATION_PCT = 10.0
+# Maximum distance from the 0.5 neutral a perfect setup can reach
+MAX_TILT = 0.35
 
 
 class PEADSignal(Signal):
@@ -21,7 +36,7 @@ class PEADSignal(Signal):
 
     @property
     def version(self) -> str:
-        return "1.0"
+        return "2.0"
 
     @property
     def default_weight(self) -> float:
@@ -49,9 +64,15 @@ class PEADSignal(Signal):
                 results.append(SignalOutput(ticker, 0.5, 0.0, {"reason": "insufficient_data"}))
                 continue
 
-            returns = [e["return_5d"] for e in history]
-            avg_return = mean(returns)
-            hit_rate = sum(1 for r in returns if r > 0) / len(returns)
+            surprises = [e.get("surprise_pct", 0) or 0 for e in history]
+            avg_surprise = mean(surprises)
+
+            # Consistency: fraction of quarters surprising in the same
+            # direction as the average — a mixed record earns a weak call
+            if avg_surprise >= 0:
+                consistency = sum(1 for s in surprises if s > 0) / len(surprises)
+            else:
+                consistency = sum(1 for s in surprises if s < 0) / len(surprises)
 
             if next_earnings:
                 days_to = (next_earnings - ctx.as_of_date).days
@@ -64,18 +85,24 @@ class PEADSignal(Signal):
                 proximity = PROXIMITY_FLOOR
                 days_to = -1
 
-            score = max(avg_return, 0) * hit_rate * proximity
-            confidence = hit_rate * (0.5 if days_to < 0 else 1.0)
+            # Signed tilt around neutral: persistent beaters drift up,
+            # persistent missers drift down
+            tilt = max(-1.0, min(1.0, avg_surprise / SURPRISE_SATURATION_PCT))
+            score = 0.5 + MAX_TILT * tilt * consistency * proximity
+
+            confidence = consistency * min(1.0, len(history) / 4)
+            if days_to < 0:
+                confidence *= 0.5
 
             results.append(SignalOutput(
                 ticker=ticker,
-                score=min(score, 0.12),
-                confidence=confidence,
+                score=round(min(max(score, 0.0), 1.0), 4),
+                confidence=round(confidence, 3),
                 metadata={
                     "days_to_earnings": days_to,
                     "samples": len(history),
-                    "avg_return_5d": round(avg_return, 4),
-                    "hit_rate": round(hit_rate, 3),
+                    "avg_surprise_pct": round(avg_surprise, 2),
+                    "consistency": round(consistency, 3),
                     "proximity": round(proximity, 3),
                 },
             ))
