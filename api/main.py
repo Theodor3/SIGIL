@@ -87,70 +87,79 @@ async def _scheduled_loop():
                 if settings.auto_rebalance:
                     try:
                         await broadcast("rebalance_status", {"status": "running"})
+                        from api.routes.portfolio import _build_rebalance_inputs, _broker
+                        from api.execution.rebalancer import compute_rebalance
+                        from api.db.state import get_state
+
+                        # Gate check in its own short-lived session. No DB
+                        # session may be held across the sleeps below — an
+                        # idle SQLite read transaction blocks every other
+                        # writer (equity snapshots failed all night once).
                         async with async_session() as db:
-                            from api.routes.portfolio import _build_rebalance_inputs, _broker
-                            from api.execution.rebalancer import compute_rebalance
-                            from api.db.state import get_state
-
-                            # A rebalance ran recently (this includes every
-                            # boot — deploys must not trade)
                             last_reb = await get_state(db, "last_rebalance_at")
-                            too_soon = False
-                            if last_reb:
-                                elapsed = datetime.utcnow() - datetime.fromisoformat(last_reb)
-                                too_soon = elapsed < timedelta(hours=settings.min_rebalance_interval_hours)
 
-                            if too_soon:
-                                result, err = None, f"last rebalance {elapsed} ago (min {settings.min_rebalance_interval_hours}h)"
+                        # A rebalance ran recently (this includes every
+                        # boot — deploys must not trade)
+                        skip_reason = None
+                        if last_reb:
+                            elapsed = datetime.utcnow() - datetime.fromisoformat(last_reb)
+                            if elapsed < timedelta(hours=settings.min_rebalance_interval_hours):
+                                skip_reason = f"last rebalance {elapsed} ago (min {settings.min_rebalance_interval_hours}h)"
+
+                        if skip_reason is None:
+                            # Market closed: defer to just after the next
+                            # open rather than skipping — a 24h interval
+                            # anchored to an evening boot would otherwise
+                            # never land in market hours. Deferring also
+                            # re-anchors the whole loop to ~the open.
+                            until_open = await _broker.seconds_until_market_open()
+                            if until_open is None:
+                                skip_reason = "market clock unavailable"
+                            elif until_open > 0:
+                                wait_s = until_open + settings.open_quiet_minutes * 60
+                                print(f"[scheduler] Market closed — deferring rebalance {wait_s / 3600:.1f}h until after next open")
+                                await asyncio.sleep(wait_s)
                             else:
-                                # Market closed: defer to just after the next
-                                # open rather than skipping — a 24h interval
-                                # anchored to an evening boot would otherwise
-                                # never land in market hours. Deferring also
-                                # re-anchors the whole loop to ~the open.
-                                until_open = await _broker.seconds_until_market_open()
-                                if until_open is None:
-                                    result, err = None, "market clock unavailable"
+                                # Open now: sit out the auction window
+                                mins = _minutes_since_open_et()
+                                if 0 <= mins < settings.open_quiet_minutes:
+                                    wait_s = (settings.open_quiet_minutes - mins) * 60
+                                    print(f"[scheduler] Waiting {wait_s}s for the open to settle")
+                                    await asyncio.sleep(wait_s)
+
+                        if skip_reason:
+                            print(f"[scheduler] Rebalance skipped: {skip_reason}")
+                        else:
+                            # Fresh session now that all waiting is done
+                            async with async_session() as db:
+                                result, err = await _build_rebalance_inputs(db)
+                                if err:
+                                    print(f"[scheduler] Rebalance skipped: {err}")
                                 else:
-                                    if until_open > 0:
-                                        wait_s = until_open + settings.open_quiet_minutes * 60
-                                        print(f"[scheduler] Market closed — deferring rebalance {wait_s / 3600:.1f}h until after next open")
-                                        await asyncio.sleep(wait_s)
+                                    plan = compute_rebalance(
+                                        current_positions=result["current_positions"],
+                                        target_weights=result["target_weights"],
+                                        prices=result["prices"],
+                                        portfolio_value=result["account"].portfolio_value,
+                                        cash=result["account"].cash,
+                                        exposure_target=result["exposure"],
+                                        ranks=result["ranks"],
+                                        keep_rank=settings.rebalance_keep_rank,
+                                        max_turnover_pct=settings.rebalance_max_turnover_pct,
+                                    )
+                                    if not plan.sells and not plan.buys:
+                                        print("[scheduler] Rebalance: portfolio already aligned")
                                     else:
-                                        # Open now: sit out the auction window
-                                        mins = _minutes_since_open_et()
-                                        if 0 <= mins < settings.open_quiet_minutes:
-                                            wait_s = (settings.open_quiet_minutes - mins) * 60
-                                            print(f"[scheduler] Waiting {wait_s}s for the open to settle")
-                                            await asyncio.sleep(wait_s)
-                                    result, err = await _build_rebalance_inputs(db)
-                            if err:
-                                print(f"[scheduler] Rebalance skipped: {err}")
-                            else:
-                                plan = compute_rebalance(
-                                    current_positions=result["current_positions"],
-                                    target_weights=result["target_weights"],
-                                    prices=result["prices"],
-                                    portfolio_value=result["account"].portfolio_value,
-                                    cash=result["account"].cash,
-                                    exposure_target=result["exposure"],
-                                    ranks=result["ranks"],
-                                    keep_rank=settings.rebalance_keep_rank,
-                                    max_turnover_pct=settings.rebalance_max_turnover_pct,
-                                )
-                                if not plan.sells and not plan.buys:
-                                    print("[scheduler] Rebalance: portfolio already aligned")
-                                else:
-                                    from api.routes.portfolio import rebalance_execute
-                                    resp = await rebalance_execute(db)
-                                    sells = sum(1 for o in resp.get("orders", []) if o["side"] == "sell")
-                                    buys = sum(1 for o in resp.get("orders", []) if o["side"] == "buy")
-                                    print(f"[scheduler] Rebalanced: {sells} sells, {buys} buys")
-                                    await broadcast("rebalance_complete", {
-                                        "sells": sells,
-                                        "buys": buys,
-                                        "skipped": len(plan.skipped),
-                                    })
+                                        from api.routes.portfolio import rebalance_execute
+                                        resp = await rebalance_execute(db)
+                                        sells = sum(1 for o in resp.get("orders", []) if o["side"] == "sell")
+                                        buys = sum(1 for o in resp.get("orders", []) if o["side"] == "buy")
+                                        print(f"[scheduler] Rebalanced: {sells} sells, {buys} buys")
+                                        await broadcast("rebalance_complete", {
+                                            "sells": sells,
+                                            "buys": buys,
+                                            "skipped": len(plan.skipped),
+                                        })
                     except Exception as e:
                         print(f"[scheduler] Rebalance failed: {e}")
                         await broadcast("rebalance_error", {"error": str(e)})
