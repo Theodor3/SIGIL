@@ -96,6 +96,17 @@ async def _scheduled_loop():
                 except Exception as e:
                     print(f"[scheduler] Execution reconcile failed: {e}")
 
+                # Bound the volume: drop predictions past the retention window
+                try:
+                    from api.db.retention import prune_old_predictions
+                    async with async_session() as db:
+                        p = await prune_old_predictions(db)
+                        if p["pruned_predictions"]:
+                            print(f"[scheduler] Pruned {p['pruned_predictions']} predictions, "
+                                  f"{p['pruned_evaluations']} evaluations past retention")
+                except Exception as e:
+                    print(f"[scheduler] Retention pruning failed: {e}")
+
                 # Auto-rebalance after pipeline
                 if settings.auto_rebalance:
                     try:

@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     order_limit_collar_pct: float = 0.01
     min_avg_dollar_volume: float = 5_000_000
     open_quiet_minutes: int = 15
+    prediction_retention_days: int = 365
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

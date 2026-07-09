@@ -22,19 +22,29 @@ interface PipelineRun {
   universe_size: number;
 }
 
+interface HorizonStats {
+  n: number;
+  hit_rate: number;
+  avg_alpha: number;
+}
+
 interface SignalStat {
   name: string;
+  version: string;
   weight: number;
   prediction_count: number;
   eval_stats: {
-    hit_rate_5d?: number;
-    hit_rate_20d?: number;
-    hit_rate_60d?: number;
-    avg_alpha_5d?: number;
-    avg_alpha_20d?: number;
-    avg_alpha_60d?: number;
-    total_evaluated?: number;
+    current_version?: string;
+    [key: string]: any;
   };
+}
+
+function horizon(s: SignalStat, h: string): HorizonStats | undefined {
+  return s.eval_stats?.[h];
+}
+
+function hasAnyEvals(s: SignalStat): boolean {
+  return Boolean(horizon(s, "5d") || horizon(s, "20d") || horizon(s, "60d"));
 }
 
 const API = "";
@@ -115,7 +125,7 @@ export default function Backtest() {
 
   if (loading) return <div className="text-sigil-muted">Loading backtest data...</div>;
 
-  const hasData = closedTrades.length > 0 || signals.some((s) => s.eval_stats.total_evaluated);
+  const hasData = closedTrades.length > 0 || signals.some(hasAnyEvals);
   const maxCurve = equityCurve.length > 0 ? Math.max(...equityCurve.map((p) => Math.abs(p.pnl)), 1) : 1;
 
   return (
@@ -202,39 +212,56 @@ export default function Backtest() {
             <h2 className="text-sm font-semibold text-sigil-muted uppercase tracking-wider mb-4">
               Signal Performance
             </h2>
-            {signals.some((s) => s.eval_stats.total_evaluated) ? (
+            {signals.some(hasAnyEvals) ? (
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-sigil-muted text-xs uppercase border-b border-sigil-border">
                     <th className="text-left py-2">Signal</th>
                     <th className="text-right py-2">Weight</th>
-                    <th className="text-right py-2">Predictions</th>
-                    <th className="text-right py-2">Hit Rate 5d</th>
-                    <th className="text-right py-2">Hit Rate 20d</th>
-                    <th className="text-right py-2">Avg Alpha 5d</th>
-                    <th className="text-right py-2">Avg Alpha 20d</th>
+                    <th className="text-right py-2">Hit 5d</th>
+                    <th className="text-right py-2">α 5d</th>
+                    <th className="text-right py-2">Hit 20d</th>
+                    <th className="text-right py-2">α 20d</th>
+                    <th className="text-right py-2">Evals</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {signals.map((s) => (
-                    <tr key={s.name} className="border-b border-sigil-border/30">
-                      <td className="py-2.5 font-medium text-sigil-accent">{s.name}</td>
-                      <td className="py-2.5 text-right text-sigil-muted">{(s.weight * 100).toFixed(0)}%</td>
-                      <td className="py-2.5 text-right font-mono">{s.prediction_count}</td>
-                      <td className="py-2.5 text-right font-mono">
-                        {s.eval_stats.hit_rate_5d != null ? `${(s.eval_stats.hit_rate_5d * 100).toFixed(1)}%` : "—"}
-                      </td>
-                      <td className="py-2.5 text-right font-mono">
-                        {s.eval_stats.hit_rate_20d != null ? `${(s.eval_stats.hit_rate_20d * 100).toFixed(1)}%` : "—"}
-                      </td>
-                      <td className={`py-2.5 text-right font-mono ${(s.eval_stats.avg_alpha_5d || 0) >= 0 ? "text-sigil-accent" : "text-sigil-danger"}`}>
-                        {s.eval_stats.avg_alpha_5d != null ? `${(s.eval_stats.avg_alpha_5d * 100).toFixed(2)}%` : "—"}
-                      </td>
-                      <td className={`py-2.5 text-right font-mono ${(s.eval_stats.avg_alpha_20d || 0) >= 0 ? "text-sigil-accent" : "text-sigil-danger"}`}>
-                        {s.eval_stats.avg_alpha_20d != null ? `${(s.eval_stats.avg_alpha_20d * 100).toFixed(2)}%` : "—"}
-                      </td>
-                    </tr>
-                  ))}
+                  {[...signals]
+                    .filter(hasAnyEvals)
+                    .sort((a, b) => {
+                      const aa = horizon(a, "20d")?.avg_alpha ?? horizon(a, "5d")?.avg_alpha ?? -1;
+                      const bb = horizon(b, "20d")?.avg_alpha ?? horizon(b, "5d")?.avg_alpha ?? -1;
+                      return bb - aa;
+                    })
+                    .map((s) => {
+                      const h5 = horizon(s, "5d");
+                      const h20 = horizon(s, "20d");
+                      const totalN = (h5?.n || 0) + (h20?.n || 0) + (horizon(s, "60d")?.n || 0);
+                      return (
+                        <tr key={s.name} className="border-b border-sigil-border/30">
+                          <td className="py-2.5 font-medium text-sigil-accent">
+                            {s.name}
+                            <span className="text-sigil-muted text-[10px] ml-1.5">
+                              v{s.eval_stats.current_version || s.version}
+                            </span>
+                          </td>
+                          <td className="py-2.5 text-right text-sigil-muted">{(s.weight * 100).toFixed(0)}%</td>
+                          <td className={`py-2.5 text-right font-mono ${(h5?.hit_rate ?? 0.5) >= 0.5 ? "text-sigil-text" : "text-sigil-danger"}`}>
+                            {h5 ? `${(h5.hit_rate * 100).toFixed(1)}%` : "—"}
+                          </td>
+                          <td className={`py-2.5 text-right font-mono ${(h5?.avg_alpha || 0) >= 0 ? "text-sigil-accent" : "text-sigil-danger"}`}>
+                            {h5 ? `${(h5.avg_alpha * 100).toFixed(2)}%` : "—"}
+                          </td>
+                          <td className={`py-2.5 text-right font-mono ${(h20?.hit_rate ?? 0.5) >= 0.5 ? "text-sigil-text" : "text-sigil-danger"}`}>
+                            {h20 ? `${(h20.hit_rate * 100).toFixed(1)}%` : "—"}
+                          </td>
+                          <td className={`py-2.5 text-right font-mono ${(h20?.avg_alpha || 0) >= 0 ? "text-sigil-accent" : "text-sigil-danger"}`}>
+                            {h20 ? `${(h20.avg_alpha * 100).toFixed(2)}%` : "—"}
+                          </td>
+                          <td className="py-2.5 text-right font-mono text-sigil-muted">{totalN}</td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             ) : (
