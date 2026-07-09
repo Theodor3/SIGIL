@@ -283,3 +283,17 @@ class AlpacaBroker:
         except Exception as e:
             print(f"[broker] Market clock check failed: {e}")
             return False
+
+    async def seconds_until_market_open(self) -> float | None:
+        """Seconds until the next regular-session open; 0 if open now.
+        None when the clock can't be read."""
+        if self._demo:
+            return 0.0
+        try:
+            clock = self._get_client().get_clock()
+            if clock.is_open:
+                return 0.0
+            return max(0.0, (clock.next_open - clock.timestamp).total_seconds())
+        except Exception as e:
+            print(f"[broker] Market clock check failed: {e}")
+            return None

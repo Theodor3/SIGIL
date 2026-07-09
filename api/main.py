@@ -102,16 +102,28 @@ async def _scheduled_loop():
 
                             if too_soon:
                                 result, err = None, f"last rebalance {elapsed} ago (min {settings.min_rebalance_interval_hours}h)"
-                            elif not await _broker.is_market_open():
-                                result, err = None, "market closed"
                             else:
-                                # Sit out the volatile opening auction window
-                                mins = _minutes_since_open_et()
-                                if 0 <= mins < settings.open_quiet_minutes:
-                                    wait_s = (settings.open_quiet_minutes - mins) * 60
-                                    print(f"[scheduler] Waiting {wait_s}s for the open to settle")
-                                    await asyncio.sleep(wait_s)
-                                result, err = await _build_rebalance_inputs(db)
+                                # Market closed: defer to just after the next
+                                # open rather than skipping — a 24h interval
+                                # anchored to an evening boot would otherwise
+                                # never land in market hours. Deferring also
+                                # re-anchors the whole loop to ~the open.
+                                until_open = await _broker.seconds_until_market_open()
+                                if until_open is None:
+                                    result, err = None, "market clock unavailable"
+                                else:
+                                    if until_open > 0:
+                                        wait_s = until_open + settings.open_quiet_minutes * 60
+                                        print(f"[scheduler] Market closed — deferring rebalance {wait_s / 3600:.1f}h until after next open")
+                                        await asyncio.sleep(wait_s)
+                                    else:
+                                        # Open now: sit out the auction window
+                                        mins = _minutes_since_open_et()
+                                        if 0 <= mins < settings.open_quiet_minutes:
+                                            wait_s = (settings.open_quiet_minutes - mins) * 60
+                                            print(f"[scheduler] Waiting {wait_s}s for the open to settle")
+                                            await asyncio.sleep(wait_s)
+                                    result, err = await _build_rebalance_inputs(db)
                             if err:
                                 print(f"[scheduler] Rebalance skipped: {err}")
                             else:
