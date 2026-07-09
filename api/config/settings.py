@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     min_avg_dollar_volume: float = 5_000_000
     open_quiet_minutes: int = 15
     prediction_retention_days: int = 365
+    context_snapshot_dir: str = ""
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

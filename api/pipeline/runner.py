@@ -416,6 +416,16 @@ async def run_pipeline(db: AsyncSession) -> dict:
             benchmarks=benchmarks,
         )
 
+        # Archive the context for signal backtesting — a future signal can
+        # be replayed over exactly what today's pipeline saw
+        try:
+            from api.research.context_store import save_context
+            snap_path = save_context(ctx)
+            print(f"[pipeline] Context snapshot: {snap_path.name} "
+                  f"({snap_path.stat().st_size / 1024:.0f} KB)")
+        except Exception as e:
+            print(f"[pipeline] Context snapshot failed: {e}")
+
         # Phase 5: Detect regime
         regime = await detect_regime(market_context, as_of)
         print(f"[pipeline] Regime: {regime.regime_id} ({regime.confidence:.0%} confidence)")

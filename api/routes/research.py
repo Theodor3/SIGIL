@@ -14,6 +14,32 @@ from api.db.models import PipelineRun, SignalPrediction, SignalEvaluation, Trade
 router = APIRouter(prefix="/api/research", tags=["research"])
 
 
+@router.get("/backtest/{signal_name}")
+async def backtest(signal_name: str, horizons: str = "5,20"):
+    """Replay a signal over recorded pipeline contexts and grade its calls
+    against real subsequent prices vs SPY — same math as the live evaluator."""
+    from api.research.backtester import backtest_signal
+    try:
+        parsed = tuple(sorted({int(h) for h in horizons.split(",") if h.strip()}))
+    except ValueError:
+        return {"error": f"bad horizons: {horizons}"}
+    if not parsed:
+        parsed = (5, 20)
+    return await backtest_signal(signal_name, horizons=parsed)
+
+
+@router.get("/backtest-coverage")
+async def backtest_coverage():
+    """How much recorded history is available for backtests."""
+    from api.research.context_store import list_snapshot_dates
+    dates = list_snapshot_dates()
+    return {
+        "snapshots": len(dates),
+        "first": dates[0].isoformat() if dates else None,
+        "last": dates[-1].isoformat() if dates else None,
+    }
+
+
 @router.get("/ticker/{ticker}")
 async def ticker_drilldown(ticker: str, db: AsyncSession = Depends(get_db)):
     """Deep dive on a single ticker — signal breakdown, prediction history, trades."""
