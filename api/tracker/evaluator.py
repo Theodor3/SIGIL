@@ -282,10 +282,16 @@ async def get_signal_stats(db: AsyncSession) -> dict[str, dict]:
     predictions). Alpha is signed by the call direction — the alpha earned by
     following the signal — so it differentiates signals instead of measuring
     the shared ticker universe.
+
+    Stats are split by signal_version: the headline horizon keys ("5d"...)
+    describe ONLY the currently deployed version, so a rewritten signal
+    starts a clean record instead of inheriting its predecessor's grades.
+    Older versions' records are preserved under "prior_versions".
     """
     evals_q = await db.execute(
         select(
             SignalPrediction.signal_name,
+            SignalPrediction.signal_version,
             SignalPrediction.score,
             SignalEvaluation.horizon_days,
             SignalEvaluation.signal_correct,
@@ -297,26 +303,49 @@ async def get_signal_stats(db: AsyncSession) -> dict[str, dict]:
     )
     rows = evals_q.all()
 
-    buckets: dict[str, dict[int, list]] = {}
-    for signal_name, score, horizon, correct, alpha in rows:
+    # (name, version, horizon) buckets
+    buckets: dict[str, dict[str, dict[int, list]]] = {}
+    for signal_name, version, score, horizon, correct, alpha in rows:
         directional_alpha = None
         if alpha is not None:
             directional_alpha = alpha if score > 0.5 else -alpha
-        buckets.setdefault(signal_name, {}).setdefault(horizon, []).append(
-            (correct, directional_alpha)
-        )
+        buckets.setdefault(signal_name, {}).setdefault(
+            version or "unknown", {}
+        ).setdefault(horizon, []).append((correct, directional_alpha))
 
-    stats: dict[str, dict] = {}
-    for name, horizons in buckets.items():
-        stats[name] = {}
+    def _summarize(horizons: dict[int, list]) -> dict[str, dict]:
+        out: dict[str, dict] = {}
         for horizon, entries in sorted(horizons.items()):
             n = len(entries)
             hit_count = sum(1 for c, _ in entries if c)
             alphas = [a for _, a in entries if a is not None]
             avg_alpha = sum(alphas) / len(alphas) if alphas else 0
-            stats[name][f"{horizon}d"] = {
+            out[f"{horizon}d"] = {
                 "n": n,
                 "hit_rate": round(hit_count / n, 4) if n else 0,
                 "avg_alpha": round(avg_alpha, 6),
             }
+        return out
+
+    from api.signals.registry import get_registry
+    registry = get_registry()
+
+    stats: dict[str, dict] = {}
+    for name, versions in buckets.items():
+        live = registry.get(name)
+        # Deployed version defines the headline; for retired signals fall
+        # back to the newest version present in the data
+        current = live.version if live else max(versions)
+
+        entry: dict = dict(_summarize(versions.get(current, {})))
+        entry["current_version"] = current
+
+        prior = {
+            v: _summarize(horizons)
+            for v, horizons in versions.items()
+            if v != current
+        }
+        if prior:
+            entry["prior_versions"] = prior
+        stats[name] = entry
     return stats

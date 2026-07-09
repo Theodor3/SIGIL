@@ -1,11 +1,25 @@
 import { useDashboard } from "../hooks/useDashboard";
 
+interface HorizonStats {
+  n: number;
+  hit_rate: number;
+  avg_alpha: number;
+}
+
 interface EvalStats {
-  [key: string]: {
-    n: number;
-    hit_rate: number;
-    avg_alpha: number;
-  };
+  current_version?: string;
+  prior_versions?: Record<string, Record<string, HorizonStats>>;
+  [key: string]: any;
+}
+
+const HORIZONS = ["5d", "20d", "60d"] as const;
+
+function horizonStats(stats: EvalStats): Record<string, HorizonStats> {
+  const out: Record<string, HorizonStats> = {};
+  for (const h of HORIZONS) {
+    if (stats[h]) out[h] = stats[h];
+  }
+  return out;
 }
 
 function StatBox({
@@ -63,8 +77,11 @@ export default function Signals() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {catSignals.map((s) => {
           const stats: EvalStats = (s as any).eval_stats || {};
-          const hasEvals = Object.keys(stats).length > 0;
-          const primary = stats["5d"] || stats["20d"] || stats["60d"];
+          const horizons = horizonStats(stats);
+          const hasEvals = Object.keys(horizons).length > 0;
+          const primary = horizons["5d"] || horizons["20d"] || horizons["60d"];
+          const priorVersions = stats.prior_versions || {};
+          const hasPrior = Object.keys(priorVersions).length > 0;
 
           return (
             <div
@@ -123,18 +140,19 @@ export default function Signals() {
                   label="Evaluations"
                   value={
                     hasEvals
-                      ? Object.values(stats)
+                      ? Object.values(horizons)
                           .reduce((sum, s) => sum + s.n, 0)
                           .toString()
                       : "--"
                   }
+                  sub={stats.current_version ? `v${stats.current_version} record` : undefined}
                 />
               </div>
 
               {hasEvals && (
                 <div className="mt-3 grid grid-cols-3 gap-2">
-                  {(["5d", "20d", "60d"] as const).map((h) => {
-                    const s2 = stats[h];
+                  {HORIZONS.map((h) => {
+                    const s2 = horizons[h];
                     return (
                       <div
                         key={h}
@@ -165,9 +183,30 @@ export default function Signals() {
 
               {!hasEvals && (
                 <div className="mt-3 h-12 rounded-lg bg-sigil-bg border border-sigil-border/30 flex items-center justify-center text-sigil-muted text-xs">
-                  {s.prediction_count > 0
-                    ? "Run evaluation to grade predictions"
-                    : "Run the pipeline first"}
+                  {hasPrior
+                    ? `Fresh record for v${s.version} — awaiting first graded predictions`
+                    : s.prediction_count > 0
+                      ? "Run evaluation to grade predictions"
+                      : "Run the pipeline first"}
+                </div>
+              )}
+
+              {hasPrior && (
+                <div className="mt-3 rounded-lg bg-sigil-bg border border-sigil-border/30 p-2">
+                  <div className="text-sigil-muted text-[10px] uppercase mb-1">
+                    Prior versions
+                  </div>
+                  {Object.entries(priorVersions).map(([ver, vh]) => (
+                    <div key={ver} className="text-[11px] text-sigil-muted flex flex-wrap gap-x-3">
+                      <span className="text-sigil-text font-semibold">v{ver}</span>
+                      {HORIZONS.filter((h) => vh[h]).map((h) => (
+                        <span key={h}>
+                          {h}: {(vh[h].hit_rate * 100).toFixed(1)}% hit,{" "}
+                          {(vh[h].avg_alpha * 100).toFixed(2)}% α (n={vh[h].n})
+                        </span>
+                      ))}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
