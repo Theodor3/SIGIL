@@ -112,6 +112,17 @@ class EquitySnapshot(Base):
     regime_id: Mapped[str | None] = mapped_column(String(32))
 
 
+class SystemState(Base):
+    """Small key-value store for operational state that must survive
+    restarts — e.g. last_rebalance_at, so a redeploy can't trigger a
+    fresh rebalance the moment it boots."""
+    __tablename__ = "system_state"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
 class Trade(Base):
     __tablename__ = "trades"
 

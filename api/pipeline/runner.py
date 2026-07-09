@@ -327,6 +327,32 @@ async def run_pipeline(db: AsyncSession) -> dict:
         elif isinstance(results[9], Exception):
             update_source_status("tiingo_prices", SourceStatus.ERROR, error=str(results[9]))
 
+        # Liquidity floor: names too thin to trade without paying the whole
+        # spread are dropped from the tradable bucket entirely. Tickers with
+        # unknown volume are kept (a missing quote is not evidence of
+        # illiquidity); watchlist names are research-only and stay regardless.
+        if settings.min_avg_dollar_volume > 0:
+            from api.data.universe import ETF_UNIVERSE
+            watch_set = set(watchlist or [])
+            etf_set = set(ETF_UNIVERSE)
+
+            def _adv(t: str) -> float:
+                md = market_data.get(t) or {}
+                vol = md.get("avg_volume_20d") or md.get("volume") or 0
+                px = md.get("close") or 0
+                return float(vol) * float(px)
+
+            thin = [
+                t for t in bucket
+                if t not in etf_set and t not in watch_set
+                and 0 < _adv(t) < settings.min_avg_dollar_volume
+            ]
+            if thin:
+                thin_set = set(thin)
+                bucket = [t for t in bucket if t not in thin_set]
+                print(f"[pipeline] Liquidity filter: dropped {len(thin)} tickers "
+                      f"under ${settings.min_avg_dollar_volume:,.0f} avg dollar volume")
+
         # Alpha Vantage earnings — merge into earnings history
         if not isinstance(results[10], Exception) and av_earnings:
             update_source_status("alphavantage_earnings", SourceStatus.ACTIVE, fetch_count=len(av_earnings))

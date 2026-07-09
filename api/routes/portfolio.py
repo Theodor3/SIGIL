@@ -7,8 +7,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.config.settings import settings
 from api.db import get_db
 from api.db.models import Trade
+from api.db.state import set_state
 from api.execution.alpaca_broker import AlpacaBroker
 from api.execution.rebalancer import compute_rebalance
 
@@ -631,6 +633,7 @@ async def _build_rebalance_inputs(db: AsyncSession):
         "regime_id": regime_id,
         "run_id": latest_run.id,
         "targets": targets,
+        "ranks": {s.ticker: i + 1 for i, s in enumerate(scored)},
     }, None
 
 
@@ -648,6 +651,9 @@ async def rebalance_preview(db: AsyncSession = Depends(get_db)):
         portfolio_value=result["account"].portfolio_value,
         cash=result["account"].cash,
         exposure_target=result["exposure"],
+        ranks=result["ranks"],
+        keep_rank=settings.rebalance_keep_rank,
+        max_turnover_pct=settings.rebalance_max_turnover_pct,
     )
 
     return {
@@ -716,19 +722,34 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
         portfolio_value=result["account"].portfolio_value,
         cash=result["account"].cash,
         exposure_target=result["exposure"],
+        ranks=result["ranks"],
+        keep_rank=settings.rebalance_keep_rank,
+        max_turnover_pct=settings.rebalance_max_turnover_pct,
     )
 
     if not plan.sells and not plan.buys:
+        await set_state(db, "last_rebalance_at", datetime.utcnow().isoformat())
         return {"message": "Portfolio already aligned with targets", "orders": []}
 
     regime = result["regime_id"]
     executed = []
     errors = []
 
+    collar = settings.order_limit_collar_pct
+
+    def _limit_for(ticker: str, side: str) -> float | None:
+        px = result["prices"].get(ticker) or 0
+        if px <= 0:
+            return None
+        return px * (1 + collar) if side == "buy" else px * (1 - collar)
+
     # Sells first to free up cash
     for order in plan.sells:
         try:
-            res = await _broker.submit_order(order.ticker, order.shares, "sell")
+            res = await _broker.submit_order(
+                order.ticker, order.shares, "sell",
+                limit_price=_limit_for(order.ticker, "sell"),
+            )
             # Best known exit price: reported fill, else the planning quote.
             # With neither, P&L on affected trades is recorded as 0, not as
             # a fake total loss from treating the fill as $0.
@@ -777,7 +798,10 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
     # Then buys
     for order in plan.buys:
         try:
-            res = await _broker.submit_order(order.ticker, order.shares, "buy")
+            res = await _broker.submit_order(
+                order.ticker, order.shares, "buy",
+                limit_price=_limit_for(order.ticker, "buy"),
+            )
             if order.reason == "new":
                 target_match = next(
                     (t for t in result["targets"] if t.ticker == order.ticker), None
@@ -818,6 +842,7 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
             errors.append({"ticker": order.ticker, "side": "buy", "error": str(e)})
 
     await db.commit()
+    await set_state(db, "last_rebalance_at", datetime.utcnow().isoformat())
 
     # Sweep up any orphaned open trades now that orders are placed
     try:

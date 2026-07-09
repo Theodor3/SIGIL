@@ -1,6 +1,7 @@
 import asyncio
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -21,6 +22,14 @@ from api.signals.registry import discover_signals
 
 _scheduler_task: asyncio.Task | None = None
 _equity_task: asyncio.Task | None = None
+
+
+def _minutes_since_open_et() -> int:
+    """Minutes since 09:30 ET; negative before the open."""
+    from datetime import datetime as dt
+    from zoneinfo import ZoneInfo
+    now = dt.now(ZoneInfo("America/New_York"))
+    return (now.hour * 60 + now.minute) - (9 * 60 + 30)
 
 
 async def _equity_loop():
@@ -81,9 +90,27 @@ async def _scheduled_loop():
                         async with async_session() as db:
                             from api.routes.portfolio import _build_rebalance_inputs, _broker
                             from api.execution.rebalancer import compute_rebalance
-                            if not await _broker.is_market_open():
+                            from api.db.state import get_state
+
+                            # A rebalance ran recently (this includes every
+                            # boot — deploys must not trade)
+                            last_reb = await get_state(db, "last_rebalance_at")
+                            too_soon = False
+                            if last_reb:
+                                elapsed = datetime.utcnow() - datetime.fromisoformat(last_reb)
+                                too_soon = elapsed < timedelta(hours=settings.min_rebalance_interval_hours)
+
+                            if too_soon:
+                                result, err = None, f"last rebalance {elapsed} ago (min {settings.min_rebalance_interval_hours}h)"
+                            elif not await _broker.is_market_open():
                                 result, err = None, "market closed"
                             else:
+                                # Sit out the volatile opening auction window
+                                mins = _minutes_since_open_et()
+                                if 0 <= mins < settings.open_quiet_minutes:
+                                    wait_s = (settings.open_quiet_minutes - mins) * 60
+                                    print(f"[scheduler] Waiting {wait_s}s for the open to settle")
+                                    await asyncio.sleep(wait_s)
                                 result, err = await _build_rebalance_inputs(db)
                             if err:
                                 print(f"[scheduler] Rebalance skipped: {err}")
@@ -95,6 +122,9 @@ async def _scheduled_loop():
                                     portfolio_value=result["account"].portfolio_value,
                                     cash=result["account"].cash,
                                     exposure_target=result["exposure"],
+                                    ranks=result["ranks"],
+                                    keep_rank=settings.rebalance_keep_rank,
+                                    max_turnover_pct=settings.rebalance_max_turnover_pct,
                                 )
                                 if not plan.sells and not plan.buys:
                                     print("[scheduler] Rebalance: portfolio already aligned")

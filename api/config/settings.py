@@ -22,6 +22,14 @@ class Settings(BaseSettings):
     auth_password: str = ""
     paper_starting_equity: float = 100_000.0
 
+    # Trading friction controls
+    min_rebalance_interval_hours: float = 20
+    rebalance_keep_rank: int = 50
+    rebalance_max_turnover_pct: float = 0.25
+    order_limit_collar_pct: float = 0.01
+    min_avg_dollar_volume: float = 5_000_000
+    open_quiet_minutes: int = 15
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 

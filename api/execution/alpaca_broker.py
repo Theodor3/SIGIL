@@ -97,8 +97,12 @@ class AlpacaBroker:
         ]
 
     async def submit_order(
-        self, ticker: str, qty: int, side: str = "buy"
+        self, ticker: str, qty: int, side: str = "buy",
+        limit_price: float | None = None,
     ) -> OrderResult:
+        """Submit an order. With limit_price set, a DAY limit order is used —
+        a marketable limit (quote ± collar) fills like a market order in a
+        liquid name but can't be run over by a wide spread in a thin one."""
         if self._demo:
             import uuid
             prices = await self.get_prices([ticker])
@@ -110,16 +114,25 @@ class AlpacaBroker:
                 status="demo_filled",
                 filled_price=prices.get(ticker),
             )
-        from alpaca.trading.requests import MarketOrderRequest
+        from alpaca.trading.requests import LimitOrderRequest, MarketOrderRequest
         from alpaca.trading.enums import OrderSide, TimeInForce
         client = self._get_client()
         order_side = OrderSide.BUY if side == "buy" else OrderSide.SELL
-        request = MarketOrderRequest(
-            symbol=ticker,
-            qty=qty,
-            side=order_side,
-            time_in_force=TimeInForce.DAY,
-        )
+        if limit_price and limit_price > 0:
+            request = LimitOrderRequest(
+                symbol=ticker,
+                qty=qty,
+                side=order_side,
+                time_in_force=TimeInForce.DAY,
+                limit_price=round(limit_price, 2),
+            )
+        else:
+            request = MarketOrderRequest(
+                symbol=ticker,
+                qty=qty,
+                side=order_side,
+                time_in_force=TimeInForce.DAY,
+            )
         order = client.submit_order(request)
         order_id = str(order.id)
 
