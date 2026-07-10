@@ -46,6 +46,11 @@ async def _fetch_edgar(bucket: list[str]) -> dict:
     return await EdgarProvider().fetch(bucket)
 
 
+async def _fetch_buybacks(bucket: list[str]) -> dict:
+    from api.data.buybacks import BuybackProvider
+    return await BuybackProvider().fetch(bucket)
+
+
 async def _fetch_wikipedia(bucket: list[str], fundamentals: dict | None = None) -> dict:
     from api.data.wikipedia import WikipediaProvider
     return await WikipediaProvider().fetch(bucket, fundamentals=fundamentals)
@@ -184,6 +189,7 @@ async def run_pipeline(db: AsyncSession) -> dict:
             fmp.fetch_shares_float(bucket),            # 14 - shares float data
             fmp.fetch_analyst_estimates(bucket),       # 15 - forward estimates
             _fetch_edgar(bucket),                      # 16 - SEC filing red flags
+            _fetch_buybacks(bucket),                   # 17 - buyback authorizations
             return_exceptions=True,
         )
         fetch_time = (datetime.utcnow() - t0).total_seconds()
@@ -207,6 +213,7 @@ async def run_pipeline(db: AsyncSession) -> dict:
         shares_float = results[14] if not isinstance(results[14], Exception) else {}
         forward_estimates = results[15] if not isinstance(results[15], Exception) else {}
         filing_flags = results[16] if not isinstance(results[16], Exception) else {}
+        buyback_auths = results[17] if not isinstance(results[17], Exception) else {}
 
         # Log errors from any failed providers
         provider_names = [
@@ -412,6 +419,7 @@ async def run_pipeline(db: AsyncSession) -> dict:
             shares_float=shares_float,
             forward_estimates=forward_estimates,
             filing_flags=filing_flags,
+            buyback_authorizations=buyback_auths,
             macro=macro,
             benchmarks=benchmarks,
         )
