@@ -30,9 +30,6 @@ class PipelineContext:
     # SEC EDGAR filing red flags (NT filings, 8-K items 4.01/4.02)
     filing_flags: dict[str, dict] = field(default_factory=dict)
 
-    # SEC EDGAR buyback authorizations (board-approved repurchase programs)
-    buyback_authorizations: dict[str, dict] = field(default_factory=dict)
-
     # Preliminary top tickers (ranked without the LLM) — set by the runner
     # between signal passes so llm_conviction studies the actual candidates
     llm_focus: list[str] = field(default_factory=list)
