@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
+import EquityCurve from "../components/EquityCurve";
+
 interface TradeRow {
   id: number;
   ticker: string;
@@ -49,21 +51,34 @@ function hasAnyEvals(s: SignalStat): boolean {
 
 const API = "";
 
+interface LedgerStats {
+  total_trades: number;
+  open_count: number;
+  closed_count: number;
+  total_realized_pnl: number;
+  account_pnl?: number;
+  win_rate: number;
+}
+
 export default function Performance() {
   const [trades, setTrades] = useState<TradeRow[]>([]);
   const [runs, setRuns] = useState<PipelineRun[]>([]);
   const [signals, setSignals] = useState<SignalStat[]>([]);
+  const [stats, setStats] = useState<LedgerStats | null>(null);
+  const [equityPoints, setEquityPoints] = useState<{ equity: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [portRes, dashRes] = await Promise.all([
+      const [portRes, dashRes, eqRes] = await Promise.all([
         fetch(`${API}/api/portfolio`),
         fetch(`${API}/api/dashboard-data`),
+        fetch(`${API}/api/portfolio/equity-history?days=90`),
       ]);
       const portData = await portRes.json();
       const dashData = await dashRes.json();
+      const eqData = await eqRes.json();
 
       const allTrades = [
         ...(portData.closed_trades || []).map((t: TradeRow) => ({ ...t, status: "closed" })),
@@ -71,8 +86,10 @@ export default function Performance() {
       ];
       allTrades.sort((a: TradeRow, b: TradeRow) => new Date(b.opened_at).getTime() - new Date(a.opened_at).getTime());
       setTrades(allTrades);
+      setStats(portData.stats || null);
       setRuns(dashData.recent_runs || []);
       setSignals(dashData.signals || []);
+      setEquityPoints(eqData.points || []);
     } catch {}
     setLoading(false);
   }, []);
@@ -80,34 +97,21 @@ export default function Performance() {
   useEffect(() => { load(); }, [load]);
 
   const closedTrades = trades.filter((t) => t.status === "closed");
-  const totalPnl = closedTrades.reduce((s, t) => s + (t.realized_pnl || 0), 0);
-  const winCount = closedTrades.filter((t) => (t.realized_pnl || 0) > 0).length;
-  const winRate = closedTrades.length > 0 ? (winCount / closedTrades.length) * 100 : 0;
-  const avgWin = winCount > 0
-    ? closedTrades.filter((t) => (t.realized_pnl || 0) > 0).reduce((s, t) => s + (t.realized_pnl || 0), 0) / winCount
-    : 0;
-  const lossCount = closedTrades.filter((t) => (t.realized_pnl || 0) < 0).length;
-  const avgLoss = lossCount > 0
-    ? closedTrades.filter((t) => (t.realized_pnl || 0) < 0).reduce((s, t) => s + (t.realized_pnl || 0), 0) / lossCount
-    : 0;
-  const profitFactor = avgLoss !== 0 ? Math.abs(avgWin / avgLoss) : 0;
 
-  // Cumulative P&L for equity curve
-  const sortedClosed = [...closedTrades].sort(
-    (a, b) => new Date(a.closed_at || a.opened_at).getTime() - new Date(b.closed_at || b.opened_at).getTime()
-  );
-  let cumPnl = 0;
-  const equityCurve = sortedClosed.map((t) => {
-    cumPnl += t.realized_pnl || 0;
-    return { date: t.closed_at || t.opened_at, pnl: cumPnl, ticker: t.ticker };
-  });
+  // Headline numbers come from sources that can't lie: account_pnl is
+  // broker equity vs starting capital (server-side over ALL history), and
+  // drawdown comes from the hourly equity snapshots — never from the
+  // 50-trade sample this page happens to have loaded.
+  const accountPnl = stats?.account_pnl ?? 0;
+  const realizedPnl = stats?.total_realized_pnl ?? 0;
+  const winRate = (stats?.win_rate ?? 0) * 100;
+  const closedCount = stats?.closed_count ?? closedTrades.length;
 
-  // Drawdown
-  let peak = 0;
+  let eqPeak = -Infinity;
   let maxDrawdown = 0;
-  for (const pt of equityCurve) {
-    if (pt.pnl > peak) peak = pt.pnl;
-    const dd = peak - pt.pnl;
+  for (const pt of equityPoints) {
+    if (pt.equity > eqPeak) eqPeak = pt.equity;
+    const dd = eqPeak - pt.equity;
     if (dd > maxDrawdown) maxDrawdown = dd;
   }
 
@@ -123,10 +127,9 @@ export default function Performance() {
     .map(([ticker, s]) => ({ ticker, ...s, winRate: (s.wins / s.count) * 100 }))
     .sort((a, b) => b.pnl - a.pnl);
 
-  if (loading) return <div className="text-sigil-muted">Loading backtest data...</div>;
+  if (loading) return <div className="text-sigil-muted">Loading performance data...</div>;
 
   const hasData = closedTrades.length > 0 || signals.some(hasAnyEvals);
-  const maxCurve = equityCurve.length > 0 ? Math.max(...equityCurve.map((p) => Math.abs(p.pnl)), 1) : 1;
 
   return (
     <div className="space-y-6">
@@ -146,70 +149,37 @@ export default function Performance() {
         </div>
       ) : (
         <>
-          {/* Summary cards */}
+          {/* Summary cards — account truth, not ledger arithmetic */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="rounded-xl border border-sigil-border bg-sigil-surface p-4">
-              <div className="text-sigil-muted text-xs uppercase tracking-wider mb-1">Total P&L</div>
-              <div className={`text-2xl font-bold font-mono ${totalPnl >= 0 ? "text-sigil-accent" : "text-sigil-danger"}`}>
-                ${totalPnl.toFixed(2)}
+              <div className="text-sigil-muted text-xs uppercase tracking-wider mb-1">Account P&L</div>
+              <div className={`text-2xl font-bold font-mono ${accountPnl >= 0 ? "text-sigil-accent" : "text-sigil-danger"}`}>
+                ${accountPnl.toFixed(2)}
               </div>
-              <div className="text-sigil-muted text-xs mt-1">{closedTrades.length} closed trades</div>
+              <div className="text-sigil-muted text-xs mt-1">broker equity vs starting capital</div>
+            </div>
+            <div className="rounded-xl border border-sigil-border bg-sigil-surface p-4">
+              <div className="text-sigil-muted text-xs uppercase tracking-wider mb-1">Realized (ledger)</div>
+              <div className={`text-2xl font-bold font-mono ${realizedPnl >= 0 ? "text-sigil-accent" : "text-sigil-danger"}`}>
+                ${realizedPnl.toFixed(2)}
+              </div>
+              <div className="text-sigil-muted text-xs mt-1">{closedCount} closed round-trips</div>
             </div>
             <div className="rounded-xl border border-sigil-border bg-sigil-surface p-4">
               <div className="text-sigil-muted text-xs uppercase tracking-wider mb-1">Win Rate</div>
               <div className="text-2xl font-bold font-mono text-sigil-text">{winRate.toFixed(1)}%</div>
-              <div className="text-sigil-muted text-xs mt-1">{winCount}W / {lossCount}L</div>
-            </div>
-            <div className="rounded-xl border border-sigil-border bg-sigil-surface p-4">
-              <div className="text-sigil-muted text-xs uppercase tracking-wider mb-1">Profit Factor</div>
-              <div className="text-2xl font-bold font-mono text-sigil-text">
-                {profitFactor > 0 ? profitFactor.toFixed(2) : "—"}
-              </div>
-              <div className="text-sigil-muted text-xs mt-1">avg win / avg loss</div>
+              <div className="text-sigil-muted text-xs mt-1">all closed trades</div>
             </div>
             <div className="rounded-xl border border-sigil-border bg-sigil-surface p-4">
               <div className="text-sigil-muted text-xs uppercase tracking-wider mb-1">Max Drawdown</div>
               <div className="text-2xl font-bold font-mono text-sigil-danger">
                 ${maxDrawdown.toFixed(2)}
               </div>
-              <div className="text-sigil-muted text-xs mt-1">from peak P&L</div>
+              <div className="text-sigil-muted text-xs mt-1">from equity peak (90d)</div>
             </div>
           </div>
 
-          {/* Equity curve (CSS bar chart) */}
-          {equityCurve.length > 0 && (
-            <div className="rounded-xl border border-sigil-border bg-sigil-surface p-5">
-              <h2 className="text-sm font-semibold text-sigil-muted uppercase tracking-wider mb-4">
-                Cumulative P&L
-              </h2>
-              <div className="h-48 flex items-end gap-px">
-                {equityCurve.map((pt, i) => {
-                  const h = (Math.abs(pt.pnl) / maxCurve) * 100;
-                  return (
-                    <div
-                      key={i}
-                      className="flex-1 flex flex-col justify-end items-center group relative"
-                      style={{ height: "100%" }}
-                    >
-                      <div className="absolute bottom-full mb-1 hidden group-hover:block bg-sigil-bg border border-sigil-border rounded px-2 py-1 text-xs whitespace-nowrap z-10">
-                        {pt.ticker} — ${pt.pnl.toFixed(2)}
-                        <br />
-                        {new Date(pt.date).toLocaleDateString()}
-                      </div>
-                      <div
-                        className={`w-full rounded-t transition-all ${pt.pnl >= 0 ? "bg-sigil-accent" : "bg-sigil-danger"}`}
-                        style={{ height: `${Math.max(h, 2)}%` }}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex justify-between text-xs text-sigil-muted mt-2">
-                <span>{equityCurve.length > 0 ? new Date(equityCurve[0].date).toLocaleDateString() : ""}</span>
-                <span>{equityCurve.length > 0 ? new Date(equityCurve[equityCurve.length - 1].date).toLocaleDateString() : ""}</span>
-              </div>
-            </div>
-          )}
+          <EquityCurve />
 
           {/* Signal performance comparison */}
           <div className="rounded-xl border border-sigil-border bg-sigil-surface p-5">
@@ -279,7 +249,7 @@ export default function Performance() {
           {tickerStats.length > 0 && (
             <div className="rounded-xl border border-sigil-border bg-sigil-surface p-5">
               <h2 className="text-sm font-semibold text-sigil-muted uppercase tracking-wider mb-4">
-                P&L by Ticker
+                P&L by Ticker <span className="normal-case tracking-normal">(last {closedTrades.length} closed)</span>
               </h2>
               <div className="space-y-2">
                 {tickerStats.slice(0, 15).map((t) => {

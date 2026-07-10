@@ -303,17 +303,13 @@ async def rebuild_closed_trades(db: AsyncSession) -> dict:
     prices. Existing closed rows are marked status="void" (kept for audit,
     invisible to the UI and stats), then replaced.
 
-    Runs once: the presence of void rows marks the rebuild as done, so
-    legitimately closed trades accumulating afterwards are never touched.
+    Re-runnable: each run deletes its own previous reconstruction, voids
+    whatever other closed rows accumulated since (kept for audit), and
+    rewrites the complete fill-derived history — the ledger converges to
+    broker truth no matter how mangled the rows in between got.
     """
     if _broker.is_demo:
         return {"rebuilt": 0, "skipped": "demo mode"}
-
-    void_exists = await db.execute(
-        select(Trade.id).where(Trade.status == "void").limit(1)
-    )
-    if void_exists.scalar_one_or_none() is not None:
-        return {"rebuilt": 0, "skipped": "already rebuilt"}
 
     fills = await _broker.get_fills(max_orders=10_000)
     if not fills:
@@ -350,6 +346,15 @@ async def rebuild_closed_trades(db: AsyncSession) -> dict:
         # remaining > 0 with no lots = sell without a recorded buy; skip —
         # P&L is unknowable without an entry
 
+    # Drop the previous reconstruction (re-derived below), void everything
+    # else that closed since — those rows never reliably mapped to fills
+    from sqlalchemy import delete as sa_delete
+    await db.execute(
+        sa_delete(Trade).where(
+            Trade.status.in_(("closed", "void")),
+            Trade.regime_at_entry == "reconstructed",
+        )
+    )
     closed_q = await db.execute(select(Trade).where(Trade.status == "closed"))
     voided = 0
     for trade in closed_q.scalars().all():
