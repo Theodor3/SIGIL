@@ -385,8 +385,36 @@ async def rebuild_closed_trades(db: AsyncSession) -> dict:
 
 @router.post("/rebuild-closed-trades")
 async def rebuild_closed_trades_endpoint(db: AsyncSession = Depends(get_db)):
-    """Rebuild closed-trade history from broker fills (one-time)."""
+    """Rebuild closed-trade history from broker fills."""
     return await rebuild_closed_trades(db)
+
+
+@router.post("/reset-account-history")
+async def reset_account_history(db: AsyncSession = Depends(get_db)):
+    """Fresh-broker-account reset: wipe every table coupled to the old
+    account (trades, equity snapshots, order executions) while keeping all
+    signal science — predictions, evaluations, and context snapshots are
+    account-independent. Run once right after swapping Alpaca keys."""
+    from sqlalchemy import delete as sa_delete
+    from api.db.models import EquitySnapshot, OrderExecution
+    from api.db.state import set_state
+
+    counts = {}
+    for label, model in (
+        ("trades", Trade),
+        ("equity_snapshots", EquitySnapshot),
+        ("order_executions", OrderExecution),
+    ):
+        res = await db.execute(sa_delete(model))
+        counts[label] = res.rowcount or 0
+    await db.commit()
+
+    # Treat the swap as a rebalance moment so the scheduler waits its full
+    # interval before the first buys instead of trading mid-boot
+    await set_state(db, "last_rebalance_at", datetime.utcnow().isoformat())
+
+    return {"reset": counts, "note": "Old account history cleared; signal "
+            "predictions/evaluations/context snapshots untouched."}
 
 
 def _max_drawdown_pct(equities: list[float]) -> float:
