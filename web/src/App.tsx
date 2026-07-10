@@ -6,7 +6,8 @@ import Signals from "./pages/Signals";
 import Portfolio from "./pages/Portfolio";
 import Research from "./pages/Research";
 import Data from "./pages/Data";
-import Backtest from "./pages/Backtest";
+import Performance from "./pages/Performance";
+import Lab from "./pages/Lab";
 import System from "./pages/System";
 
 export default function App() {
@@ -19,7 +20,10 @@ export default function App() {
           <Route path="data" element={<Data />} />
           <Route path="portfolio" element={<Portfolio />} />
           <Route path="research" element={<Research />} />
-          <Route path="backtest" element={<Backtest />} />
+          <Route path="performance" element={<Performance />} />
+          {/* legacy bookmark */}
+          <Route path="backtest" element={<Performance />} />
+          <Route path="lab" element={<Lab />} />
           <Route path="system" element={<System />} />
         </Route>
       </Routes>

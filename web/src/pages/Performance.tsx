@@ -49,7 +49,7 @@ function hasAnyEvals(s: SignalStat): boolean {
 
 const API = "";
 
-export default function Backtest() {
+export default function Performance() {
   const [trades, setTrades] = useState<TradeRow[]>([]);
   const [runs, setRuns] = useState<PipelineRun[]>([]);
   const [signals, setSignals] = useState<SignalStat[]>([]);
@@ -130,7 +130,11 @@ export default function Backtest() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold">Backtest & Performance</h1>
+      <h1 className="text-xl font-bold">Performance</h1>
+      <p className="text-sigil-muted text-sm">
+        Realized results — closed trades, live signal grades, pipeline history.
+        For hypothetical replays of a signal over recorded history, see the Lab.
+      </p>
 
       {!hasData ? (
         <div className="rounded-xl border border-sigil-border bg-sigil-surface p-8 text-center">

@@ -7,7 +7,8 @@ const tabs = [
   { to: "/data", label: "Data", icon: "⬡" },
   { to: "/portfolio", label: "Portfolio", icon: "▦" },
   { to: "/research", label: "Research", icon: "◎" },
-  { to: "/backtest", label: "Backtest", icon: "▸" },
+  { to: "/performance", label: "Performance", icon: "▸" },
+  { to: "/lab", label: "Lab", icon: "⚗" },
   { to: "/system", label: "System", icon: "⚙" },
 ];
 
