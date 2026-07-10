@@ -53,16 +53,43 @@ async def _equity_loop():
 
 async def _scheduled_loop():
     """Run pipeline automatically on a timer."""
+    from sqlalchemy import select as sa_select
+    from api.db.models import PipelineRun as _PR
     from api.routes.ws import broadcast
     from api.tracker.evaluator import evaluate_predictions
+
+    async def _last_completed_run():
+        async with async_session() as db:
+            q = await db.execute(
+                sa_select(_PR)
+                .where(_PR.status == "completed")
+                .order_by(_PR.started_at.desc())
+                .limit(1)
+            )
+            return q.scalar_one_or_none()
 
     await asyncio.sleep(5)
 
     while True:
         try:
+            # A deploy reboots this loop — that must not mean a full
+            # pipeline rerun. Skip the run when the last completed one is
+            # fresher than the interval, but still fall through to the
+            # rebalance block so a rebooted container can make the day's
+            # trade if it hasn't happened yet.
+            last_run = await _last_completed_run()
+            interval_s = settings.pipeline_interval_hours * 3600
+            run_age_s = None
+            if last_run:
+                ts = last_run.finished_at or last_run.started_at
+                run_age_s = (datetime.utcnow() - ts).total_seconds()
+
             import api.routes.pipeline as pipeline_mod
             if pipeline_mod._pipeline_running:
                 print("[scheduler] Pipeline already running, skipping")
+            elif run_age_s is not None and run_age_s < interval_s:
+                print(f"[scheduler] Last pipeline ran {run_age_s / 3600:.1f}h ago — "
+                      f"skipping run (interval {settings.pipeline_interval_hours}h)")
             else:
                 await broadcast("pipeline_status", {"status": "running"})
                 pipeline_mod._pipeline_running = True
@@ -107,8 +134,9 @@ async def _scheduled_loop():
                 except Exception as e:
                     print(f"[scheduler] Retention pruning failed: {e}")
 
-                # Auto-rebalance after pipeline
-                if settings.auto_rebalance:
+            # Auto-rebalance — runs whether or not the pipeline was skipped,
+            # gated by its own interval + market-hours checks
+            if settings.auto_rebalance:
                     try:
                         await broadcast("rebalance_status", {"status": "running"})
                         from api.routes.portfolio import _build_rebalance_inputs, _broker
@@ -127,8 +155,15 @@ async def _scheduled_loop():
                         skip_reason = None
                         if last_reb:
                             elapsed = datetime.utcnow() - datetime.fromisoformat(last_reb)
-                            if elapsed < timedelta(hours=settings.min_rebalance_interval_hours):
-                                skip_reason = f"last rebalance {elapsed} ago (min {settings.min_rebalance_interval_hours}h)"
+                            remaining = timedelta(hours=settings.min_rebalance_interval_hours) - elapsed
+                            if remaining > timedelta(0):
+                                if remaining <= timedelta(hours=6):
+                                    # Close enough — wait it out rather than
+                                    # punting the day's trade entirely
+                                    print(f"[scheduler] Rebalance eligible in {remaining.total_seconds() / 3600:.1f}h — waiting")
+                                    await asyncio.sleep(remaining.total_seconds())
+                                else:
+                                    skip_reason = f"last rebalance {elapsed} ago (min {settings.min_rebalance_interval_hours}h)"
 
                         if skip_reason is None:
                             # Market closed: defer to just after the next
@@ -192,9 +227,19 @@ async def _scheduled_loop():
             print(f"[scheduler] Pipeline run failed: {e}")
             await broadcast("pipeline_error", {"error": str(e)})
 
-        interval = settings.pipeline_interval_hours * 3600
-        print(f"[scheduler] Next run in {settings.pipeline_interval_hours}h")
-        await asyncio.sleep(interval)
+        # Sleep only until the next run is actually due — a cycle that
+        # skipped the pipeline sleeps the remainder, not a fresh interval
+        wait_s = settings.pipeline_interval_hours * 3600
+        try:
+            lr = await _last_completed_run()
+            if lr:
+                ts = lr.finished_at or lr.started_at
+                age = (datetime.utcnow() - ts).total_seconds()
+                wait_s = max(600.0, settings.pipeline_interval_hours * 3600 - age)
+        except Exception:
+            pass
+        print(f"[scheduler] Next pipeline check in {wait_s / 3600:.1f}h")
+        await asyncio.sleep(wait_s)
 
 
 @asynccontextmanager
