@@ -397,7 +397,6 @@ async def reset_account_history(db: AsyncSession = Depends(get_db)):
     account-independent. Run once right after swapping Alpaca keys."""
     from sqlalchemy import delete as sa_delete
     from api.db.models import EquitySnapshot, OrderExecution
-    from api.db.state import set_state
 
     counts = {}
     for label, model in (
@@ -409,9 +408,9 @@ async def reset_account_history(db: AsyncSession = Depends(get_db)):
         counts[label] = res.rowcount or 0
     await db.commit()
 
-    # Treat the swap as a rebalance moment so the scheduler waits its full
-    # interval before the first buys instead of trading mid-boot
-    await set_state(db, "last_rebalance_at", datetime.utcnow().isoformat())
+    # last_rebalance_at is deliberately left alone: the previous stamp keeps
+    # the normal daily cadence, so the fresh account's first buys go out at
+    # the next scheduled after-open rebalance instead of being pushed a day
 
     return {"reset": counts, "note": "Old account history cleared; signal "
             "predictions/evaluations/context snapshots untouched."}
