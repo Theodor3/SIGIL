@@ -234,14 +234,11 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] Trade reconcile skipped: {e}")
 
-    # One-time rebuild of closed-trade history from broker fills
-    # (void rows mark it done; later boots are a cheap existence check)
-    try:
-        from api.routes.portfolio import rebuild_closed_trades
-        async with async_session() as db:
-            await rebuild_closed_trades(db)
-    except Exception as e:
-        print(f"[startup] Closed-trade rebuild skipped: {e}")
+    # NOTE: the closed-trade rebuild is no longer run at boot. It became
+    # re-runnable (each run rewrites the full fill-derived history), which
+    # makes it too heavy for startup — a 10k-order fetch racing the boot
+    # pipeline for SQLite's writer. Repair on demand instead:
+    # POST /api/portfolio/rebuild-closed-trades
 
     # One-time equity-history backfill from broker portfolio history
     try:
