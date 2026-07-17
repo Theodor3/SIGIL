@@ -194,6 +194,10 @@ async def _evaluate_batch(db: AsyncSession, horizon_days: int) -> dict:
         select(SignalPrediction)
         .where(SignalPrediction.run_date <= cutoff)
         .where(~SignalPrediction.id.in_(already_eval))
+        # Newest first: no-data stragglers (delisted tickers awaiting the
+        # stale grace period) sink to the tail instead of forming a block
+        # at the queue head that starves every fresh prediction behind it
+        .order_by(SignalPrediction.run_date.desc())
         .limit(BATCH_LIMIT)
     )
     ungraded = ungraded_q.scalars().all()

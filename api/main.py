@@ -105,8 +105,11 @@ async def _scheduled_loop():
                 async with async_session() as db:
                     for horizon in (5, 20, 60):
                         r = await evaluate_predictions(db, horizon_days=horizon)
-                        if r["evaluated"] > 0:
-                            print(f"[scheduler] Evaluated {r['evaluated']} predictions at {horizon}d horizon")
+                        if r["evaluated"] > 0 or r.get("skipped_no_data") or r.get("error"):
+                            # A horizon that grades nothing while skipping
+                            # rows is a data problem — it must never again
+                            # be invisible in the logs
+                            print(f"[scheduler] Horizon {horizon}d: {r}")
 
                 await broadcast("evaluation_complete", {"status": "done"})
 
