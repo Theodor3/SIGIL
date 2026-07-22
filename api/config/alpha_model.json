@@ -1,42 +1,42 @@
 {
   "groups": {
     "earnings": {
-      "budget": 0.25,
+      "budget": 0.22,
       "signals": {
         "pead": 1.0,
-        "earnings_surprise_streak": 1.0,
-        "earnings_miss_risk": 0.8,
-        "analyst_revision": 0.3,
-        "earnings_momentum": 1.0,
+        "earnings_surprise_streak": 0.5,
+        "earnings_miss_risk": 1.0,
+        "analyst_revision": 0.0,
+        "earnings_momentum": 0.9,
         "mgmt_credibility": 0.8
       }
     },
     "quality": {
-      "budget": 0.25,
+      "budget": 0.24,
       "signals": {
-        "quality": 1.2,
-        "accounting_red_flags": 1.0,
-        "debt_distress": 0.8,
+        "quality": 0.3,
+        "accounting_red_flags": 1.4,
+        "debt_distress": 1.0,
         "dividend_safety": 0.6,
         "filing_red_flags": 0.8
       }
     },
     "momentum": {
-      "budget": 0.20,
+      "budget": 0.10,
       "signals": {
-        "alt_momentum": 1.0,
-        "momentum_decay": 0.5,
+        "alt_momentum": 0.5,
+        "momentum_decay": 0.7,
         "technical_breakout": 0.0,
-        "peer_relative": 1.0
+        "peer_relative": 0.3
       }
     },
     "value": {
-      "budget": 0.15,
+      "budget": 0.24,
       "signals": {
         "value": 1.2,
-        "buyback_yield": 1.0,
-        "proxy_inferred": 0.6,
-        "price_target": 1.0,
+        "buyback_yield": 1.2,
+        "proxy_inferred": 1.0,
+        "price_target": 0.8,
         "forward_value": 1.0
       }
     },
@@ -45,15 +45,15 @@
       "signals": {
         "insider": 1.0,
         "insider_pattern_break": 1.0,
-        "short_interest": 0.4,
+        "short_interest": 0.0,
         "growth": 1.2
       }
     },
     "composite": {
-      "budget": 0.10,
+      "budget": 0.15,
       "signals": {
-        "llm_conviction": 1.0,
-        "macro_factor_tilt": 1.2
+        "llm_conviction": 0.8,
+        "macro_factor_tilt": 1.4
       }
     }
   },
@@ -67,7 +67,7 @@
   },
   "freeze": {
     "weights_frozen_days": 7,
-    "last_weight_change_date": "2026-07-12"
+    "last_weight_change_date": "2026-07-22"
   },
   "promotion": {
     "min_backtest_sample_n": 40,

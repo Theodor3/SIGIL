@@ -30,18 +30,18 @@
   },
   "factor_tilts": {
     "risk_off": {
-      "quality": 1.2,
+      "quality": 1.0,
       "growth": 0.8,
       "alt_momentum": 0.75,
       "peer_relative": 0.95,
-      "value": 1.15
+      "value": 1.2
     },
     "high_vol": {
-      "quality": 1.1,
+      "quality": 1.0,
       "growth": 0.85,
       "alt_momentum": 0.7,
       "peer_relative": 0.9,
-      "value": 1.05
+      "value": 1.1
     },
     "risk_on": {
       "quality": 1.0,
