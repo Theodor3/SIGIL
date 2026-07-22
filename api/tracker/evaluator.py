@@ -213,6 +213,13 @@ async def _evaluate_batch(db: AsyncSession, horizon_days: int) -> dict:
     )
     benchmark = history.get(BENCHMARK)
     if benchmark is None:
+        # A missing benchmark aborts the whole batch, and bulk downloads
+        # under rate pressure sometimes drop just SPY — one dedicated retry
+        retry = await loop.run_in_executor(
+            None, _download_history_sync, [BENCHMARK], start, date.today()
+        )
+        benchmark = retry.get(BENCHMARK)
+    if benchmark is None:
         print("[evaluator] No benchmark price data; skipping evaluation cycle")
         return {"evaluated": 0, "horizon_days": horizon_days, "error": "no benchmark data"}
 
