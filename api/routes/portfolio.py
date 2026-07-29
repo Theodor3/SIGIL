@@ -122,6 +122,10 @@ async def get_portfolio(db: AsyncSession = Depends(get_db)):
             "total_trades": len(open_trades) + closed_count,
             "open_count": len(open_trades),
             "closed_count": closed_count,
+            # Trades with a recorded P&L. Below closed_count when a row closed
+            # without an exit price — win_rate and total_realized_pnl are over
+            # this, so the UI needs it to label those figures honestly.
+            "graded_count": graded_count,
             "total_realized_pnl": total_realized_pnl,
             "account_pnl": account_pnl,
             "win_rate": win_rate,

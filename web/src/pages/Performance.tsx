@@ -55,6 +55,9 @@ interface LedgerStats {
   total_trades: number;
   open_count: number;
   closed_count: number;
+  /** Closed trades with a recorded P&L; below closed_count when a row closed
+   *  without an exit price. win_rate and total_realized_pnl are over this. */
+  graded_count?: number;
   total_realized_pnl: number;
   account_pnl?: number;
   win_rate: number;
@@ -106,6 +109,11 @@ export default function Performance() {
   const realizedPnl = stats?.total_realized_pnl ?? 0;
   const winRate = (stats?.win_rate ?? 0) * 100;
   const closedCount = stats?.closed_count ?? closedTrades.length;
+  // Trades that closed without a recorded P&L are excluded from realizedPnl and
+  // winRate server-side. Surface the gap rather than labelling those figures
+  // as covering every closed trade.
+  const gradedCount = stats?.graded_count ?? closedCount;
+  const ungradedCount = Math.max(closedCount - gradedCount, 0);
 
   let eqPeak = -Infinity;
   let maxDrawdown = 0;
@@ -115,17 +123,36 @@ export default function Performance() {
     if (dd > maxDrawdown) maxDrawdown = dd;
   }
 
-  // P&L by ticker
-  const byTicker: Record<string, { pnl: number; count: number; wins: number }> = {};
+  // P&L by ticker. A null realized_pnl means the row closed without an exit
+  // price, so it is counted separately rather than folded in as a $0 result.
+  const byTicker: Record<string, { pnl: number; count: number; wins: number; ungraded: number }> = {};
   for (const t of closedTrades) {
-    if (!byTicker[t.ticker]) byTicker[t.ticker] = { pnl: 0, count: 0, wins: 0 };
-    byTicker[t.ticker].pnl += t.realized_pnl || 0;
-    byTicker[t.ticker].count++;
-    if ((t.realized_pnl || 0) > 0) byTicker[t.ticker].wins++;
+    if (!byTicker[t.ticker]) byTicker[t.ticker] = { pnl: 0, count: 0, wins: 0, ungraded: 0 };
+    const e = byTicker[t.ticker];
+    e.count++;
+    if (t.realized_pnl == null) {
+      e.ungraded++;
+      continue;
+    }
+    e.pnl += t.realized_pnl;
+    if (t.realized_pnl > 0) e.wins++;
   }
   const tickerStats = Object.entries(byTicker)
-    .map(([ticker, s]) => ({ ticker, ...s, winRate: (s.wins / s.count) * 100 }))
+    .map(([ticker, s]) => {
+      const graded = s.count - s.ungraded;
+      return { ticker, ...s, graded, winRate: graded > 0 ? (s.wins / graded) * 100 : 0 };
+    })
     .sort((a, b) => b.pnl - a.pnl);
+
+  // Losers are never truncated — they are the half worth studying. Only the
+  // winner tail is capped, and the page says so when it caps it.
+  const MAX_WINNERS = 12;
+  const winners = tickerStats.filter((t) => t.graded > 0 && t.pnl > 0);
+  const losers = tickerStats.filter((t) => t.graded > 0 && t.pnl < 0);
+  const flat = tickerStats.filter((t) => t.graded > 0 && t.pnl === 0);
+  const ungradedRows = tickerStats.filter((t) => t.graded === 0);
+  const hiddenWinners = Math.max(winners.length - MAX_WINNERS, 0);
+  const tickerRows = [...winners.slice(0, MAX_WINNERS), ...flat, ...losers];
 
   if (loading) return <div className="text-sigil-muted">Loading performance data...</div>;
 
@@ -163,12 +190,21 @@ export default function Performance() {
               <div className={`text-2xl font-bold font-mono ${realizedPnl >= 0 ? "text-sigil-accent" : "text-sigil-danger"}`}>
                 ${realizedPnl.toFixed(2)}
               </div>
-              <div className="text-sigil-muted text-xs mt-1">{closedCount} closed round-trips</div>
+              <div className="text-sigil-muted text-xs mt-1">
+                {ungradedCount > 0
+                  ? `${gradedCount} of ${closedCount} closed round-trips`
+                  : `${closedCount} closed round-trips`}
+              </div>
             </div>
             <div className="rounded-xl border border-sigil-border bg-sigil-surface p-4">
               <div className="text-sigil-muted text-xs uppercase tracking-wider mb-1">Win Rate</div>
               <div className="text-2xl font-bold font-mono text-sigil-text">{winRate.toFixed(1)}%</div>
-              <div className="text-sigil-muted text-xs mt-1">all closed trades</div>
+              <div className="text-sigil-muted text-xs mt-1">
+                {gradedCount} graded trade{gradedCount === 1 ? "" : "s"}
+                {ungradedCount > 0 && (
+                  <span className="text-sigil-danger"> · {ungradedCount} ungraded</span>
+                )}
+              </div>
             </div>
             <div className="rounded-xl border border-sigil-border bg-sigil-surface p-4">
               <div className="text-sigil-muted text-xs uppercase tracking-wider mb-1">Max Drawdown</div>
@@ -252,7 +288,7 @@ export default function Performance() {
                 P&L by Ticker <span className="normal-case tracking-normal">(last {closedTrades.length} closed)</span>
               </h2>
               <div className="space-y-2">
-                {tickerStats.slice(0, 15).map((t) => {
+                {tickerRows.map((t) => {
                   const maxPnl = Math.max(...tickerStats.map((s) => Math.abs(s.pnl)), 1);
                   const barWidth = (Math.abs(t.pnl) / maxPnl) * 100;
                   return (
@@ -268,11 +304,27 @@ export default function Performance() {
                         ${t.pnl.toFixed(2)}
                       </span>
                       <span className="w-16 text-right text-xs text-sigil-muted">
-                        {t.winRate.toFixed(0)}% ({t.count})
+                        {t.winRate.toFixed(0)}% ({t.graded})
                       </span>
                     </div>
                   );
                 })}
+                {hiddenWinners > 0 && (
+                  <p className="text-sigil-muted text-xs pt-1">
+                    + {hiddenWinners} smaller winner{hiddenWinners === 1 ? "" : "s"} not shown.
+                    All {losers.length} losing ticker{losers.length === 1 ? "" : "s"} shown above.
+                  </p>
+                )}
+                {ungradedRows.length > 0 && (
+                  <div className="pt-3 mt-1 border-t border-sigil-border">
+                    <p className="text-sigil-danger text-xs">
+                      Closed without an exit price, so absent from every figure on this page:{" "}
+                      <span className="font-mono">
+                        {ungradedRows.map((t) => `${t.ticker} (${t.ungraded})`).join(", ")}
+                      </span>
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}
