@@ -53,6 +53,22 @@ interface PortfolioData {
   };
 }
 
+interface RiskMetrics {
+  /** null until there are enough daily returns to annualise */
+  sharpe: number | null;
+  sortino: number | null;
+  n_daily_returns: number;
+  min_daily_returns: number;
+  sufficient: boolean;
+  rf_annual: number;
+  rf_source: string;
+  annualized_vol: number | null;
+  downside_deviation: number | null;
+  standard_error: number | null;
+  first_day: string | null;
+  last_day: string | null;
+}
+
 interface Target {
   ticker: string;
   weight: number;
@@ -124,8 +140,60 @@ function PnlText({ value }: { value: number | null | undefined }) {
   );
 }
 
+/** Sharpe / Sortino card. Shows progress toward a readable sample rather than
+ *  a figure the sample can't support — see api/model/risk_metrics.py. */
+function RatioCard({
+  label,
+  value,
+  risk,
+}: {
+  label: string;
+  value: number | null;
+  risk: RiskMetrics | null;
+}) {
+  const n = risk?.n_daily_returns ?? 0;
+  const need = risk?.min_daily_returns ?? 60;
+  const color =
+    value == null
+      ? "text-sigil-muted"
+      : value > 0
+        ? "text-sigil-accent"
+        : "text-sigil-danger";
+
+  let sub: string;
+  if (risk == null) sub = "--";
+  else if (!risk.sufficient) sub = `${n} of ${need} days`;
+  else if (value == null) sub = "no variance in equity";
+  else {
+    const vol = label === "Sortino" ? risk.downside_deviation : risk.annualized_vol;
+    sub = vol != null ? `${(vol * 100).toFixed(1)}% ann. vol` : `${n} days`;
+  }
+
+  return (
+    <div
+      className="rounded-xl border border-sigil-border bg-sigil-surface p-5"
+      title={
+        risk == null
+          ? undefined
+          : risk.sufficient
+            ? `${n} daily returns · rf ${(risk.rf_annual * 100).toFixed(2)}% (${risk.rf_source})` +
+              (risk.standard_error != null ? ` · std err ±${risk.standard_error}` : "")
+            : `Annualising ${n} daily returns would carry a standard error of ` +
+              `±${risk.standard_error ?? "?"}, so the figure is withheld until ${need}.`
+      }
+    >
+      <div className="text-sigil-muted text-xs uppercase tracking-wider mb-1">{label}</div>
+      <div className={`text-2xl font-bold ${color}`}>
+        {value == null ? "--" : `${value > 0 ? "+" : ""}${value.toFixed(2)}`}
+      </div>
+      <div className="text-xs text-sigil-muted mt-1">{sub}</div>
+    </div>
+  );
+}
+
 export default function Portfolio() {
   const [data, setData] = useState<PortfolioData | null>(null);
+  const [risk, setRisk] = useState<RiskMetrics | null>(null);
   const [targets, setTargets] = useState<TargetsData | null>(null);
   const [rebalance, setRebalance] = useState<RebalancePreview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -149,11 +217,26 @@ export default function Portfolio() {
     }
   }, []);
 
+  // Separate from /api/portfolio: this one scans the whole snapshot record, and
+  // the numbers only shift once a day, so a failure here must not blank the page.
+  const fetchRisk = useCallback(async () => {
+    try {
+      const res = await fetch("/api/portfolio/risk-metrics");
+      if (res.ok) setRisk(await res.json());
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   useEffect(() => {
     fetchPortfolio();
-    const interval = setInterval(fetchPortfolio, 30_000);
+    fetchRisk();
+    const interval = setInterval(() => {
+      fetchPortfolio();
+      fetchRisk();
+    }, 30_000);
     return () => clearInterval(interval);
-  }, [fetchPortfolio]);
+  }, [fetchPortfolio, fetchRisk]);
 
   async function generateTargets() {
     setGenerating(true);
@@ -280,7 +363,7 @@ export default function Portfolio() {
       )}
 
       {/* Account Cards */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
         <div className="rounded-xl border border-sigil-border bg-sigil-surface p-5">
           <div className="text-sigil-muted text-xs uppercase tracking-wider mb-1">
             Equity
@@ -317,6 +400,8 @@ export default function Portfolio() {
             realized <PnlText value={stats?.total_realized_pnl} />
           </div>
         </div>
+        <RatioCard label="Sharpe" value={risk?.sharpe ?? null} risk={risk} />
+        <RatioCard label="Sortino" value={risk?.sortino ?? null} risk={risk} />
       </div>
 
       <EquityCurve />

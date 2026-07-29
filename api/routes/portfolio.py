@@ -462,6 +462,26 @@ async def get_execution_quality(days: int = 30, db: AsyncSession = Depends(get_d
     return await execution_quality(db, days=days)
 
 
+@router.get("/risk-metrics")
+async def risk_metrics(db: AsyncSession = Depends(get_db)):
+    """Sharpe and Sortino over the full equity snapshot record.
+
+    Computed across all history rather than a trailing window — the sample is
+    the binding constraint, not staleness. Both values come back null until
+    there are enough daily returns to annualise; see api/model/risk_metrics.py.
+    """
+    from api.db.models import EquitySnapshot
+    from api.model.risk_metrics import compute, daily_closes, risk_free_annual
+
+    rows = (
+        await db.execute(
+            select(EquitySnapshot).order_by(EquitySnapshot.taken_at.asc())
+        )
+    ).scalars().all()
+    rf_annual, rf_source = await risk_free_annual()
+    return compute(daily_closes(rows), rf_annual, rf_source)
+
+
 @router.get("/equity-history")
 async def equity_history(days: int = 30, db: AsyncSession = Depends(get_db)):
     """Equity curve with SPY-equivalent benchmark and summary stats.
