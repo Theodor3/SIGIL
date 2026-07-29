@@ -48,11 +48,10 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
     }
 
     # Build rich regime data
-    from api.regime.detector import DEFAULTS as REGIME_DEFAULTS
+    from api.regime.detector import policy_for
     regime_id = latest_run.regime_id if latest_run else "risk_on"
     regime_conf = latest_run.regime_confidence if latest_run else 0.5
-    exposure_map = REGIME_DEFAULTS["exposure"]
-    tilt_map = REGIME_DEFAULTS["factor_tilts"]
+    exposure, tilts = policy_for(regime_id)
 
     # Pull regime history for sparkline (last 14 completed runs)
     regime_history_q = await db.execute(
@@ -81,8 +80,8 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
     regime = {
         "regime_id": regime_id,
         "confidence": regime_conf,
-        "exposure": exposure_map.get(regime_id, 0.75),
-        "factor_tilts": tilt_map.get(regime_id, {}),
+        "exposure": exposure,
+        "factor_tilts": tilts,
         "vol_state": (latest_rh.metadata_ or {}).get("vol_state", "normal") if latest_rh else "normal",
         "breadth_state": latest_rh.breadth_state if latest_rh else "mixed",
         "indicators": {

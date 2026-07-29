@@ -57,6 +57,21 @@ def _load_policy() -> dict:
         return DEFAULTS
 
 
+def policy_for(regime_id: str) -> tuple[float, dict[str, float]]:
+    """Recommended gross exposure and factor tilts for a regime.
+
+    Callers that rebuild a RegimeSnapshot outside detect_regime() must go
+    through this rather than reading DEFAULTS directly — DEFAULTS is only the
+    fallback for a missing or unreadable regime_policy.json, so reading it
+    means edits to that file silently skip your code path.
+    """
+    policy = _load_policy()
+    return (
+        policy["exposure"].get(regime_id, 0.75),
+        policy["factor_tilts"].get(regime_id, {}),
+    )
+
+
 def _clamp(v: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, v))
 

@@ -159,7 +159,7 @@ async def generate_targets(db: AsyncSession = Depends(get_db)):
     # Rebuild SignalOutputs and use the real scorer (includes regime tilts)
     from api.signals.base import SignalOutput
     from api.model.scorer import score_universe
-    from api.regime.detector import DEFAULTS as REGIME_DEFAULTS
+    from api.regime.detector import policy_for
 
     signal_outputs: dict[str, list[SignalOutput]] = {}
     for p in preds:
@@ -171,12 +171,13 @@ async def generate_targets(db: AsyncSession = Depends(get_db)):
     from api.regime.models import RegimeSnapshot
     from datetime import date
     regime_id = latest_run.regime_id or "risk_on"
+    exposure, tilts = policy_for(regime_id)
     regime = RegimeSnapshot(
         as_of_date=date.today(),
         regime_id=regime_id,
         confidence=latest_run.regime_confidence or 0.5,
-        recommended_gross_exposure=REGIME_DEFAULTS["exposure"].get(regime_id, 0.75),
-        factor_tilts=REGIME_DEFAULTS["factor_tilts"].get(regime_id, {}),
+        recommended_gross_exposure=exposure,
+        factor_tilts=tilts,
     )
     scored = score_universe(signal_outputs, weights, regime)
 
@@ -600,7 +601,7 @@ async def _build_rebalance_inputs(db: AsyncSession):
     from api.signals.registry import get_registry
     from api.signals.base import SignalOutput
     from api.model.scorer import score_universe
-    from api.regime.detector import DEFAULTS as REGIME_DEFAULTS
+    from api.regime.detector import policy_for
     from api.regime.models import RegimeSnapshot
     from datetime import date
     from api import cache as app_cache
@@ -630,12 +631,13 @@ async def _build_rebalance_inputs(db: AsyncSession):
         )
 
     regime_id = latest_run.regime_id or "risk_on"
+    exposure, tilts = policy_for(regime_id)
     regime = RegimeSnapshot(
         as_of_date=date.today(),
         regime_id=regime_id,
         confidence=latest_run.regime_confidence or 0.5,
-        recommended_gross_exposure=REGIME_DEFAULTS["exposure"].get(regime_id, 0.75),
-        factor_tilts=REGIME_DEFAULTS["factor_tilts"].get(regime_id, {}),
+        recommended_gross_exposure=exposure,
+        factor_tilts=tilts,
     )
     scored = score_universe(signal_outputs, weights, regime)
 
