@@ -1,20 +1,30 @@
 # Static research data
 
-## `bea_use_summary.csv` — not in the repo, download it
+## `bea_use_summary.csv` — committed, pinned deliberately
 
-`api/research/bea_io.py` expects a BEA Summary-level **Use** table here. It is not
-committed: it is a ~1MB government data file that changes once a year, and pinning it
-as a downloaded artifact keeps the input-output matrix from silently changing under a
-live book.
+`api/research/bea_io.py` reads a BEA Summary-level **Use** table from here. It is
+committed (40KB) rather than downloaded at runtime, for two reasons:
 
-**To obtain it:**
+- The input-output matrix must not shift under a live book. Committed, any change to
+  it shows up in a diff and is attributable; left uncommitted, the matrix becomes
+  whatever happened to be on the machine that ran it.
+- Production needs it. Nothing downloads it at boot, so an uncommitted file means
+  `load()` raises `FileNotFoundError` anywhere but the laptop it was downloaded on.
+
+**To refresh it** (BEA publishes annually; the tables move slowly):
 
 1. Go to <https://www.bea.gov/industry/input-output-accounts-data>
 2. Under *Supply and Use* → *Use Tables*, pick **Summary** level, most recent year
-3. Export/save as CSV to `api/research/data/bea_use_summary.csv`
+3. Export as CSV over `api/research/data/bea_use_summary.csv`
+4. Re-run the verification below and check `validate()` is still clean — a new
+   vintage can rename industry codes, which is exactly what the code validation
+   catches (`622HO` became `622`/`623` between vintages once already)
 
-No API key needed for the manual download. (The BEA API does require free
-registration, which is why the loader reads a file instead.)
+No API key needed for the manual download. The BEA API does require free
+registration, which is the other reason the loader reads a file.
+
+The Make/Supply table is **not** needed — "who buys from whom" comes entirely from
+the Use table.
 
 **Expected shape** — rows are producing industries, columns are consuming industries,
 cells are dollar flows:

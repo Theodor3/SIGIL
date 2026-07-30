@@ -7,6 +7,3 @@ web/dist/
 *.db
 *.log
 *.tsbuildinfo
-
-# Downloaded BEA input-output table — see api/research/data/README.md
-api/research/data/*.csv
