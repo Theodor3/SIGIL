@@ -19,13 +19,23 @@ TERMINAL_STATUSES = {"filled", "canceled", "cancelled", "expired", "rejected"}
 RECONCILE_WINDOW_DAYS = 7
 
 
-def slippage_bps(side: str, planning_price: float | None, filled_price: float | None) -> float | None:
-    """Signed slippage in basis points; positive always means cost."""
-    if not planning_price or not filled_price or planning_price <= 0:
+def shortfall_bps(side: str, from_price: float | None, to_price: float | None) -> float | None:
+    """Signed cost in basis points of moving from one reference price to another.
+
+    Positive always means cost: for a buy, paying more than the reference; for a
+    sell, receiving less. Used for both legs of the decomposition -- decision->arrival
+    (delay) and arrival->fill (execution) -- so the two are directly additive.
+    """
+    if not from_price or not to_price or from_price <= 0:
         return None
     if side == "buy":
-        return (filled_price - planning_price) / planning_price * 10_000
-    return (planning_price - filled_price) / planning_price * 10_000
+        return (to_price - from_price) / from_price * 10_000
+    return (from_price - to_price) / from_price * 10_000
+
+
+# Retained under the old name: the legacy column it populates is still reported
+# separately, and version 1 rows must stay reproducible.
+slippage_bps = shortfall_bps
 
 
 def record_order(
@@ -40,9 +50,21 @@ def record_order(
     limit_price: float | None,
     status: str,
     filled_price: float | None,
+    decision_quote=None,
+    arrival_quote=None,
+    fill_is_synthetic: bool = False,
 ) -> None:
-    """Stage an execution record for a just-submitted order (caller commits)."""
+    """Stage an execution record for a just-submitted order (caller commits).
+
+    decision_quote is the two-sided quote the rebalance plan was built from;
+    arrival_quote is the one taken immediately before the order went out. With both,
+    cost splits into delay (market moved before we traded) and execution (how well we
+    traded) instead of collapsing into a single figure dominated by the former.
+    """
     filled = filled_price if filled_price else None
+    d_mid = decision_quote.mid if decision_quote else None
+    a_mid = arrival_quote.mid if arrival_quote else None
+
     db.add(OrderExecution(
         order_id=order_id,
         submitted_at=datetime.utcnow(),
@@ -55,7 +77,23 @@ def record_order(
         status=status or "submitted",
         filled_qty=float(shares) if filled else None,
         filled_price=filled,
-        slippage_bps=slippage_bps(side, planning_price, filled),
+        slippage_bps=shortfall_bps(side, planning_price, filled),
+        decision_bid=decision_quote.bid if decision_quote else None,
+        decision_ask=decision_quote.ask if decision_quote else None,
+        decision_mid=d_mid,
+        arrival_bid=arrival_quote.bid if arrival_quote else None,
+        arrival_ask=arrival_quote.ask if arrival_quote else None,
+        arrival_mid=a_mid,
+        arrival_at=(arrival_quote.ts if arrival_quote and arrival_quote.ts
+                    else datetime.utcnow()),
+        delay_bps=shortfall_bps(side, d_mid, a_mid),
+        # Only meaningful against a real fill; a substituted price would just be
+        # measuring a quote against itself.
+        execution_bps=(None if fill_is_synthetic
+                       else shortfall_bps(side, a_mid, filled)),
+        spread_bps_at_arrival=arrival_quote.spread_bps if arrival_quote else None,
+        fill_is_synthetic=bool(fill_is_synthetic),
+        measurement_version=2,
     ))
 
 
@@ -83,7 +121,10 @@ async def reconcile_executions(db: AsyncSession, broker) -> dict:
         if info["filled_price"]:
             rec.filled_price = info["filled_price"]
             rec.filled_qty = info["filled_qty"] or rec.shares
-            rec.slippage_bps = slippage_bps(rec.side, rec.planning_price, rec.filled_price)
+            rec.slippage_bps = shortfall_bps(rec.side, rec.planning_price, rec.filled_price)
+            # A real fill arrived, so the execution leg becomes measurable
+            rec.execution_bps = shortfall_bps(rec.side, rec.arrival_mid, rec.filled_price)
+            rec.fill_is_synthetic = False
             reconciled += 1
         elif info["status"] not in TERMINAL_STATUSES:
             still_open += 1
@@ -92,40 +133,131 @@ async def reconcile_executions(db: AsyncSession, broker) -> dict:
     return {"reconciled": reconciled, "still_open": still_open}
 
 
+def _is_v2(rec) -> bool:
+    """Version 1 rows predate the shortfall columns and were benchmarked against a
+    one-sided ask captured at plan time. They are stamped NULL rather than 1 (SQLite
+    backfills a DDL default onto existing rows), so NULL means legacy."""
+    return (rec.measurement_version or 1) >= 2
+
+
+def _dollar_weighted(records, bps_attr: str, ref_attr: str = "arrival_mid") -> dict:
+    """Notional-weighted average of a bps column, plus the dollar total.
+
+    Weighting by traded notional rather than order count keeps one small order from
+    carrying the same weight as a large one.
+    """
+    usable = [
+        r for r in records
+        if getattr(r, bps_attr) is not None and getattr(r, ref_attr)
+    ]
+    notional = sum(getattr(r, ref_attr) * (r.filled_qty or r.shares) for r in usable)
+    dollars = sum(
+        getattr(r, bps_attr) / 10_000 * getattr(r, ref_attr) * (r.filled_qty or r.shares)
+        for r in usable
+    )
+    return {
+        "orders": len(usable),
+        "bps": round(dollars / notional * 10_000, 2) if notional else None,
+        "dollars": round(dollars, 2),
+    }
+
+
+def _aggregate_v2(records) -> dict:
+    """Implementation-shortfall decomposition over version 2 rows.
+
+    delay is measured against the decision mid and execution against the arrival
+    mid, so each leg is weighted by the reference it is actually measured from.
+    Synthetic fills are excluded from the execution leg -- their price came from a
+    quote, so measuring it would compare a quote against itself.
+    """
+    real_fills = [r for r in records if r.filled_price and not r.fill_is_synthetic]
+    delay = _dollar_weighted(records, "delay_bps", "decision_mid")
+    execution = _dollar_weighted(real_fills, "execution_bps", "arrival_mid")
+
+    # First-order sum. The legs are measured off different references (decision mid
+    # vs arrival mid), so an exact decision->fill figure would rescale the execution
+    # leg by arrival/decision. That ratio is ~1 for realistic intraday drift, making
+    # the correction second-order -- a 50bps move applied to a 5bps execution leg
+    # shifts the total by 0.025bps. Not worth the extra column.
+    total_bps = None
+    if delay["bps"] is not None or execution["bps"] is not None:
+        total_bps = round((delay["bps"] or 0.0) + (execution["bps"] or 0.0), 2)
+
+    spreads = [r.spread_bps_at_arrival for r in records if r.spread_bps_at_arrival]
+    notional = sum(
+        r.filled_price * (r.filled_qty or r.shares) for r in real_fills
+    )
+    return {
+        "orders": len(records),
+        "filled": len(real_fills),
+        "unfilled": sum(1 for r in records if not r.filled_price),
+        "synthetic_fills": sum(1 for r in records if r.fill_is_synthetic),
+        "traded_notional": round(notional, 2),
+        "delay": delay,
+        "execution": execution,
+        "total_shortfall_bps": total_bps,
+        "total_shortfall_dollars": round(
+            delay["dollars"] + execution["dollars"], 2
+        ),
+        "avg_spread_bps": round(sum(spreads) / len(spreads), 2) if spreads else None,
+    }
+
+
+def _aggregate_legacy(records) -> dict:
+    """The original one-number aggregate, kept so version 1 rows stay reproducible.
+
+    Not comparable with the version 2 figures: planning_price here is the ask for
+    buys and sells alike, so sells carry a full spread as cost while buys are
+    benchmarked against the worst price they could pay.
+    """
+    filled = [r for r in records if r.filled_price and r.planning_price]
+    notional = sum(r.filled_price * (r.filled_qty or r.shares) for r in filled)
+    cost = sum(
+        (r.slippage_bps or 0) / 10_000 * r.planning_price * (r.filled_qty or r.shares)
+        for r in filled
+    )
+    return {
+        "orders": len(records),
+        "filled": len(filled),
+        "unfilled": sum(1 for r in records if not r.filled_price),
+        "traded_notional": round(notional, 2),
+        "cost_dollars": round(cost, 2),
+        "avg_slippage_bps": round(cost / notional * 10_000, 2) if notional else 0.0,
+    }
+
+
 async def execution_quality(db: AsyncSession, days: int = 30) -> dict:
-    """Aggregate slippage stats: cumulative and per-day."""
+    """Execution cost, split into delay and execution legs.
+
+    Version 1 and version 2 rows are aggregated separately and never mixed: they are
+    measured against different references, so a combined average would be
+    meaningless. `cumulative` and `by_day` keep the legacy shape and cover version 1
+    only, so nothing reading them breaks; `shortfall` carries the corrected numbers.
+    """
     since = datetime.utcnow() - timedelta(days=days)
     rows_q = await db.execute(
         select(OrderExecution).where(OrderExecution.submitted_at >= since)
     )
     rows = rows_q.scalars().all()
 
-    def _aggregate(records) -> dict:
-        filled = [r for r in records if r.filled_price and r.planning_price]
-        notional = sum(r.filled_price * (r.filled_qty or r.shares) for r in filled)
-        cost = sum(
-            (r.slippage_bps or 0) / 10_000 * r.planning_price * (r.filled_qty or r.shares)
-            for r in filled
-        )
-        weighted_bps = (cost / notional * 10_000) if notional else 0.0
-        return {
-            "orders": len(records),
-            "filled": len(filled),
-            "unfilled": sum(1 for r in records if not r.filled_price),
-            "traded_notional": round(notional, 2),
-            "cost_dollars": round(cost, 2),
-            "avg_slippage_bps": round(weighted_bps, 2),
-        }
+    v2 = [r for r in rows if _is_v2(r)]
+    legacy = [r for r in rows if not _is_v2(r)]
 
     by_day: dict[str, list] = {}
-    for r in rows:
+    for r in v2:
         by_day.setdefault(r.submitted_at.date().isoformat(), []).append(r)
 
     return {
         "window_days": days,
-        "cumulative": _aggregate(rows),
-        "by_day": [
-            {"date": day, **_aggregate(records)}
+        # Corrected measurement
+        "shortfall": _aggregate_v2(v2),
+        "shortfall_by_day": [
+            {"date": day, **_aggregate_v2(records)}
             for day, records in sorted(by_day.items(), reverse=True)
         ],
+        "has_v2": bool(v2),
+        # Legacy, ask-benchmarked. Retained for the audit trail only.
+        "legacy": _aggregate_legacy(legacy),
+        "cumulative": _aggregate_legacy(legacy),
+        "by_day": [],
     }

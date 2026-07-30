@@ -677,7 +677,11 @@ async def _build_rebalance_inputs(db: AsyncSession):
     eligible_tickers = [s.ticker for s in scored[:20] if s.eligible]
     held_tickers = [p.ticker for p in positions]
     all_tickers = list(set(eligible_tickers + held_tickers))
-    prices = await _broker.get_prices(all_tickers) if all_tickers else {}
+    # Keep the two-sided quotes, not just the mid: these are the decision-point
+    # reference the shortfall decomposition measures delay against, and the sell-side
+    # limit collar needs the bid.
+    quotes = await _broker.get_quotes(all_tickers) if all_tickers else {}
+    prices = {t: q.mid for t, q in quotes.items() if q.mid and q.mid > 0}
 
     sectors = {}
     for t in eligible_tickers:
@@ -699,6 +703,7 @@ async def _build_rebalance_inputs(db: AsyncSession):
         "current_positions": current_positions,
         "target_weights": target_weights,
         "prices": prices,
+        "quotes": quotes,
         "exposure": exposure,
         "regime_id": regime_id,
         "run_id": latest_run.id,
@@ -808,21 +813,45 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
     collar = settings.order_limit_collar_pct
 
     def _limit_for(ticker: str, side: str) -> float | None:
-        px = result["prices"].get(ticker) or 0
-        if px <= 0:
-            return None
-        return px * (1 + collar) if side == "buy" else px * (1 - collar)
+        """Marketable limit, collared off the side the order will actually cross.
+
+        A buy lifts the ask and a sell hits the bid, so referencing the ask for both
+        put sell limits a spread too high: in any name whose spread exceeded the
+        collar, ask*(1-collar) sat above the bid and could not fill at all. Falls
+        back to the mid when only one side is quoted.
+        """
+        quote = result.get("quotes", {}).get(ticker)
+        mid = result["prices"].get(ticker) or 0
+        if side == "buy":
+            ref = (quote.ask if quote and quote.ask else None) or mid
+            return ref * (1 + collar) if ref > 0 else None
+        ref = (quote.bid if quote and quote.bid else None) or mid
+        return ref * (1 - collar) if ref > 0 else None
 
     from api.tracker.execution import record_order
+
+    async def _arrival_quote(ticker: str):
+        """Quote taken as late as possible before the order goes out. The gap between
+        this and the decision quote is delay cost, which is what a plan-time
+        benchmark silently folds into 'slippage'."""
+        try:
+            return (await _broker.get_quotes([ticker])).get(ticker)
+        except Exception as e:
+            print(f"[rebalance] Arrival quote failed for {ticker}: {e}")
+            return None
 
     # Sells first to free up cash
     for order in plan.sells:
         try:
             sell_limit = _limit_for(order.ticker, "sell")
+            arrival = await _arrival_quote(order.ticker)
             res = await _broker.submit_order(
                 order.ticker, order.shares, "sell",
                 limit_price=sell_limit,
             )
+            # P&L still needs a number when the broker reports no fill, but that
+            # substitute must not be measured as execution quality.
+            fill = res.filled_price or result["prices"].get(order.ticker)
             record_order(
                 db,
                 order_id=res.order_id,
@@ -834,11 +863,10 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
                 limit_price=sell_limit,
                 status=res.status,
                 filled_price=res.filled_price,
+                decision_quote=result.get("quotes", {}).get(order.ticker),
+                arrival_quote=arrival,
+                fill_is_synthetic=not res.filled_price,
             )
-            # Best known exit price: reported fill, else the planning quote.
-            # With neither, P&L on affected trades is recorded as 0, not as
-            # a fake total loss from treating the fill as $0.
-            fill = res.filled_price or result["prices"].get(order.ticker)
 
             # Walk ALL open DB trades for this ticker (there can be several
             # from older execute paths) — exits close every one of them,
@@ -884,6 +912,7 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
     for order in plan.buys:
         try:
             buy_limit = _limit_for(order.ticker, "buy")
+            arrival = await _arrival_quote(order.ticker)
             res = await _broker.submit_order(
                 order.ticker, order.shares, "buy",
                 limit_price=buy_limit,
@@ -899,6 +928,9 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
                 limit_price=buy_limit,
                 status=res.status,
                 filled_price=res.filled_price,
+                decision_quote=result.get("quotes", {}).get(order.ticker),
+                arrival_quote=arrival,
+                fill_is_synthetic=not res.filled_price,
             )
             if order.reason == "new":
                 target_match = next(

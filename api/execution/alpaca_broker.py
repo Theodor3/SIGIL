@@ -184,11 +184,11 @@ class AlpacaBroker:
                     order = updated
                     break
 
-        # Last resort: use current quote as entry price
-        if filled_price is None and str(order.status) not in ("canceled", "expired", "rejected"):
-            prices = await self.get_prices([ticker])
-            filled_price = prices.get(ticker)
-
+        # Deliberately NOT substituting a quote for an unreported fill. Doing so
+        # fabricated a fill price that then fed the slippage average, measuring a
+        # quote against itself. reconcile_executions() backfills the real fill for up
+        # to 7 days, which is the correct mechanism; callers that need a number for
+        # P&L substitute one themselves and flag it.
         return OrderResult(
             order_id=order_id,
             ticker=ticker,
