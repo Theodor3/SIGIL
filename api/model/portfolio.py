@@ -28,10 +28,15 @@ class PortfolioConstraints:
 _EPS = 1e-9
 
 # Sentinel used when sector lookup fails. It is not a sector, so it is exempt from
-# the sector cap: callers resolve sectors from a 10-minute in-memory cache that is
-# only written during a pipeline run, so outside that window every name resolves
-# here. Capping it would clamp the whole book to max_sector_pct on missing
+# the sector cap: capping it would clamp the whole book to max_sector_pct on missing
 # reference data rather than on any real concentration.
+#
+# Callers now resolve sectors from the persisted screening cache (api/data/sectors),
+# so in normal operation few names land here — where they used to land here almost
+# always, because the old source was a 10-minute in-memory cache written only during
+# a pipeline run. The exemption stays regardless: a lookup failure is still not a
+# concentration, and it is the whole reason a reference-data outage can't force a
+# sell-off.
 UNCLASSIFIED_SECTOR = "Unknown"
 
 
@@ -114,8 +119,9 @@ def _apply_caps(
     if unclassified > 0.10:
         print(
             f"[portfolio] {unclassified:.1%} of the book has no sector; the "
-            f"{max_sec:.0%} sector cap is unenforced on that share. Sector data "
-            f"comes from a 10-minute cache written only during a pipeline run."
+            f"{max_sec:.0%} sector cap is unenforced on that share. Either "
+            f"enforce_sector_cap is off, or those tickers have no sector on file "
+            f"in screening_cache — GET /api/portfolio/sector-preview says which."
         )
 
     shortfall = 1.0 - sum(w.values())

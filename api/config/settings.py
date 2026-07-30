@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     rebalance_keep_rank: int = 50
     rebalance_max_turnover_pct: float = 0.25
     order_limit_collar_pct: float = 0.01
+    # Feed real sectors to portfolio construction, making the 30% sector cap bind.
+    # Off by default: the cap has never bound on a live book (sector data was
+    # missing), so turning it on re-cuts real positions. Check the candidate spread
+    # with GET /api/portfolio/sector-preview first — under 4 distinct sectors the
+    # cap cannot reach fully invested and the remainder stays in cash.
+    enforce_sector_cap: bool = False
     min_avg_dollar_volume: float = 5_000_000
     open_quiet_minutes: int = 15
     prediction_retention_days: int = 365

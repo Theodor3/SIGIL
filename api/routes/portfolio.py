@@ -62,15 +62,15 @@ async def get_portfolio(db: AsyncSession = Depends(get_db)):
         for t in closed_trades_q.scalars().all()
     ]
 
-    # Sector exposure from positions (look up sector from cached company info)
-    from api import cache as app_cache
+    # Sector exposure from positions. Sectors come from the persisted screening
+    # cache (api/data/sectors), not the 10-minute company cache that used to leave
+    # every position "Unknown" outside the few minutes after a pipeline run.
+    from api.data.sectors import load_sector_map
     sector_exposure: dict[str, float] = {}
     total_value = account.portfolio_value or 1
+    resolved_sectors = await load_sector_map(db, [p.ticker for p in positions])
     for pos in positions:
-        cached = app_cache.get(f"company:{pos.ticker}")
-        sector = (cached or {}).get("sector", "") if cached else ""
-        if not sector:
-            sector = "Unknown"
+        sector = resolved_sectors.get(pos.ticker) or "Unknown"
         pct = (pos.market_value / total_value) * 100 if total_value else 0
         sector_exposure[sector] = sector_exposure.get(sector, 0) + pct
 
@@ -195,12 +195,8 @@ async def generate_targets(db: AsyncSession = Depends(get_db)):
     tickers = [s.ticker for s in scored[:20] if s.eligible]
     prices = await _broker.get_prices(tickers)
 
-    # Use cached company info for real sector data
-    from api import cache as app_cache
-    sectors = {}
-    for t in tickers:
-        cached = app_cache.get(f"company:{t}")
-        sectors[t] = (cached or {}).get("sector", "") or "Unknown"
+    from api.data.sectors import sectors_for_construction
+    sectors = await sectors_for_construction(db, tickers)
 
     targets = construct_portfolio(scored, account.equity, prices, sectors)
 
@@ -628,7 +624,6 @@ async def _build_rebalance_inputs(db: AsyncSession):
     from api.regime.detector import policy_for
     from api.regime.models import RegimeSnapshot
     from datetime import date
-    from api import cache as app_cache
 
     run_q = await db.execute(
         select(PipelineRun)
@@ -683,10 +678,8 @@ async def _build_rebalance_inputs(db: AsyncSession):
     quotes = await _broker.get_quotes(all_tickers) if all_tickers else {}
     prices = {t: q.mid for t, q in quotes.items() if q.mid and q.mid > 0}
 
-    sectors = {}
-    for t in eligible_tickers:
-        cached = app_cache.get(f"company:{t}")
-        sectors[t] = (cached or {}).get("sector", "") or "Unknown"
+    from api.data.sectors import sectors_for_construction
+    sectors = await sectors_for_construction(db, eligible_tickers)
 
     targets = construct_portfolio(scored, account.equity, prices, sectors)
     target_weights = {t.ticker: t.weight for t in targets}
@@ -709,7 +702,70 @@ async def _build_rebalance_inputs(db: AsyncSession):
         "run_id": latest_run.id,
         "targets": targets,
         "ranks": {s.ticker: i + 1 for i, s in enumerate(scored)},
+        # Kept so the sector preview can re-run construction on the same inputs
+        "scored": scored,
+        "eligible_tickers": eligible_tickers,
     }, None
+
+
+@router.get("/sector-preview")
+async def sector_preview(db: AsyncSession = Depends(get_db)):
+    """What the sector cap would do to the next rebalance. Read-only, places no orders.
+
+    Enabling enforce_sector_cap changes live orders, so this is the check to run
+    first. `if_enforced.cash_pct` is the number that decides it: with max_sector_pct
+    at 30% a book needs at least 4 distinct sectors to reach fully invested, so a
+    thin spread across the candidates parks the remainder in cash. Weights are
+    pre-exposure — the rebalancer scales the whole book by the regime's gross
+    exposure afterwards.
+    """
+    from api.data.sectors import load_sector_map, sectors_for_construction
+    from api.model.portfolio import (
+        UNCLASSIFIED_SECTOR, PortfolioConstraints, construct_portfolio,
+    )
+
+    result, error = await _build_rebalance_inputs(db)
+    if error:
+        return {"error": error}
+
+    tickers = result["eligible_tickers"]
+    scored = result["scored"]
+    prices = result["prices"]
+    equity = result["account"].equity
+
+    resolved = await load_sector_map(db, tickers)
+    current = await sectors_for_construction(db, tickers)
+
+    def _summary(sectors: dict[str, str]) -> dict:
+        targets = construct_portfolio(scored, equity, prices, sectors)
+        by_sector: dict[str, float] = {}
+        for t in targets:
+            sector = sectors.get(t.ticker) or UNCLASSIFIED_SECTOR
+            by_sector[sector] = by_sector.get(sector, 0.0) + t.weight
+        invested = sum(t.weight for t in targets)
+        return {
+            "positions": len(targets),
+            "invested_pct": round(invested, 4),
+            "cash_pct": round(max(0.0, 1 - invested), 4),
+            "sector_weights": {
+                s: round(w, 4)
+                for s, w in sorted(by_sector.items(), key=lambda kv: -kv[1])
+            },
+        }
+
+    return {
+        "enforce_sector_cap": settings.enforce_sector_cap,
+        "max_sector_pct": PortfolioConstraints().max_sector_pct,
+        "candidates": len(tickers),
+        "resolved_count": len(resolved),
+        "distinct_sectors": len(set(resolved.values())),
+        "unclassified": sorted(t for t in tickers if t not in resolved),
+        "sectors": dict(sorted(resolved.items())),
+        # How construction behaves right now, and how it would behave with the
+        # cap live. Identical when enforce_sector_cap is already on.
+        "as_built_today": _summary(current),
+        "if_enforced": _summary(resolved),
+    }
 
 
 @router.post("/rebalance/preview")
