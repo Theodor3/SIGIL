@@ -45,6 +45,94 @@ function horizon(s: SignalStat, h: string): HorizonStats | undefined {
   return s.eval_stats?.[h];
 }
 
+interface Decay {
+  half_life_days: number | null;
+  classification:
+    | "fast"
+    | "medium"
+    | "slow"
+    | "accelerating"
+    | "negative_alpha"
+    | "insufficient_data";
+  exactly_determined: boolean | null;
+  extrapolation_ratio: number | null;
+  alpha_ratio?: number;
+  linear_ratio?: number;
+  horizons_used: string[];
+  min_sample: number;
+}
+
+/** How long a signal's information lasts. Deliberately noisy-looking where the
+ *  evidence is thin: a bare number here would imply precision the 5d/20d-only
+ *  record cannot support. */
+function HalfLife({ decay }: { decay?: Decay }) {
+  if (!decay) return <span className="text-sigil-muted">—</span>;
+
+  if (decay.classification === "accelerating") {
+    return (
+      <span
+        className="text-sigil-accent"
+        title={
+          `Alpha grew ${decay.alpha_ratio}x from 5d to 20d, at or above the ` +
+          `${decay.linear_ratio}x of linear accumulation. The signal has not peaked ` +
+          `inside the measured window, so no half-life exists yet — the 60d horizon ` +
+          `is needed to locate it.`
+        }
+      >
+        &gt;20d
+      </span>
+    );
+  }
+  if (decay.classification === "negative_alpha") {
+    return (
+      <span className="text-sigil-muted" title="Alpha is negative; a decay curve would describe how fast it loses money.">
+        n/a
+      </span>
+    );
+  }
+  if (decay.classification === "insufficient_data" || decay.half_life_days == null) {
+    return (
+      <span
+        className="text-sigil-muted"
+        title={`Needs ${decay.min_sample.toLocaleString()}+ graded predictions at two or more horizons. Usable so far: ${decay.horizons_used.join(", ") || "none"}.`}
+      >
+        —
+      </span>
+    );
+  }
+
+  // Extrapolating well past the longest horizon observed: the bucket is
+  // meaningful, the number is not.
+  const stretched = (decay.extrapolation_ratio ?? 0) > 2;
+  const colour =
+    decay.classification === "fast"
+      ? "text-sigil-danger"
+      : decay.classification === "slow"
+        ? "text-sigil-accent"
+        : "text-sigil-text";
+
+  return (
+    <span
+      className={colour}
+      title={
+        `${decay.classification} · fitted from ${decay.horizons_used.join(", ")}` +
+        (decay.exactly_determined
+          ? " · exactly determined (2 points, 2 parameters, no residual)"
+          : "") +
+        (decay.extrapolation_ratio
+          ? ` · tau is ${decay.extrapolation_ratio}x the longest horizon observed`
+          : "")
+      }
+    >
+      {stretched ? "~" : ""}
+      {decay.half_life_days < 10
+        ? decay.half_life_days.toFixed(1)
+        : Math.round(decay.half_life_days)}
+      d
+    </span>
+  );
+}
+
 function hasAnyEvals(s: SignalStat): boolean {
   return Boolean(horizon(s, "5d") || horizon(s, "20d") || horizon(s, "60d"));
 }
@@ -232,6 +320,7 @@ export default function Performance() {
                     <th className="text-right py-2">α 5d</th>
                     <th className="text-right py-2">Hit 20d</th>
                     <th className="text-right py-2">α 20d</th>
+                    <th className="text-right py-2">Half-life</th>
                     <th className="text-right py-2">Evals</th>
                   </tr>
                 </thead>
@@ -267,6 +356,9 @@ export default function Performance() {
                           </td>
                           <td className={`py-2.5 text-right font-mono ${(h20?.avg_alpha || 0) >= 0 ? "text-sigil-accent" : "text-sigil-danger"}`}>
                             {h20 ? `${(h20.avg_alpha * 100).toFixed(2)}%` : "—"}
+                          </td>
+                          <td className="py-2.5 text-right font-mono">
+                            <HalfLife decay={s.eval_stats?.decay} />
                           </td>
                           <td className="py-2.5 text-right font-mono text-sigil-muted">{totalN}</td>
                         </tr>

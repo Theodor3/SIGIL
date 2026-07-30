@@ -358,5 +358,13 @@ async def get_signal_stats(db: AsyncSession) -> dict[str, dict]:
         }
         if prior:
             entry["prior_versions"] = prior
+
+        # Decay shape of the deployed version only — mixing versions would blend
+        # different signals. Derived from the horizon grades just summarised, so it
+        # costs no extra queries.
+        from api.research.decay import fit_signal_decay
+        entry["decay"] = fit_signal_decay(
+            {k: v for k, v in entry.items() if k.endswith("d") and isinstance(v, dict)}
+        )
         stats[name] = entry
     return stats
