@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -37,6 +38,37 @@ class OrderResult:
     qty: int
     status: str
     filled_price: float | None = None
+
+
+@dataclass
+class Quote:
+    """A two-sided quote. Cost measurement needs both sides: a buy lifts the ask and
+    a sell hits the bid, so benchmarking both against one side makes a clean fill
+    look free on one and a full spread's loss on the other."""
+    ticker: str
+    bid: float | None = None
+    ask: float | None = None
+    ts: datetime | None = None
+
+    @property
+    def mid(self) -> float | None:
+        if self.bid and self.ask and self.bid > 0 and self.ask > 0:
+            return (self.bid + self.ask) / 2
+        # One-sided book: the side we do have is the best reference available
+        return self.ask or self.bid or None
+
+    @property
+    def spread_bps(self) -> float | None:
+        if not (self.bid and self.ask) or self.bid <= 0 or self.ask <= 0:
+            return None
+        mid = (self.bid + self.ask) / 2
+        return (self.ask - self.bid) / mid * 10_000 if mid > 0 else None
+
+
+def _demo_price(ticker: str) -> float:
+    """Deterministic stand-in price, unchanged from the original demo path."""
+    seed = int(hashlib.md5(ticker.encode()).hexdigest()[:8], 16)
+    return 50 + (seed % 400)
 
 
 class AlpacaBroker:
@@ -166,15 +198,20 @@ class AlpacaBroker:
             filled_price=filled_price,
         )
 
-    async def get_prices(self, tickers: list[str]) -> dict[str, float]:
-        """Get latest prices for position sizing."""
+    async def get_quotes(self, tickers: list[str]) -> dict[str, Quote]:
+        """Latest two-sided quotes, keyed by ticker.
+
+        Missing tickers are simply absent — callers treat that as "don't size a
+        trade off this one" rather than as a zero price.
+        """
         if self._demo:
-            import hashlib
-            prices = {}
+            now = datetime.utcnow()
+            out = {}
             for t in tickers:
-                seed = int(hashlib.md5(t.encode()).hexdigest()[:8], 16)
-                prices[t] = 50 + (seed % 400)
-            return prices
+                px = _demo_price(t)
+                half = px * 0.0005  # 10bps synthetic spread
+                out[t] = Quote(ticker=t, bid=px - half, ask=px + half, ts=now)
+            return out
         try:
             from alpaca.data.requests import StockLatestQuoteRequest
             from alpaca.data.historical import StockHistoricalDataClient
@@ -183,15 +220,36 @@ class AlpacaBroker:
             )
             request = StockLatestQuoteRequest(symbol_or_symbols=tickers)
             quotes = data_client.get_stock_latest_quote(request)
-            return {
-                symbol: float(quote.ask_price or quote.bid_price or 0)
-                for symbol, quote in quotes.items()
-            }
+            out = {}
+            for symbol, q in quotes.items():
+                bid = float(q.bid_price) if q.bid_price else None
+                ask = float(q.ask_price) if q.ask_price else None
+                out[symbol] = Quote(
+                    ticker=symbol, bid=bid, ask=ask,
+                    ts=getattr(q, "timestamp", None),
+                )
+            return out
         except Exception as e:
-            # No fabricated prices in live mode — callers treat missing
-            # prices as "don't size a trade off this ticker"
-            print(f"[broker] Price fetch failed for {len(tickers)} tickers: {e}")
+            # No fabricated prices in live mode
+            print(f"[broker] Quote fetch failed for {len(tickers)} tickers: {e}")
             return {}
+
+    async def get_prices(self, tickers: list[str]) -> dict[str, float]:
+        """Mid prices, for position sizing and for valuing a position.
+
+        This used to return the *ask* for every ticker regardless of side. That
+        overstated the exit price on every sell, so anywhere a sale was valued from
+        a quote instead of a fill — `close/{trade_id}`, `close-all`, and the
+        exit-price fallback in the rebalancer — realised P&L came out too high by
+        roughly the spread. The mid is side-neutral and is the correct reference for
+        both sizing and measurement.
+        """
+        quotes = await self.get_quotes(tickers)
+        return {
+            ticker: q.mid
+            for ticker, q in quotes.items()
+            if q.mid is not None and q.mid > 0
+        }
 
     async def cancel_all_orders(self) -> int:
         """Cancel every open order. Rebalancing is cancel-and-replace: the
