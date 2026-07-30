@@ -25,6 +25,109 @@ class PortfolioConstraints:
     long_only: bool = True
 
 
+_EPS = 1e-9
+
+# Sentinel used when sector lookup fails. It is not a sector, so it is exempt from
+# the sector cap: callers resolve sectors from a 10-minute in-memory cache that is
+# only written during a pipeline run, so outside that window every name resolves
+# here. Capping it would clamp the whole book to max_sector_pct on missing
+# reference data rather than on any real concentration.
+UNCLASSIFIED_SECTOR = "Unknown"
+
+
+def _sector_totals(weights: dict[str, float], sector_of: dict[str, str]) -> dict[str, float]:
+    totals: dict[str, float] = {}
+    for ticker, w in weights.items():
+        sector = sector_of[ticker]
+        totals[sector] = totals.get(sector, 0.0) + w
+    return totals
+
+
+def _apply_caps(
+    weights: dict[str, float],
+    sector_of: dict[str, str],
+    constraints: PortfolioConstraints,
+    max_passes: int = 25,
+) -> dict[str, float]:
+    """Project weights onto the position and sector caps, keeping the sum at 1.0.
+
+    Clipping alone leaves the book short of fully invested, and the obvious repair
+    -- dividing through by the new sum -- scales every weight back up, which is how
+    positions used to end up above max_position_pct and sectors above
+    max_sector_pct despite both being clipped moments earlier. Instead the shortfall
+    is pushed only into names that still have room under both caps, and the whole
+    pass repeats until nothing is violated.
+    """
+    max_pos = constraints.max_position_pct
+    max_sec = constraints.max_sector_pct
+    w = dict(weights)
+
+    # Clip once, then only ever add -- and never add more than the remaining room
+    # under either cap. That keeps the whole loop monotone, so it converges instead
+    # of oscillating between overshooting a sector and being scaled back down.
+    for ticker in w:
+        w[ticker] = min(w[ticker], max_pos)
+    for sector, total in _sector_totals(w, sector_of).items():
+        if sector == UNCLASSIFIED_SECTOR:
+            continue
+        if total > max_sec + _EPS:
+            scale = max_sec / total
+            for ticker in w:
+                if sector_of[ticker] == sector:
+                    w[ticker] *= scale
+
+    for _ in range(max_passes):
+        deficit = 1.0 - sum(w.values())
+        if deficit <= _EPS:
+            break
+
+        sec_room = {
+            sector: (float("inf") if sector == UNCLASSIFIED_SECTOR
+                     else max_sec - total)
+            for sector, total in _sector_totals(w, sector_of).items()
+        }
+        candidates = {
+            t: w[t] for t in w
+            if max_pos - w[t] > _EPS and sec_room[sector_of[t]] > _EPS
+        }
+        base = sum(candidates.values())
+        if base <= _EPS:
+            break
+
+        # Heaviest first, so when sector room is scarce the top-ranked names get it
+        placed = 0.0
+        for ticker in sorted(candidates, key=lambda t: -w[t]):
+            sector = sector_of[ticker]
+            want = deficit * (candidates[ticker] / base)
+            take = min(want, max_pos - w[ticker], sec_room[sector])
+            if take <= _EPS:
+                continue
+            w[ticker] += take
+            sec_room[sector] -= take
+            placed += take
+        if placed <= _EPS:
+            break
+
+    unclassified = sum(
+        v for t, v in w.items() if sector_of[t] == UNCLASSIFIED_SECTOR
+    )
+    if unclassified > 0.10:
+        print(
+            f"[portfolio] {unclassified:.1%} of the book has no sector; the "
+            f"{max_sec:.0%} sector cap is unenforced on that share. Sector data "
+            f"comes from a 10-minute cache written only during a pipeline run."
+        )
+
+    shortfall = 1.0 - sum(w.values())
+    if shortfall > 1e-4:
+        print(
+            f"[portfolio] Caps leave the book underinvested: {len(w)} names at "
+            f"max_position={max_pos:.1%} / max_sector={max_sec:.1%} reach "
+            f"{sum(w.values()):.4f}; {shortfall:.2%} stays in cash"
+        )
+    return w
+
+
 def construct_portfolio(
     scored: list,
     total_capital: float,
@@ -40,34 +143,33 @@ def construct_portfolio(
     if not eligible:
         return []
 
-    raw_weights = {}
     total_score = sum(s.final_score for s in eligible)
-    for s in eligible:
-        raw_weights[s.ticker] = s.final_score / max(total_score, 1e-9)
+    if total_score <= _EPS:
+        return []
+    raw_weights = {s.ticker: s.final_score / total_score for s in eligible}
+    sector_of = {s.ticker: (sectors.get(s.ticker) or "Unknown") for s in eligible}
 
-    # Apply position caps
-    for ticker in raw_weights:
-        raw_weights[ticker] = min(raw_weights[ticker], constraints.max_position_pct)
-        raw_weights[ticker] = max(raw_weights[ticker], constraints.min_position_pct)
-
-    # Apply sector caps
-    sector_totals: dict[str, float] = {}
-    for ticker, w in raw_weights.items():
-        sector = sectors.get(ticker, "Unknown")
-        sector_totals[sector] = sector_totals.get(sector, 0) + w
-
-    for sector, total in sector_totals.items():
-        if total > constraints.max_sector_pct:
-            scale = constraints.max_sector_pct / total
-            for ticker in raw_weights:
-                if sectors.get(ticker, "Unknown") == sector:
-                    raw_weights[ticker] *= scale
-
-    # Re-normalize to sum to 1.0
-    weight_sum = sum(raw_weights.values())
-    if weight_sum > 0:
-        for ticker in raw_weights:
-            raw_weights[ticker] /= weight_sum
+    # Project onto the caps BEFORE applying the floor. Clipping the big names frees
+    # weight that flows to the small ones, so a name that looks unholdably small
+    # against raw scores is often well above the floor once the caps have bound --
+    # dropping first would throw away most of a skewed book.
+    for _ in range(8):
+        raw_weights = _apply_caps(raw_weights, sector_of, constraints)
+        if len(raw_weights) <= 1:
+            break
+        below = {t: w for t, w in raw_weights.items()
+                 if w < constraints.min_position_pct - _EPS}
+        if not below:
+            break
+        # One at a time: removing the smallest lifts the rest, which can carry the
+        # others back over the floor.
+        del raw_weights[min(below, key=lambda t: below[t])]
+        total = sum(raw_weights.values())
+        if total <= _EPS:
+            return []
+        raw_weights = {t: v / total for t, v in raw_weights.items()}
+    # Idempotent when the caps already hold; guarantees the last word is a projection
+    raw_weights = _apply_caps(raw_weights, sector_of, constraints)
 
     targets = []
     for s in eligible:
