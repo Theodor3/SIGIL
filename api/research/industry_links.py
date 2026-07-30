@@ -84,7 +84,10 @@ LINK_GROUPS: tuple[LinkGroup, ...] = (
               "BEA folds pharma/bio into chemical products"),
     LinkGroup("pharma", "Pharmaceuticals", ("325",), "XPH"),
     LinkGroup("med_devices", "Medical devices & supplies", ("339",), "IHI"),
-    LinkGroup("providers", "Healthcare providers & services", ("621", "622HO", "624"), "IHF"),
+    # 622HO appears in some BEA vintages; the current Summary table splits hospitals
+    # (622) from nursing and residential care (623). Caught by load()'s code validation.
+    LinkGroup("providers", "Healthcare providers & services",
+              ("621", "622", "623", "624"), "IHF"),
     LinkGroup("health_it", "Health information services", ("5415", "514"), "IHF"),
     # --- Financials
     LinkGroup("banks", "Banks", ("521CI",), "KRE"),
