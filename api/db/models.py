@@ -113,10 +113,21 @@ class EquitySnapshot(Base):
 
 
 class OrderExecution(Base):
-    """Every order the rebalancer submits, with the planning quote it was
-    priced against — the raw material for execution-cost analysis. Slippage
-    is signed so positive always means cost: buys filling above plan and
-    sells filling below plan both count against you."""
+    """Every order the rebalancer submits, with the quotes it was priced against —
+    the raw material for execution-cost analysis. All cost figures are signed so
+    positive always means cost: buys filling above the reference and sells filling
+    below it both count against you.
+
+    Cost is split into implementation-shortfall components rather than reported as
+    one number, because a single figure benchmarked at plan time is dominated by
+    market drift between deciding and trading, not by execution:
+
+        delay_bps      decision mid -> arrival mid   (the gap before we traded)
+        execution_bps  arrival mid  -> fill          (how well we traded)
+
+    measurement_version distinguishes the two regimes. Version 1 rows benchmarked
+    everything against a one-sided ask captured at plan time and are not comparable
+    with version 2; aggregates report them separately rather than mixing them."""
     __tablename__ = "order_executions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -132,6 +143,24 @@ class OrderExecution(Base):
     filled_qty: Mapped[float | None] = mapped_column(Float)
     filled_price: Mapped[float | None] = mapped_column(Float)
     slippage_bps: Mapped[float | None] = mapped_column(Float)
+
+    # Quote when the rebalance plan was built (the decision point)
+    decision_bid: Mapped[float | None] = mapped_column(Float)
+    decision_ask: Mapped[float | None] = mapped_column(Float)
+    decision_mid: Mapped[float | None] = mapped_column(Float)
+    # Quote immediately before the order went out (the arrival point)
+    arrival_bid: Mapped[float | None] = mapped_column(Float)
+    arrival_ask: Mapped[float | None] = mapped_column(Float)
+    arrival_mid: Mapped[float | None] = mapped_column(Float)
+    arrival_at: Mapped[datetime | None] = mapped_column(DateTime)
+    # Shortfall components, signed so positive means cost
+    delay_bps: Mapped[float | None] = mapped_column(Float)
+    execution_bps: Mapped[float | None] = mapped_column(Float)
+    spread_bps_at_arrival: Mapped[float | None] = mapped_column(Float)
+    # True when filled_price was substituted from a quote rather than reported by
+    # the broker — excluded from execution aggregates
+    fill_is_synthetic: Mapped[bool | None] = mapped_column(Boolean, default=False)
+    measurement_version: Mapped[int | None] = mapped_column(Integer, default=2)
 
 
 class SystemState(Base):

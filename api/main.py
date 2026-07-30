@@ -252,6 +252,12 @@ async def lifespan(app: FastAPI):
     await init_db()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # create_all builds missing tables but never adds columns to existing ones,
+        # so additive schema changes need an explicit pass. See ensure_columns.
+        from api.db.ensure_columns import ensure_columns
+        added = await ensure_columns(conn)
+        for table, columns in added.items():
+            print(f"[startup] Added columns to {table}: {', '.join(columns)}")
     discover_signals()
 
     # Runs can only execute inside this process, so any row still "running"
