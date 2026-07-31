@@ -33,6 +33,17 @@ class Settings(BaseSettings):
     # with GET /api/portfolio/sector-preview first — under 4 distinct sectors the
     # cap cannot reach fully invested and the remainder stays in cash.
     enforce_sector_cap: bool = False
+    # Refuse to submit outside the regular session. A deploy restart fired a
+    # rebalance pre-market on 2026-07-30: the arrival spread averaged 1580bps and
+    # execution cost 329bps on 4 orders, against a delay leg of -0.67bps. The
+    # spread was the whole cost, and it exists because the book is empty before
+    # 09:30 ET.
+    require_market_hours: bool = True
+    # Skip any order whose arrival spread is wider than this. Second line of
+    # defence: a name can be illiquid mid-session too, and crossing a spread this
+    # wide costs more than any signal in the book earns. 300bps is far above a
+    # normal spread for a $5M-ADV name and far below the 1580bps that triggered it.
+    max_spread_bps: float = 300.0
     min_avg_dollar_volume: float = 5_000_000
     open_quiet_minutes: int = 15
     prediction_retention_days: int = 365

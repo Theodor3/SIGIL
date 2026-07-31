@@ -838,6 +838,32 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
     it at the open. Repeated clicks now mean "replace the plan", never
     "add another one".
     """
+    # Refuse to trade outside the regular session, before cancelling anything or
+    # planning. The scheduler already defers until the open, but it is not the only
+    # caller -- this endpoint is also the Rebalance button, and a click at 06:37 ET
+    # went straight through. That run paid 329bps of execution against a 1580bps
+    # arrival spread, which is what an empty pre-market book costs.
+    #
+    # last_rebalance_at is deliberately NOT stamped on this path: a skipped
+    # rebalance has not rebalanced, and stamping it would make the 20h minimum
+    # swallow the next legitimate attempt once the market opens.
+    if settings.require_market_hours:
+        until_open = await _broker.seconds_until_market_open()
+        if until_open is None or until_open > 0:
+            reason = ("market clock unavailable" if until_open is None
+                      else f"market closed, opens in {until_open / 3600:.1f}h")
+            msg = (
+                f"No orders submitted — {reason}. Trading outside the regular "
+                "session crosses a near-empty book."
+            )
+            print(f"[rebalance] {msg}")
+            return {
+                "message": msg,
+                "skipped_reason": "market_closed",
+                "seconds_until_open": until_open,
+                "orders": [],
+            }
+
     cancelled = await _broker.cancel_all_orders()
     if cancelled:
         print(f"[rebalance] Cancelled {cancelled} pending orders before replanning")
@@ -886,6 +912,39 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
 
     from api.tracker.execution import record_order
 
+    spread_skipped: list[dict] = []
+
+    def _spread_too_wide(ticker: str, quote, side: str, reason: str) -> bool:
+        """Skip an order whose arrival spread is wider than max_spread_bps.
+
+        Crossing a wide spread costs a fixed fraction of it, and no signal in the
+        book earns enough at 20d to pay a multi-hundred-bps toll. An exit is the one
+        case worth paying for -- staying in a name the model wants out of has its own
+        cost, and refusing to sell could strand a position indefinitely -- so exits
+        are allowed through and only entries and size adjustments are skipped.
+        """
+        if quote is None or quote.spread_bps is None:
+            return False
+        if quote.spread_bps <= settings.max_spread_bps:
+            return False
+        if reason == "exit":
+            print(
+                f"[rebalance] {ticker} spread {quote.spread_bps:.0f}bps exceeds "
+                f"{settings.max_spread_bps:.0f}bps but this is an exit — trading anyway"
+            )
+            return False
+        spread_skipped.append({
+            "ticker": ticker,
+            "side": side,
+            "reason": reason,
+            "spread_bps": round(quote.spread_bps, 1),
+        })
+        print(
+            f"[rebalance] Skipping {side} {ticker} ({reason}): arrival spread "
+            f"{quote.spread_bps:.0f}bps over the {settings.max_spread_bps:.0f}bps ceiling"
+        )
+        return True
+
     async def _arrival_quote(ticker: str):
         """Quote taken as late as possible before the order goes out. The gap between
         this and the decision quote is delay cost, which is what a plan-time
@@ -901,6 +960,8 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
         try:
             sell_limit = _limit_for(order.ticker, "sell")
             arrival = await _arrival_quote(order.ticker)
+            if _spread_too_wide(order.ticker, arrival, "sell", order.reason):
+                continue
             res = await _broker.submit_order(
                 order.ticker, order.shares, "sell",
                 limit_price=sell_limit,
@@ -969,6 +1030,8 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
         try:
             buy_limit = _limit_for(order.ticker, "buy")
             arrival = await _arrival_quote(order.ticker)
+            if _spread_too_wide(order.ticker, arrival, "buy", order.reason):
+                continue
             res = await _broker.submit_order(
                 order.ticker, order.shares, "buy",
                 limit_price=buy_limit,
@@ -1041,6 +1104,8 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
     msg = f"Rebalanced: {sell_count} sells, {buy_count} buys"
     if plan.skipped:
         msg += f", {len(plan.skipped)} within tolerance"
+    if spread_skipped:
+        msg += f", {len(spread_skipped)} on a spread over {settings.max_spread_bps:.0f}bps"
     if errors:
         msg += f", {len(errors)} errors"
 
@@ -1050,4 +1115,8 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
         "orders": executed,
         "errors": errors,
         "skipped": plan.skipped,
+        # Names the spread ceiling kept us out of. Surfaced rather than dropped:
+        # a name skipped every cycle is a name the model wants but cannot be traded
+        # economically, which is worth knowing.
+        "spread_skipped": spread_skipped,
     }
