@@ -46,7 +46,8 @@
         "insider": 0.9,
         "insider_pattern_break": 2.4,
         "short_interest": 0.0,
-        "growth": 0.9
+        "growth": 0.9,
+        "industry_link": 0.0
       }
     },
     "composite": {
