@@ -44,11 +44,22 @@ class OrderResult:
 class Quote:
     """A two-sided quote. Cost measurement needs both sides: a buy lifts the ask and
     a sell hits the bid, so benchmarking both against one side makes a clean fill
-    look free on one and a full spread's loss on the other."""
+    look free on one and a full spread's loss on the other.
+
+    `feed` records which tape answered, because it decides whether spread_bps means
+    anything. On the free Alpaca plan quotes come from IEX alone -- roughly 2-3% of US
+    volume -- and for anything short of a mega-cap IEX's own book is frequently wide
+    or stale while the consolidated NBBO is tight. IMKTA, a $1.74bn grocery chain,
+    quoted 2961bps that way. Treating that as a real spread blocked tradeable names
+    and poisoned every cost figure benchmarked against the mid.
+    """
     ticker: str
     bid: float | None = None
     ask: float | None = None
     ts: datetime | None = None
+    # "sip" (consolidated, trustworthy), "iex" (single venue, spread unreliable),
+    # "demo", or None when unknown
+    feed: str | None = None
 
     @property
     def mid(self) -> float | None:
@@ -64,6 +75,24 @@ class Quote:
         mid = (self.bid + self.ask) / 2
         return (self.ask - self.bid) / mid * 10_000 if mid > 0 else None
 
+    @property
+    def is_reliable(self) -> bool:
+        """Whether this quote's spread can be believed.
+
+        A consolidated quote is taken at face value. A single-venue quote is only
+        believed while it stays inside implausible_spread_bps: past that it is far
+        more likely to be an empty IEX book than a real market, and the caller must
+        neither act on it nor measure against it.
+        """
+        if self.feed == "sip":
+            return True
+        spread = self.spread_bps
+        if spread is None:
+            # No two-sided quote to judge; the mid is still the best available
+            # reference, so don't brand it unreliable on that basis alone
+            return True
+        return spread <= settings.implausible_spread_bps
+
 
 def _demo_price(ticker: str) -> float:
     """Deterministic stand-in price, unchanged from the original demo path."""
@@ -75,6 +104,11 @@ class AlpacaBroker:
     def __init__(self):
         self._client = None
         self._demo = not (settings.alpaca_api_key and settings.alpaca_secret_key)
+        # Which data feed this account can actually read. Resolved once on the first
+        # quote fetch by asking for SIP and seeing whether the plan allows it, then
+        # reused -- retrying SIP on every call would add a failed request per
+        # rebalance for an answer that only changes when the subscription does.
+        self._data_feed: str | None = None
 
     @property
     def is_demo(self) -> bool:
@@ -210,7 +244,8 @@ class AlpacaBroker:
             for t in tickers:
                 px = _demo_price(t)
                 half = px * 0.0005  # 10bps synthetic spread
-                out[t] = Quote(ticker=t, bid=px - half, ask=px + half, ts=now)
+                out[t] = Quote(ticker=t, bid=px - half, ask=px + half, ts=now,
+                               feed="demo")
             return out
         try:
             from alpaca.data.requests import StockLatestQuoteRequest
@@ -218,8 +253,35 @@ class AlpacaBroker:
             data_client = StockHistoricalDataClient(
                 settings.alpaca_api_key, settings.alpaca_secret_key
             )
-            request = StockLatestQuoteRequest(symbol_or_symbols=tickers)
-            quotes = data_client.get_stock_latest_quote(request)
+
+            def _fetch(feed: str | None):
+                kwargs = {"symbol_or_symbols": tickers}
+                if feed:
+                    kwargs["feed"] = feed
+                return data_client.get_stock_latest_quote(
+                    StockLatestQuoteRequest(**kwargs)
+                )
+
+            quotes = None
+            # First call only: ask for the consolidated tape and find out whether the
+            # plan permits it. Without a subscription this raises, and the answer is
+            # cached so it is asked once per process rather than once per rebalance.
+            if self._data_feed is None:
+                try:
+                    quotes = _fetch("sip")
+                    self._data_feed = "sip"
+                    print("[broker] Quote feed: SIP (consolidated)")
+                except Exception as sip_err:
+                    self._data_feed = "iex"
+                    print(
+                        "[broker] SIP quotes unavailable on this plan, using IEX "
+                        f"({type(sip_err).__name__}). Single-venue spreads above "
+                        f"{settings.implausible_spread_bps:.0f}bps will be treated as "
+                        "unreliable rather than as real spreads."
+                    )
+            if quotes is None:
+                quotes = _fetch(self._data_feed)
+
             out = {}
             for symbol, q in quotes.items():
                 bid = float(q.bid_price) if q.bid_price else None
@@ -227,6 +289,7 @@ class AlpacaBroker:
                 out[symbol] = Quote(
                     ticker=symbol, bid=bid, ask=ask,
                     ts=getattr(q, "timestamp", None),
+                    feed=self._data_feed,
                 )
             return out
         except Exception as e:

@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.config.settings import settings
 from api.db.models import OrderExecution
 
 TERMINAL_STATUSES = {"filled", "canceled", "cancelled", "expired", "rejected"}
@@ -65,6 +66,15 @@ def record_order(
     d_mid = decision_quote.mid if decision_quote else None
     a_mid = arrival_quote.mid if arrival_quote else None
 
+    # A quote whose spread is implausible for the venue it came from cannot serve as
+    # a cost benchmark: the fill is real but the reference is not, so the difference
+    # measures the quote's error rather than our execution. Record the fact and leave
+    # the bps columns NULL so the aggregates skip the row instead of averaging noise.
+    unreliable = bool(arrival_quote is not None and not arrival_quote.is_reliable)
+    feed = (arrival_quote.feed if arrival_quote else None) or (
+        decision_quote.feed if decision_quote else None
+    )
+
     db.add(OrderExecution(
         order_id=order_id,
         submitted_at=datetime.utcnow(),
@@ -86,14 +96,17 @@ def record_order(
         arrival_mid=a_mid,
         arrival_at=(arrival_quote.ts if arrival_quote and arrival_quote.ts
                     else datetime.utcnow()),
-        delay_bps=shortfall_bps(side, d_mid, a_mid),
-        # Only meaningful against a real fill; a substituted price would just be
-        # measuring a quote against itself.
-        execution_bps=(None if fill_is_synthetic
+        delay_bps=None if unreliable else shortfall_bps(side, d_mid, a_mid),
+        # Only meaningful against a real fill and a believable reference: a
+        # substituted price would measure a quote against itself, and a broken quote
+        # would measure the quote's error.
+        execution_bps=(None if (fill_is_synthetic or unreliable)
                        else shortfall_bps(side, a_mid, filled)),
         spread_bps_at_arrival=arrival_quote.spread_bps if arrival_quote else None,
         fill_is_synthetic=bool(fill_is_synthetic),
         measurement_version=2,
+        quote_feed=feed,
+        quote_unreliable=unreliable,
     ))
 
 
@@ -122,8 +135,12 @@ async def reconcile_executions(db: AsyncSession, broker) -> dict:
             rec.filled_price = info["filled_price"]
             rec.filled_qty = info["filled_qty"] or rec.shares
             rec.slippage_bps = shortfall_bps(rec.side, rec.planning_price, rec.filled_price)
-            # A real fill arrived, so the execution leg becomes measurable
-            rec.execution_bps = shortfall_bps(rec.side, rec.arrival_mid, rec.filled_price)
+            # A real fill arrived, so the execution leg becomes measurable -- unless
+            # the arrival quote it would be measured against was never believable.
+            rec.execution_bps = (
+                None if rec.quote_unreliable
+                else shortfall_bps(rec.side, rec.arrival_mid, rec.filled_price)
+            )
             rec.fill_is_synthetic = False
             reconciled += 1
         elif info["status"] not in TERMINAL_STATUSES:
@@ -138,6 +155,26 @@ def _is_v2(rec) -> bool:
     one-sided ask captured at plan time. They are stamped NULL rather than 1 (SQLite
     backfills a DDL default onto existing rows), so NULL means legacy."""
     return (rec.measurement_version or 1) >= 2
+
+
+def _row_unreliable(rec) -> bool:
+    """Whether a recorded row's cost figures can be believed.
+
+    Derived at read time rather than trusted from the column, so rows written before
+    quote reliability was tracked are judged on the same rule as new ones. Those rows
+    carry spread_bps_at_arrival but a NULL quote_unreliable, and two of them were
+    recorded at 1580bps and 1410bps against names whose real spread is tens of bps --
+    reading the column alone would let those keep skewing the aggregate.
+
+    A SIP quote is believed at any width; anything else is believed only inside
+    implausible_spread_bps.
+    """
+    if rec.quote_unreliable:
+        return True
+    if getattr(rec, "quote_feed", None) == "sip":
+        return False
+    spread = rec.spread_bps_at_arrival
+    return bool(spread and spread > settings.implausible_spread_bps)
 
 
 def _dollar_weighted(records, bps_attr: str, ref_attr: str = "arrival_mid") -> dict:
@@ -170,8 +207,12 @@ def _aggregate_v2(records) -> dict:
     Synthetic fills are excluded from the execution leg -- their price came from a
     quote, so measuring it would compare a quote against itself.
     """
-    real_fills = [r for r in records if r.filled_price and not r.fill_is_synthetic]
-    delay = _dollar_weighted(records, "delay_bps", "decision_mid")
+    # Rows measured against a quote too far from the real market are dropped from
+    # the cost legs entirely -- their bps columns are NULL for new rows, but older
+    # rows predate the flag and are caught by _row_unreliable instead.
+    measurable = [r for r in records if not _row_unreliable(r)]
+    real_fills = [r for r in measurable if r.filled_price and not r.fill_is_synthetic]
+    delay = _dollar_weighted(measurable, "delay_bps", "decision_mid")
     execution = _dollar_weighted(real_fills, "execution_bps", "arrival_mid")
 
     # First-order sum. The legs are measured off different references (decision mid
@@ -183,7 +224,14 @@ def _aggregate_v2(records) -> dict:
     if delay["bps"] is not None or execution["bps"] is not None:
         total_bps = round((delay["bps"] or 0.0) + (execution["bps"] or 0.0), 2)
 
-    spreads = [r.spread_bps_at_arrival for r in records if r.spread_bps_at_arrival]
+    # Only average spreads we believe. An IEX book sitting far from the consolidated
+    # NBBO would otherwise dominate this figure -- it is what made avg_spread_bps read
+    # 1580 when the names involved trade tens of bps wide.
+    spreads = [
+        r.spread_bps_at_arrival for r in records
+        if r.spread_bps_at_arrival and not _row_unreliable(r)
+    ]
+    feeds = sorted({r.quote_feed for r in records if r.quote_feed})
     notional = sum(
         r.filled_price * (r.filled_qty or r.shares) for r in real_fills
     )
@@ -192,6 +240,9 @@ def _aggregate_v2(records) -> dict:
         "filled": len(real_fills),
         "unfilled": sum(1 for r in records if not r.filled_price),
         "synthetic_fills": sum(1 for r in records if r.fill_is_synthetic),
+        # Traded, but against a quote too broken to measure against
+        "unreliable_quotes": sum(1 for r in records if _row_unreliable(r)),
+        "quote_feeds": feeds,
         "traded_notional": round(notional, 2),
         "delay": delay,
         "execution": execution,

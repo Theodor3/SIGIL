@@ -913,19 +913,47 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
     from api.tracker.execution import record_order
 
     spread_skipped: list[dict] = []
+    # Orders traded despite an implausible quote. Their cost is not measurable against
+    # a reference that far from the real market, so they are excluded from the
+    # shortfall stats rather than allowed to corrupt them.
+    unreliable_quotes: list[dict] = []
 
     def _spread_too_wide(ticker: str, quote, side: str, reason: str) -> bool:
-        """Skip an order whose arrival spread is wider than max_spread_bps.
+        """Skip an order whose arrival spread is both wide AND believable.
 
-        Crossing a wide spread costs a fixed fraction of it, and no signal in the
-        book earns enough at 20d to pay a multi-hundred-bps toll. An exit is the one
-        case worth paying for -- staying in a name the model wants out of has its own
-        cost, and refusing to sell could strand a position indefinitely -- so exits
-        are allowed through and only entries and size adjustments are skipped.
+        Crossing a genuinely wide spread costs a fixed fraction of it, and no signal
+        in the book earns enough at 20d to pay a multi-hundred-bps toll.
+
+        The believability test is what makes this safe on the free Alpaca plan. Quotes
+        there come from IEX alone, and IEX's book for a mid-cap is routinely nothing
+        like the consolidated NBBO -- IMKTA, $1.74bn, quoted 2961bps against a real
+        spread of tens of bps. Blocking on that refused three of four intended buys in
+        a single cycle, which is worse than the cost it was trying to avoid. Past
+        implausible_spread_bps the quote is treated as broken, and the order proceeds:
+        the fill still lands at the real NBBO under Reg NMS, so a wrong quote makes
+        the limit permissive rather than dangerous.
+
+        Exits are exempt regardless. Refusing to sell could strand a position the
+        model wants out of indefinitely, and that is the one case worth paying for.
         """
         if quote is None or quote.spread_bps is None:
             return False
         if quote.spread_bps <= settings.max_spread_bps:
+            return False
+        if not quote.is_reliable:
+            unreliable_quotes.append({
+                "ticker": ticker,
+                "side": side,
+                "reason": reason,
+                "spread_bps": round(quote.spread_bps, 1),
+                "feed": quote.feed,
+            })
+            print(
+                f"[rebalance] {ticker} quoted {quote.spread_bps:.0f}bps on "
+                f"{quote.feed or 'unknown'} — beyond "
+                f"{settings.implausible_spread_bps:.0f}bps this reads as a broken "
+                "quote, not a real spread. Trading, and excluding it from cost stats."
+            )
             return False
         if reason == "exit":
             print(
@@ -938,10 +966,12 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
             "side": side,
             "reason": reason,
             "spread_bps": round(quote.spread_bps, 1),
+            "feed": quote.feed,
         })
         print(
             f"[rebalance] Skipping {side} {ticker} ({reason}): arrival spread "
-            f"{quote.spread_bps:.0f}bps over the {settings.max_spread_bps:.0f}bps ceiling"
+            f"{quote.spread_bps:.0f}bps over the {settings.max_spread_bps:.0f}bps "
+            f"ceiling ({quote.feed or 'unknown'} feed)"
         )
         return True
 
@@ -1106,6 +1136,8 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
         msg += f", {len(plan.skipped)} within tolerance"
     if spread_skipped:
         msg += f", {len(spread_skipped)} on a spread over {settings.max_spread_bps:.0f}bps"
+    if unreliable_quotes:
+        msg += f", {len(unreliable_quotes)} on an unreliable quote (traded, not measured)"
     if errors:
         msg += f", {len(errors)} errors"
 
@@ -1119,4 +1151,7 @@ async def rebalance_execute(db: AsyncSession = Depends(get_db)):
         # a name skipped every cycle is a name the model wants but cannot be traded
         # economically, which is worth knowing.
         "spread_skipped": spread_skipped,
+        # Traded, but the quote was too far from the real market to measure against.
+        # A long list here means the data plan, not the market, is the constraint.
+        "unreliable_quotes": unreliable_quotes,
     }

@@ -40,6 +40,8 @@ REQUIRED_COLUMNS: dict[str, dict[str, str]] = {
         # aggregate. Left without one, they stay NULL, which the aggregator reads as
         # version 1. New rows get 2 from the model's Python-side default on insert.
         "measurement_version": "INTEGER",
+        "quote_feed": "VARCHAR(8)",
+        "quote_unreliable": "BOOLEAN",
     },
 }
 

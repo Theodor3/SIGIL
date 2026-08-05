@@ -161,6 +161,12 @@ class OrderExecution(Base):
     # the broker — excluded from execution aggregates
     fill_is_synthetic: Mapped[bool | None] = mapped_column(Boolean, default=False)
     measurement_version: Mapped[int | None] = mapped_column(Integer, default=2)
+    # Which tape the decision/arrival quotes came from, and whether the arrival quote
+    # was believable. On the free Alpaca plan quotes are IEX-only, where a mid-cap's
+    # book can sit far from the consolidated NBBO — a cost figure benchmarked against
+    # that mid is noise, so those rows are recorded and then excluded from aggregates.
+    quote_feed: Mapped[str | None] = mapped_column(String(8))
+    quote_unreliable: Mapped[bool | None] = mapped_column(Boolean, default=False)
 
 
 class SystemState(Base):

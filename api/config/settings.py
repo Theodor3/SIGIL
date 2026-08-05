@@ -39,11 +39,18 @@ class Settings(BaseSettings):
     # spread was the whole cost, and it exists because the book is empty before
     # 09:30 ET.
     require_market_hours: bool = True
-    # Skip any order whose arrival spread is wider than this. Second line of
-    # defence: a name can be illiquid mid-session too, and crossing a spread this
-    # wide costs more than any signal in the book earns. 300bps is far above a
-    # normal spread for a $5M-ADV name and far below the 1580bps that triggered it.
+    # Skip an order whose arrival spread is wider than this -- but only when the
+    # quote is believable (see implausible_spread_bps). Crossing a genuinely wide
+    # spread costs more than any signal in the book earns at 20d.
     max_spread_bps: float = 300.0
+    # Above this, a single-venue quote is judged broken rather than wide. On the free
+    # Alpaca plan quotes are IEX-only, and IEX's book for a mid-cap is routinely far
+    # wider than the consolidated NBBO: IMKTA ($1.74bn) quoted 2961bps while its real
+    # spread is tens of bps. Blocking on that refused three of four intended buys in
+    # one cycle, so past this bound the quote is neither acted on nor measured
+    # against. Only reachable with a SIP subscription, where quotes are believed
+    # outright and this bound does not apply.
+    implausible_spread_bps: float = 800.0
     min_avg_dollar_volume: float = 5_000_000
     open_quiet_minutes: int = 15
     prediction_retention_days: int = 365
