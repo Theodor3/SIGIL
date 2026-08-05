@@ -70,7 +70,15 @@ def record_order(
     # a cost benchmark: the fill is real but the reference is not, so the difference
     # measures the quote's error rather than our execution. Record the fact and leave
     # the bps columns NULL so the aggregates skip the row instead of averaging noise.
-    unreliable = bool(arrival_quote is not None and not arrival_quote.is_reliable)
+    # Each leg is only measurable if the references it spans are both believable.
+    # Execution spans arrival -> fill, so it needs the arrival quote. Delay spans
+    # decision -> arrival and needs BOTH: gating on arrival alone let an order with a
+    # broken decision quote report its delay, which is how 2026-08-04 came out at
+    # -333bps -- a 3.3% favourable move in the seconds before submit is quote error,
+    # not market movement.
+    arrival_bad = bool(arrival_quote is not None and not arrival_quote.is_reliable)
+    decision_bad = bool(decision_quote is not None and not decision_quote.is_reliable)
+    unreliable = arrival_bad or decision_bad
     feed = (arrival_quote.feed if arrival_quote else None) or (
         decision_quote.feed if decision_quote else None
     )
@@ -157,24 +165,57 @@ def _is_v2(rec) -> bool:
     return (rec.measurement_version or 1) >= 2
 
 
+def _spread_of(bid, ask) -> float | None:
+    if not bid or not ask or bid <= 0 or ask <= 0:
+        return None
+    mid = (bid + ask) / 2
+    return (ask - bid) / mid * 10_000 if mid > 0 else None
+
+
+def _implausible(spread: float | None) -> bool:
+    return bool(spread and spread > settings.implausible_spread_bps)
+
+
 def _row_unreliable(rec) -> bool:
     """Whether a recorded row's cost figures can be believed.
 
     Derived at read time rather than trusted from the column, so rows written before
     quote reliability was tracked are judged on the same rule as new ones. Those rows
-    carry spread_bps_at_arrival but a NULL quote_unreliable, and two of them were
-    recorded at 1580bps and 1410bps against names whose real spread is tens of bps --
-    reading the column alone would let those keep skewing the aggregate.
+    carry the quote prices but a NULL quote_unreliable, and several were recorded
+    against IEX books quoting over 1000bps on names that trade tens of bps wide --
+    reading the column alone would let those keep skewing every aggregate.
 
-    A SIP quote is believed at any width; anything else is believed only inside
-    implausible_spread_bps.
+    A SIP quote is believed at any width; anything else only inside
+    implausible_spread_bps. Checks the ARRIVAL side, which is what the execution leg
+    is measured from.
     """
-    if rec.quote_unreliable:
+    # getattr throughout: these columns are recent, and a row loaded with a column
+    # subset (or any partially-populated object) must not raise inside a read path.
+    if getattr(rec, "quote_unreliable", None):
         return True
     if getattr(rec, "quote_feed", None) == "sip":
         return False
-    spread = rec.spread_bps_at_arrival
-    return bool(spread and spread > settings.implausible_spread_bps)
+    return _implausible(
+        getattr(rec, "spread_bps_at_arrival", None)
+        or _spread_of(getattr(rec, "arrival_bid", None),
+                      getattr(rec, "arrival_ask", None))
+    )
+
+
+def _delay_unreliable(rec) -> bool:
+    """Delay spans decision -> arrival, so it needs both references believable.
+
+    Separate from _row_unreliable because the legs have different requirements: an
+    order can have a sound arrival quote (measurable execution) and a broken decision
+    quote (meaningless delay). Reconstructed from decision_bid/decision_ask, which are
+    stored, so historical rows are judged too.
+    """
+    if _row_unreliable(rec):
+        return True
+    if getattr(rec, "quote_feed", None) == "sip":
+        return False
+    return _implausible(_spread_of(getattr(rec, "decision_bid", None),
+                                   getattr(rec, "decision_ask", None)))
 
 
 def _dollar_weighted(records, bps_attr: str, ref_attr: str = "arrival_mid") -> dict:
@@ -212,7 +253,10 @@ def _aggregate_v2(records) -> dict:
     # rows predate the flag and are caught by _row_unreliable instead.
     measurable = [r for r in records if not _row_unreliable(r)]
     real_fills = [r for r in measurable if r.filled_price and not r.fill_is_synthetic]
-    delay = _dollar_weighted(measurable, "delay_bps", "decision_mid")
+    # Delay needs a believable decision quote too, so it filters harder than execution
+    delay = _dollar_weighted(
+        [r for r in records if not _delay_unreliable(r)], "delay_bps", "decision_mid"
+    )
     execution = _dollar_weighted(real_fills, "execution_bps", "arrival_mid")
 
     # First-order sum. The legs are measured off different references (decision mid
@@ -231,7 +275,7 @@ def _aggregate_v2(records) -> dict:
         r.spread_bps_at_arrival for r in records
         if r.spread_bps_at_arrival and not _row_unreliable(r)
     ]
-    feeds = sorted({r.quote_feed for r in records if r.quote_feed})
+    feeds = sorted({f for r in records if (f := getattr(r, "quote_feed", None))})
     notional = sum(
         r.filled_price * (r.filled_qty or r.shares) for r in real_fills
     )
