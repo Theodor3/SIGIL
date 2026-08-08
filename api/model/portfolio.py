@@ -134,26 +134,40 @@ def _apply_caps(
     return w
 
 
-def construct_portfolio(
+def target_weights(
     scored: list,
-    total_capital: float,
-    prices: dict[str, float],
     sectors: dict[str, str],
     constraints: PortfolioConstraints | None = None,
-) -> list[PortfolioTarget]:
+) -> dict[str, float]:
+    """The intended book as weights, before any capital is applied.
+
+    This is every part of construction that depends only on scores and sectors:
+    eligibility, score-proportional sizing, the position and sector caps, and the
+    minimum-position floor. Turning a weight into a share count needs capital and a
+    price, and stays in construct_portfolio.
+
+    Split out because that second half is not portable. Sizing drops any name whose
+    share count rounds to zero or whose price is missing, so a book derived through
+    it carries this account's equity and this broker's quote coverage baked in --
+    an Alpaca quote gap would silently shorten the list. A consumer holding a
+    different book of a different size needs the weights themselves.
+
+    Weights sum to ~1.0: fully invested, before the regime's gross exposure target
+    decides how much of that to actually hold.
+    """
     constraints = constraints or PortfolioConstraints()
 
     eligible = [s for s in scored if s.eligible and s.final_score > 0]
     eligible = eligible[: constraints.max_positions]
 
     if not eligible:
-        return []
+        return {}
 
     total_score = sum(s.final_score for s in eligible)
     if total_score <= _EPS:
-        return []
+        return {}
     raw_weights = {s.ticker: s.final_score / total_score for s in eligible}
-    sector_of = {s.ticker: (sectors.get(s.ticker) or "Unknown") for s in eligible}
+    sector_of = {s.ticker: (sectors.get(s.ticker) or UNCLASSIFIED_SECTOR) for s in eligible}
 
     # Project onto the caps BEFORE applying the floor. Clipping the big names frees
     # weight that flows to the small ones, so a name that looks unholdably small
@@ -172,13 +186,26 @@ def construct_portfolio(
         del raw_weights[min(below, key=lambda t: below[t])]
         total = sum(raw_weights.values())
         if total <= _EPS:
-            return []
+            return {}
         raw_weights = {t: v / total for t, v in raw_weights.items()}
     # Idempotent when the caps already hold; guarantees the last word is a projection
-    raw_weights = _apply_caps(raw_weights, sector_of, constraints)
+    return _apply_caps(raw_weights, sector_of, constraints)
+
+
+def construct_portfolio(
+    scored: list,
+    total_capital: float,
+    prices: dict[str, float],
+    sectors: dict[str, str],
+    constraints: PortfolioConstraints | None = None,
+) -> list[PortfolioTarget]:
+    constraints = constraints or PortfolioConstraints()
+    raw_weights = target_weights(scored, sectors, constraints)
+    if not raw_weights:
+        return []
 
     targets = []
-    for s in eligible:
+    for s in scored:
         if s.ticker not in raw_weights:
             continue
         weight = raw_weights[s.ticker]
