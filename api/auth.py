@@ -23,6 +23,14 @@ PUBLIC_PATHS = {"/health", "/api/auth/login", "/api/auth/check"}
 # the agent token instead of a session cookie -- and only ever by reading.
 AGENT_PREFIX = "/api/agent/"
 
+# FastAPI's own schema and docs UIs. They have to be named explicitly because they
+# do not live under /api, so the 401 branch below missed them and they fell through
+# to the "serve the SPA and let it show a login screen" case -- which handed any
+# unauthenticated caller the full endpoint list, /portfolio/rebalance/execute and
+# /close-all included. Naming them here gates the schema, not the endpoints: those
+# were always behind auth. They stay reachable with a session cookie.
+DOCS_PATHS = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
+
 
 def _signing_key() -> bytes:
     # Derived from the auth password: rotating the password invalidates
@@ -89,7 +97,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # For API requests, return 401
-        if path.startswith("/api") or path.startswith("/ws"):
+        if path.startswith("/api") or path.startswith("/ws") or path in DOCS_PATHS:
             return Response(status_code=401, content='{"error":"unauthorized"}',
                             media_type="application/json")
 
