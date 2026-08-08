@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from api.config.settings import settings
 from api.db import engine, async_session
 from api.db.models import Base
+from api.routes.agent import router as agent_router
 from api.routes.auth import router as auth_router
 from api.routes.dashboard import router as dashboard_router
 from api.routes.data import router as data_router
@@ -337,6 +338,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(agent_router)
 app.include_router(dashboard_router)
 app.include_router(pipeline_router)
 app.include_router(data_router)
