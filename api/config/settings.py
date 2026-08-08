@@ -20,6 +20,17 @@ class Settings(BaseSettings):
     auto_rebalance: bool = True
     pipeline_interval_hours: float = 6
     auth_password: str = ""
+    # Bearer token for the read-only agent export (GET /api/agent/*). Deliberately
+    # not auth_password: a dashboard session can also execute a rebalance, close
+    # every position, and reset account history, so handing that password to an
+    # external scheduled task grants it all three. This token reaches GET /api/agent
+    # and nothing else, and is revoked by rotating it alone. Set it to a long random
+    # string; empty means the agent export is closed off entirely.
+    agent_token: str = ""
+    # How old the last completed pipeline run may be before the agent export marks
+    # its own targets stale and refuses to call them actionable. Two cycles at the
+    # 24h prod interval, so a single missed run is not treated as an outage.
+    agent_stale_after_hours: float = 48.0
     paper_starting_equity: float = 100_000.0
 
     # Trading friction controls
