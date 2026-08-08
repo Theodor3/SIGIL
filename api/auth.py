@@ -19,6 +19,10 @@ SESSION_SECONDS = 7 * 24 * 3600
 
 PUBLIC_PATHS = {"/health", "/api/auth/login", "/api/auth/check"}
 
+# The read-only export for external agents. Everything under it is reachable with
+# the agent token instead of a session cookie -- and only ever by reading.
+AGENT_PREFIX = "/api/agent/"
+
 
 def _signing_key() -> bytes:
     # Derived from the auth password: rotating the password invalidates
@@ -43,6 +47,30 @@ def _verify_token(token: str) -> bool:
     return hmac.compare_digest(sig, expected)
 
 
+def _agent_request_authorized(request: Request) -> bool:
+    """True for a read-only agent-export request carrying the agent token.
+
+    Three conditions, all required: the token is configured, the request is a read
+    under AGENT_PREFIX, and the bearer value matches. The method and prefix checks
+    are what keep this from becoming a second way in -- a leaked token can re-read
+    the target book and cannot reach a single state-changing endpoint.
+
+    Compared as bytes because hmac.compare_digest rejects str containing non-ASCII,
+    which would raise on a token pasted with a stray unicode character rather than
+    simply failing the check.
+    """
+    if not settings.agent_token:
+        return False
+    if request.method not in ("GET", "HEAD"):
+        return False
+    if not request.url.path.startswith(AGENT_PREFIX):
+        return False
+    scheme, _, value = request.headers.get("authorization", "").partition(" ")
+    if scheme.lower() != "bearer" or not value:
+        return False
+    return hmac.compare_digest(value.encode(), settings.agent_token.encode())
+
+
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if not settings.auth_password:
@@ -51,6 +79,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
         path = request.url.path
 
         if path in PUBLIC_PATHS or path.startswith("/assets"):
+            return await call_next(request)
+
+        if _agent_request_authorized(request):
             return await call_next(request)
 
         token = request.cookies.get("sigil_session")
