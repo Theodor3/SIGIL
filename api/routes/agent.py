@@ -246,3 +246,220 @@ def _block(code: str, detail: str) -> dict:
 def _iso(dt: datetime) -> str:
     """UTC, with the Z the consumer needs to read it as UTC rather than local."""
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+REVIEW_CACHE_KEY = "agent_review"
+# The review scans every evaluation, execution and equity snapshot on record,
+# which is markedly heavier than the book. It is meant to be read once a week, so
+# a long TTL costs nothing in freshness and stops a consumer that polls by mistake
+# from re-running those scans on every call.
+REVIEW_CACHE_TTL = 300
+
+DEFAULT_REVIEW_DAYS = 7
+MAX_REVIEW_DAYS = 365
+
+
+@router.get("/review")
+async def get_review(days: int = DEFAULT_REVIEW_DAYS,
+                     db: AsyncSession = Depends(get_db)):
+    """How the book has actually been working out, over a trailing window.
+
+    The weekly counterpart to /book: /book is what SIGIL intends to hold now,
+    this is whether those intentions have been paying. Everything here comes from
+    records the system already keeps -- equity snapshots, signal evaluations,
+    order executions, closed trades -- so a reviewer gets the same numbers the
+    dashboard shows without being handed the dashboard password, which would also
+    grant rebalance, close-all and reset-account-history.
+
+    Deliberately does NOT reconcile pending fills, which is what
+    /api/portfolio/execution-quality does before reporting. That reconcile writes
+    rows and calls the broker, and the whole promise of the agent prefix is that a
+    leaked token reaches nothing that changes state. The cost is that fills from
+    the last few minutes may not be counted yet -- irrelevant at a weekly cadence,
+    and stated in the payload as `execution.excludes_unreconciled` so a reader
+    never mistakes it for a complete picture.
+    """
+    days = max(1, min(int(days), MAX_REVIEW_DAYS))
+    key = f"{REVIEW_CACHE_KEY}:{days}"
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+
+    payload = await _build_review(db, days)
+    cache.set(key, payload, ttl=REVIEW_CACHE_TTL)
+    return payload
+
+
+async def _build_review(db: AsyncSession, days: int) -> dict:
+    from datetime import timedelta
+
+    from api.db.models import EquitySnapshot, RegimeHistory, Trade
+    from api.model.risk_metrics import compute, daily_closes, risk_free_annual
+    from api.tracker.evaluator import get_signal_stats
+    from api.tracker.execution import execution_quality
+
+    now = datetime.utcnow()
+    since = now - timedelta(days=days)
+    notes: list[str] = []
+
+    all_snaps = (await db.execute(
+        select(EquitySnapshot).order_by(EquitySnapshot.taken_at.asc())
+    )).scalars().all()
+    window_snaps = [s for s in all_snaps if s.taken_at >= since]
+
+    # Drawdown is reported separately from the window return. A week that looks
+    # flat end-to-end can still be a week that gave back a large intra-window
+    # gain, and the equity record is hourly, so that is visible here even though
+    # a start/end pair hides it.
+    performance = None
+    if window_snaps:
+        start_eq = window_snaps[0].equity
+        end_eq = window_snaps[-1].equity
+        peak = start_eq
+        max_dd = 0.0
+        for s in window_snaps:
+            peak = max(peak, s.equity)
+            if peak > 0:
+                max_dd = min(max_dd, (s.equity - peak) / peak)
+        inception_eq = all_snaps[0].equity
+        performance = {
+            "window_start_equity": round(start_eq, 2),
+            "window_end_equity": round(end_eq, 2),
+            "window_return": round((end_eq / start_eq) - 1, 6) if start_eq else None,
+            "window_max_drawdown": round(max_dd, 6),
+            "since_inception_return": (
+                round((end_eq / inception_eq) - 1, 6) if inception_eq else None
+            ),
+            "inception_at": _iso(all_snaps[0].taken_at),
+            "snapshots_in_window": len(window_snaps),
+            "current_positions": window_snaps[-1].positions_count,
+            "current_cash": (
+                round(window_snaps[-1].cash, 2)
+                if window_snaps[-1].cash is not None else None
+            ),
+        }
+    else:
+        notes.append(
+            f"No equity snapshots in the last {days}d; performance is unavailable "
+            "for this window."
+        )
+
+    # Sharpe and Sortino intentionally span the whole record rather than the
+    # window: a 7d window is far too few daily returns to annualise, and compute()
+    # returns nulls rather than a confident wrong number.
+    try:
+        rf_annual, rf_source = await risk_free_annual()
+        risk = compute(daily_closes(all_snaps), rf_annual, rf_source)
+        if isinstance(risk, dict):
+            risk = {**risk, "scope": "all_time"}
+    except Exception as e:
+        print(f"[agent] Risk metrics unavailable: {e}")
+        risk = None
+        notes.append("Risk metrics could not be computed.")
+
+    # Hit rates are all-time by construction -- an evaluation only exists once its
+    # horizon has elapsed, so a 7d window would mostly measure which predictions
+    # happened to mature this week rather than how the signals are doing. Labelled
+    # scope so a reader does not report it as a weekly number.
+    try:
+        signal_stats = await get_signal_stats(db)
+    except Exception as e:
+        print(f"[agent] Signal stats unavailable: {e}")
+        signal_stats = None
+        notes.append("Signal evaluation stats could not be read.")
+
+    try:
+        execution = await execution_quality(db, days=days)
+        if isinstance(execution, dict):
+            execution = {**execution, "excludes_unreconciled": True}
+    except Exception as e:
+        print(f"[agent] Execution quality unavailable: {e}")
+        execution = None
+        notes.append("Execution quality could not be computed.")
+
+    closed = (await db.execute(
+        select(Trade)
+        .where(Trade.closed_at.is_not(None))
+        .where(Trade.closed_at >= since)
+        .order_by(Trade.closed_at.desc())
+    )).scalars().all()
+    closed_trades = [{
+        "ticker": t.ticker,
+        "opened_at": _iso(t.opened_at) if t.opened_at else None,
+        "closed_at": _iso(t.closed_at) if t.closed_at else None,
+        "holding_days": (
+            round((t.closed_at - t.opened_at).total_seconds() / 86400, 1)
+            if t.opened_at and t.closed_at else None
+        ),
+        "realized_pnl": round(t.realized_pnl, 2) if t.realized_pnl is not None else None,
+        "return_pct": (
+            round((t.exit_price / t.entry_price) - 1, 6)
+            if t.entry_price and t.exit_price else None
+        ),
+        "regime_at_entry": t.regime_at_entry,
+        "signal_drivers": t.signal_drivers,
+    } for t in closed]
+
+    wins = [t for t in closed_trades if (t["realized_pnl"] or 0) > 0]
+    realized = [t["realized_pnl"] for t in closed_trades if t["realized_pnl"] is not None]
+
+    regimes = (await db.execute(
+        select(RegimeHistory)
+        .where(RegimeHistory.as_of_date >= since.date())
+        .order_by(RegimeHistory.as_of_date.asc())
+    )).scalars().all()
+    regime_history = [{
+        "date": r.as_of_date.isoformat(),
+        "regime_id": r.regime_id,
+        "confidence": round(r.confidence, 4) if r.confidence is not None else None,
+        "spy_20d_return": r.spy_20d_return,
+        "vix_level": r.vix_level,
+        "breadth_state": r.breadth_state,
+    } for r in regimes]
+    distinct_regimes = sorted({r["regime_id"] for r in regime_history})
+
+    runs = (await db.execute(
+        select(PipelineRun)
+        .where(PipelineRun.started_at >= since)
+        .order_by(PipelineRun.started_at.desc())
+    )).scalars().all()
+    completed_runs = [r for r in runs if r.status == "completed"]
+
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "generated_at": _iso(now),
+        "window": {
+            "days": days,
+            "since": _iso(since),
+            "until": _iso(now),
+        },
+        "performance": performance,
+        "risk": risk,
+        # All-time, not windowed -- see the comment above the call.
+        "signal_stats": {"scope": "all_time", "by_signal": signal_stats},
+        "execution": execution,
+        "trades": {
+            "closed_in_window": len(closed_trades),
+            "win_rate": round(len(wins) / len(closed_trades), 4) if closed_trades else None,
+            "total_realized_pnl": round(sum(realized), 2) if realized else None,
+            "detail": closed_trades,
+        },
+        "regime": {
+            "changed_during_window": len(distinct_regimes) > 1,
+            "distinct_regimes": distinct_regimes,
+            "history": regime_history,
+        },
+        # Runs expected vs completed is the cheapest missed-cycle detector there
+        # is: the book only says how old the last run was, not how many never
+        # happened.
+        "pipeline": {
+            "runs_started": len(runs),
+            "runs_completed": len(completed_runs),
+            "last_completed_at": (
+                _iso(completed_runs[0].finished_at or completed_runs[0].started_at)
+                if completed_runs else None
+            ),
+            "expected_runs": round(days * 24 / max(settings.pipeline_interval_hours, 0.1)),
+        },
+        "notes": notes,
+    }
