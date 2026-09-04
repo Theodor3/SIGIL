@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "created": "2026-09-04",
   "pilotReviewDate": "2026-09-11",
   "mission": "Continuously improve SIGIL through novel signal research, reliable evaluation and reviewed engineering",
@@ -8,8 +8,8 @@
   "branch": "codex/sigil-company",
   "baselineCommit": "794ee62",
   "coordinatorTaskId": "01a06aed-e74d-7061-bd25-2a2773a28566",
-  "runtime": "Local dashboard and finite API runner installed; live verification pending",
-  "model": "gemini-3.1-flash-lite workers; gpt-5.6-sol coordinator; provider access unverified",
+  "runtime": "Local dashboard with pinned development studio, draft/syntax tools and public search; container execution blocked pending Docker",
+  "model": "gemini-3.1-flash-lite workers; gpt-5.6-sol coordinator; gpt-4.1-mini web-search utility",
   "automationId": "sigil-company-coordinator",
   "cadenceMinutes": 60,
   "budget": {
@@ -22,26 +22,32 @@
     "maxConcurrentSpecialists": 2,
     "maxRoundsPerMission": 5,
     "maxPeerRevisionRounds": 2,
-    "recordedSpendingUsd": 0.043992,
+    "recordedSpendingUsd": 0.17717,
     "reservationsBeforeDispatch": true,
-    "recordedSpendingAsOf": "2026-09-04 troubleshooting; runtime ledger is authoritative"
+    "recordedSpendingAsOf": "2026-09-04 before studio/search live verification; runtime ledger is authoritative",
+    "costKind": "estimate",
+    "recordedProviderEstimates": {
+      "gemini": 0.022762,
+      "openai": 0.154408
+    }
   },
   "boundaries": {
     "production": false,
     "liveTrading": false,
-    "newSpending": "model API calls within the accepted pilot allowance only",
+    "newSpending": "model and bounded web-search API calls within the accepted pilot allowance",
     "mainEdits": false,
     "developmentChanges": true,
     "tests": true,
     "localCommits": true,
     "remotePush": false,
-    "workerCodeExecution": false,
-    "recurringDispatch": false
+    "workerCodeExecution": "isolated local Docker runner only; unavailable until engine and trusted image are ready",
+    "recurringDispatch": false,
+    "workerDrafts": true
   },
-  "status": "local_ready_api_verification_pending",
+  "status": "studio_ready_live_tool_verification_pending",
   "lastCoordinatorCycle": "2026-09-04",
-  "modelAccessNote": "OpenAI planning calls succeeded on September 4, 2026; recorded model spending is $0.043992. Gemini returned HTTP 400. Corrected the JSON-schema request format and added model-metadata checks before paid planning. Live verification of the fix requires reconnected session keys.",
-  "pauseReason": "Browser automation remains paused; recurring operation follows successful API pilot.",
+  "modelAccessNote": "Both Gemini and OpenAI returned verified live responses. The first mission lacked source access and its audit conclusions remain unverified. Studio/search tools are now installed; restart clears session keys.",
+  "pauseReason": "Recurring dispatch remains paused while the finite API pilot and tools are evaluated.",
   "automationStatus": "PAUSED",
   "architecturePlan": ".swarm/API-TEAM-PLAN.md",
   "latestAudit": ".swarm/reports/2026-09-04-chat-audit.md",
@@ -132,49 +138,58 @@
       "name": "Novel research: corporate events",
       "provider": "Gemini",
       "model": "gemini-3.1-flash-lite",
-      "status": "awaiting_live_verification"
+      "status": "available_for_finite_api_missions"
     },
     {
       "id": "research-frontier",
       "name": "Novel research: frontier ideas",
       "provider": "Gemini",
       "model": "gemini-3.1-flash-lite",
-      "status": "awaiting_live_verification"
+      "status": "available_for_finite_api_missions"
     },
     {
       "id": "data",
       "name": "Data engineering",
       "provider": "Gemini",
       "model": "gemini-3.1-flash-lite",
-      "status": "awaiting_live_verification"
+      "status": "available_for_finite_api_missions"
     },
     {
       "id": "quant",
       "name": "Quantitative testing",
       "provider": "Gemini",
       "model": "gemini-3.1-flash-lite",
-      "status": "awaiting_live_verification"
+      "status": "available_for_finite_api_missions"
     },
     {
       "id": "engineering",
       "name": "Engineering",
       "provider": "Gemini",
       "model": "gemini-3.1-flash-lite",
-      "status": "awaiting_live_verification"
+      "status": "available_for_finite_api_missions"
     },
     {
       "id": "review",
       "name": "Independent review",
       "provider": "Gemini",
       "model": "gemini-3.1-flash-lite",
-      "status": "awaiting_live_verification"
+      "status": "available_for_finite_api_missions"
     },
     {
       "id": "product-ops",
       "name": "Product and operations",
       "provider": "Gemini",
       "model": "gemini-3.1-flash-lite",
-      "status": "awaiting_live_verification"
+      "status": "available_for_finite_api_missions"
     }
-  ]
+  ],
+  "tools": {
+    "source": "sanitized pinned Git snapshot",
+    "drafts": "unapplied proposals with diffs and hashes",
+    "syntax": "Python/JSON parsing without execution",
+    "tests": "isolated Docker pytest; currently blocked",
+    "webSearch": "gpt-4.1-mini with citations, at most one search tool call per request",
+    "paperSearch": "Crossref public metadata",
+    "pageFetch": "approved public research and documentation domains"
+  }
 }

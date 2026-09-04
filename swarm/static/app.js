@@ -3,6 +3,12 @@
 
 const $ = (id) => document.getElementById(id);
 const money = (value) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value) || 0);
+const estimatedMoney = (value) => {
+  if (value === undefined || value === null || !Number.isFinite(Number(value))) return "—";
+  const amount = Number(value);
+  if (amount > 0 && amount < 0.0001) return "<$0.0001";
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: amount > 0 && amount < 0.01 ? 4 : 2 }).format(amount);
+};
 const roleDescriptions = {
   coordinator: "Frames the mission, connects the specialists, and brings the evidence together.",
   "research-events": "Investigates corporate events, timing, and overlooked market hypotheses.",
@@ -157,10 +163,14 @@ function renderBudget() {
   $("budget-reserved-bar").style.width = `${reservedPercent}%`;
   const meter = document.querySelector(".budget-meter");
   meter.setAttribute("aria-valuenow", String(Math.round(usedPercent + reservedPercent)));
-  meter.setAttribute("aria-valuetext", `${money(used)} spent and ${money(reserved)} reserved of ${money(limit)}`);
+  meter.setAttribute("aria-valuetext", `Estimated ${money(used)} spent and ${money(reserved)} reserved of ${money(limit)}`);
   $("budget-detail").textContent = `${money(budget.remaining_today_usd)} available · ${money(reserved)} reserved`;
   $("pilot-budget").textContent = `${money(budget.pilot_usd)} / ${money(budget.pilot_limit_usd || 7)}`;
-  $("mobile-budget").textContent = `${money(used)} / ${money(limit)} today`;
+  $("mobile-budget").textContent = `Est. ${money(used)} / ${money(limit)} today`;
+  for (const provider of ["gemini", "openai"]) {
+    $(`${provider}-spent-today`).textContent = estimatedMoney(budget.by_provider?.[provider]?.today_usd);
+    $(`${provider}-spent-pilot`).textContent = estimatedMoney(budget.by_provider?.[provider]?.pilot_usd);
+  }
 }
 
 function renderProviders() {
@@ -185,7 +195,7 @@ function renderProviders() {
 
 function renderModeNote() {
   const live = $("live-mode-input").checked;
-  $("mission-mode-note").textContent = live ? "Real provider calls count toward the $1 daily and $7 pilot limits. Research and review only; no trading or code execution." : "Sample mode shows the workflow with clearly labeled example responses. It does not research your prompt or call a model.";
+  $("mission-mode-note").textContent = live ? "Real provider calls count toward the $1 daily and $7 pilot limits. Research, draft edits, and available studio checks; no trading or automatic merging." : "Sample mode shows the workflow with clearly labeled example responses. It does not research your prompt or call a model.";
 }
 
 function selectAgent(id) {
@@ -266,7 +276,7 @@ function renderMissions() {
     const graphic = element("span", "mission-list-icon");
     graphic.append(icon("stack"));
     const content = element("div", "mission-list-content");
-    content.append(element("h3", "", mission.title || "Untitled mission"), element("p", "", `${formatDate(mission.updated_at)} · Round ${mission.round || 0} of ${mission.max_rounds || 5} · ${mission.mode === "demo" ? "No API spending" : `${money(mission.spent_usd)} in model charges`}`));
+    content.append(element("h3", "", mission.title || "Untitled mission"), element("p", "", `${formatDate(mission.updated_at)} · Round ${mission.round || 0} of ${mission.max_rounds || 5} · ${mission.mode === "demo" ? "No API spending" : `${estimatedMoney(mission.spent_usd)} estimated model cost`}`));
     const meta = element("div", "mission-list-meta");
     meta.append(element("span", `pill ${mission.mode === "demo" ? "sample" : "live"}`, mission.mode === "demo" ? "Sample" : "API"), statusPill(mission.status), icon("arrow"));
     button.append(graphic, content, meta);
@@ -294,6 +304,7 @@ function renderMissionHeader() {
     $("mission-status").textContent = statuses[mission.status] || "Unknown status";
     $("mission-status").className = `status-pill ${Object.hasOwn(statuses, mission.status) ? mission.status : "ready"}`;
     $("mission-round").textContent = `Round ${mission.round || 0} of ${mission.max_rounds || 5}`;
+    $("mission-cost").textContent = `Est. ${estimatedMoney(mission.spent_usd)}`;
     $("stop-mission").hidden = !isRunning(mission);
     $("stop-mission").disabled = busy || mission.status === "stopping";
     $("resume-mission").hidden = isRunning(mission) || mission.status === "completed" || mission.status === "needs_review";
@@ -414,6 +425,7 @@ function render() {
   renderMessages();
   renderEvidence();
   renderTasks();
+  window.sigilStudio?.render();
 }
 
 async function refresh() {
@@ -461,22 +473,23 @@ function schedulePoll(immediate = false) {
 }
 
 function switchView(view) {
-  if (!["workspace", "missions", "evidence", "team"].includes(view)) return;
+  if (!["workspace", "missions", "evidence", "team", "studio"].includes(view)) return;
   currentView = view;
-  for (const name of ["workspace", "missions", "evidence", "team"]) $(`view-${name}`).hidden = name !== view;
+  for (const name of ["workspace", "missions", "evidence", "team", "studio"]) $(`view-${name}`).hidden = name !== view;
   for (const button of document.querySelectorAll(".nav-item")) {
     const active = button.dataset.view === view;
     button.classList.toggle("active", active);
     if (active) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
   }
-  const titles = { workspace: "Swarm workspace", missions: "Mission control", evidence: "Shared evidence", team: "Meet the team" };
-  const subtitles = { workspace: "One place to think, collaborate, and turn ideas into evidence.", missions: "The questions, handoffs, and decisions that move the work forward.", evidence: "Keep the claims inspectable and the sources close.", team: "Seven Gemini specialists, connected by one GPT coordinator." };
+  const titles = { workspace: "Swarm workspace", missions: "Mission control", evidence: "Shared evidence", team: "Meet the team", studio: "Development studio" };
+  const subtitles = { workspace: "One place to think, collaborate, and turn ideas into evidence.", missions: "The questions, handoffs, and decisions that move the work forward.", evidence: "Keep the claims inspectable and the sources close.", team: "Seven Gemini specialists, connected by one GPT coordinator.", studio: "Pinned source, draft changes, and a clear record of the work." };
   $("view-title").replaceChildren(document.createTextNode(titles[view]), element("span", "heading-dot", "."));
   $("view-subtitle").textContent = subtitles[view];
+  if (view === "studio") window.sigilStudio?.activate();
 }
 
-async function chooseMission(id) {
+async function chooseMission(id, nextView = "workspace") {
   if (busy) return;
   if (selectedMissionId !== id && $("message-input").value.trim()) {
     toast("Your unsent draft stays in the composer. Check the recipient before sending.");
@@ -485,7 +498,7 @@ async function chooseMission(id) {
   detail = null;
   selectedDetailSignature = "";
   signatures.delete("message-feed");
-  switchView("workspace");
+  switchView(nextView);
   render();
   try {
     const nextDetail = await api(`/api/missions/${encodeURIComponent(id)}`);

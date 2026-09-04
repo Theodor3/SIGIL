@@ -1,40 +1,64 @@
 # SIGIL swarm workspace
 
-A local dashboard for seven Gemini specialist roles and one OpenAI coordinator. Give the team a mission, address questions to a specialist, inspect peer requests and challenges, and download the conversation and research documents.
+Seven Gemini specialist roles and one OpenAI coordinator work through a local dashboard. Missions produce research, directed peer messages, source records and proposed changes. Studio shows what the team inspected, drafted and checked.
 
 ## Start
 
-From this isolated checkout, run `.venv-swarm/Scripts/python.exe -m swarm.server --port 8765` and open <http://127.0.0.1:8765/>. A hidden-process launcher is provided with the user-facing handoff. To rebuild the environment, create a Python 3.11+ virtual environment and install `swarm/requirements.txt`.
+Run `.venv-swarm/Scripts/python.exe -m swarm.server --port 8765` from this checkout and open <http://127.0.0.1:8765/>. The handoff includes a hidden-process launcher. Rebuild the Python 3.11+ environment with `swarm/requirements.txt` if necessary.
 
-1. Try the existing **Sample mode** mission. Its replies are scripted and cost nothing.
-2. Open **API connections** and enter a Gemini API key and an OpenAI API key. Keys entered here remain in server memory until disconnection or restart. They are never saved by this app or included in model prompts. Process environment variables are also supported; the app does not read SIGIL's `.env`.
-3. Choose **New mission**, select **API mode**, and describe a narrow research question. Starting a mission sends paid API calls within the pilot limits.
-4. Send follow-ups to the coordinator or a specialist. The controller delivers them to that role. Use **Stop** to prevent further dispatch; calls already sent may finish and be charged.
+1. Enter both keys in **API connections**. They remain in server memory until restart/disconnection. The app never saves them or reads SIGIL's `.env`. Process environment variables are supported.
+2. Open **Studio** to browse the pinned source snapshot.
+3. Create a narrow **API mode** mission and start it. Only relevant roles run. The saved **Sample mode** mission is scripted and costs nothing.
+4. Send follow-ups to a specialist or coordinator. **Stop** prevents further dispatch; calls already sent may finish and be charged.
 
-Configured means a key was entered. Verified means the provider returned a successful response. A real API mission has not yet been verified during implementation. The selected models are `gemini-3.1-flash-lite` and `gpt-5.6-sol`; unsupported accounts stop with a connection/model error rather than silently switching models.
+Configured means a key was entered. Verified means a successful response was received in the current session. Gemini `gemini-3.1-flash-lite` and coordinator `gpt-5.6-sol` both returned verified responses in the first live mission. The earlier Gemini HTTP 400 was corrected with `response_json_schema`; model metadata is checked before planning. Unsupported accounts stop instead of silently switching worker models.
 
-September 4 troubleshooting: OpenAI planning calls succeeded, but Gemini returned HTTP 400. The configured Gemini name matches [Google's model reference](https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite). The runner now sends Pydantic's schema through `response_json_schema`, avoiding unsupported fields in the legacy `responseSchema` format. A model-metadata lookup precedes paid planning, and errors identify the provider and distinguish known key, schema and thinking-setting failures without exposing SDK bodies. Full live verification of this correction requires reconnected session keys.
+## Studio and tools
 
-## What runs
+A mission pins a full Git commit. The snapshot includes tracked, bounded text; it withholds working-copy changes, hidden files, known credential literals, binary files and oversized files.
 
-The coordinator assigns relevant roles, the reviewer makes an independent first assessment, and specialists produce bounded documents and directed messages. The controller delivers requests without asking the coordinator to rewrite them. It then presents the complete latest documents to review and coordination. User questions received during a call remain queued until delivered in a later call.
+| Tool | Behavior |
+| --- | --- |
+| `read_file`, `search_code` | Read/search pinned source without reading untracked data, live credentials or the main checkout. |
+| `draft_file` | Engineering/quant save proposed full-file replacements with diffs and original hashes. Drafts do not change the checkout. |
+| `check_syntax` | Parse Python/JSON drafts without importing or executing them. Other formats are explicitly not checked. |
+| `run_tests` | Fixed pytest command in an isolated local container, when available. Exact draft IDs and hashes are recorded. |
+| `web_search` | GPT-4.1 Mini search utility through the existing OpenAI key, with citations, model identity and a separate ledger entry. |
+| `paper_search` | Crossref scholarly metadata search with no model/API fee. Metadata is not a full-paper review. |
+| `fetch_page` | Public HTML/text/JSON from approved research and developer-documentation domains; bounded retrieval, checked redirects and no private addresses. |
 
-There is one active mission, at most two simultaneous specialist calls, five assignment rounds and two rounds of peer revisions. Missions are manually started. No recurring scheduler is enabled; the previous browser automation stays paused.
+Each worker gets two rounds of up to three tools, and retains all six results. Shared outcomes and source links reach the reviewer and coordinator. Complete latest research documents and draft diffs remain in review context; an oversized prompt stops instead of silently dropping documents.
 
-Workers can request specific public HTML/text URLs from approved SEC, arXiv, PMLR and US statistical-agency domains. Fetches have size/time limits, checked redirects and local-address restrictions. This version has no general web-search tool, PDF extraction or market-data subscription. A fetched page proves retrieval, not the truth of a model's interpretation. Model documents remain labeled unverified.
+Per mission: at most 32 tool attempts, eight drafts, two web searches, four paper searches, six page fetches and two isolated test requests. Legacy `source_requests` also allow up to eight retrieved pages. Search rejects recognizable credentials, local paths and copied source lines. Queries must use public concepts. Retrieval proves access, not the truth of a model's interpretation. No PDF extraction or market-data subscription is included.
 
-Workers have no shell, file editing, broker or deployment tools. Engineering produces proposals in this version. This dashboard is isolated on `codex/sigil-company`; code-execution isolation is a later prerequisite, not provided by a Git branch. SIGIL's application, trading scheduler and production services are not started.
+Snapshots are fixed when the service starts. Commit reviewed changes and restart to expose a new version. Missions already pinned to an older commit require a new mission. Historical records retain their original commit; the file browser identifies the current snapshot.
+
+## Isolated Python tests
+
+Tests use a pinned local image ID, no network or host mounts, a read-only root filesystem, a non-root user, dropped capabilities, and bounded resources, output and time. Sanitized source and draft text enter through standard input. There is no unrestricted shell, broker or deployment tool. A branch alone is not execution isolation.
+
+Docker was unavailable during installation. Windows denied starting its service, so actual agent code execution is blocked. Read/search/draft/syntax work independently. Once the owner starts Docker Desktop with Linux containers, prepare the trusted image from this checkout:
+
+```powershell
+docker --context desktop-linux build -f swarm/Dockerfile.tests -t sigil-swarm-tests:pilot .
+```
+
+The image installs only Python and pytest. Tests needing other dependencies fail explicitly. Agents cannot install packages or access live services. The runner never builds/pulls images automatically; it checks local image availability when requested. Container behavior has mock-based tests; an actual run still needs verification once Docker is available.
 
 ## Budget and persistence
 
-The accepted pilot allowance is **$1 per America/New_York calendar day, $7 total, expiring September 11, 2026** for this installed workspace. The controller reserves a conservative allowance before every API call and records provider token usage afterward. Current standard rates are $0.25/$1.50 per million Gemini input/output tokens and $4/$20 for GPT. Output accounting includes reported thinking/reasoning. Pricing checked September 4: [Google](https://ai.google.dev/gemini-api/docs/pricing), [OpenAI](https://developers.openai.com/api/docs/pricing).
+The allowance is **$1 per America/New_York calendar day and $7 total, expiring September 11, 2026**. One mission can run at a time, with at most two concurrent specialists, five assignment rounds and two peer-revision rounds. Missions are manually started. Recurring dispatch remains paused.
 
-These are local model-spending controls based on those rates, not a provider billing cap; provider invoices, taxes and unrelated account usage can differ. No paid search or other paid tool is enabled. SDK retries are disabled. Missing usage, uncertain transport failures, unexpected model identity and interrupted reserved calls retain their allowance and block further live work until reconciled. Check the provider's usage record before resolving an uncertain ledger entry; never clear it to resume spending.
+Reservations precede every model/search request. Standard input/output estimates per million tokens are Gemini $0.25/$1.50, coordinator $4/$20, and search utility $0.40/$1.60. Search adds $0.01 per tool call and a conservative 8,000-input-token content allowance. Each search reserves $0.45 for an upper bound and releases the unused allowance; a reservation is not a charge. Rates checked September 4 against [Google pricing](https://ai.google.dev/gemini-api/docs/pricing), [OpenAI pricing](https://developers.openai.com/api/docs/pricing) and [GPT-4.1 Mini](https://developers.openai.com/api/docs/models/gpt-4.1-mini).
 
-`.swarm/runtime/` contains mission JSON files, `messages.jsonl`, `budget.json`, `pilot.json` and a controller lock. One process owns this directory; a second controller cannot open it. Files survive a restart, but interrupted missions do not automatically resume. Keep this folder private: it contains mission text and research, though not submitted API keys. Do not delete it or choose a new data directory to reset the authorized allowance.
+Before this studio/search pilot, recorded Gemini usage was **$0.022762**, OpenAI coordination **$0.154408**, total **$0.177170**. The dashboard now separates providers. Runtime records remain authoritative. These are local estimates, not invoices or account-wide caps; caching, search accounting, billing, taxes and unrelated usage can differ. Historical records and limits were preserved.
 
-The service binds only to 127.0.0.1. It is intended for the owner of this computer and has no multiuser authentication. Do not publish it, expose the port or point a reverse proxy at it.
+SDK retries are disabled. Missing usage, unexpected model identity, uncertain failures and interrupted reservations retain their allowance and block further live work pending reconciliation. Preserve `.swarm/runtime/` and its ledger; one controller owns this directory. Never select a new directory to reset the allowance. Restarts retain records, lose submitted keys and do not resume missions automatically.
+
+The service binds only to 127.0.0.1 and has no multiuser authentication. Keep it local. SIGIL's production services and trading scheduler are not started; research does not automatically change trading strategies.
 
 ## Validation
 
-`python -m pytest swarm/tests -q` passes 28 checks covering concurrent budget reservations, persistence, interrupted calls, model provenance, user/peer delivery, complete review context, request safety, source restrictions and actual SDK request serialization with mock transports. The regression checks cover the JSON-schema transport, model-metadata lookup before paid planning and redacted error classification. These checks use no paid model calls. Desktop/mobile browser checks cover a complete sample mission, directed follow-up, navigation, evidence and download. Full live collaboration, response quality and bill reconciliation still need the first API pilot.
+Run `python -m pytest swarm/tests -q`. Local checks cover budget concurrency/persistence, real SDK serialization with mock responses, Gemini model/schema handling, peer delivery, source restrictions, pinned snapshots, secret/symlink exclusions, draft integrity, isolated container commands, timeout/startup failures, and worker tool-result delivery.
+
+The first live mission verified worker/coordinator models and usage, but lacked source tools; its audit conclusions remain unverified. Crossref returned real publication metadata during implementation. Paid search and worker use of the new tools need a new live mission after reconnecting keys. Actual container execution requires separate verification once Docker and the image are available.

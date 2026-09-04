@@ -117,6 +117,9 @@ class Store:
             data = copy.deepcopy(self.get(mission_id))
             data["calls"] = copy.deepcopy([x for x in self.ledger if x["mission_id"] == mission_id])
             data["mission"]["spent_usd"] = round(sum(x.get("cost_usd", 0) for x in data["calls"]), 6)
+            data["mission"]["cost_kind"] = "estimate"
+            data.setdefault("tool_results", [])
+            data.setdefault("drafts", [])
             return data
 
     def summaries(self):
@@ -143,6 +146,7 @@ class Store:
                 ),
                 "messages": [], "tasks": [], "artifacts": [], "calls": [],
                 "pending_assignments": [], "sources": [],
+                "tool_results": [], "drafts": [], "studio": None,
             }
             self.missions[mission_id] = data
             self.message(mission_id, "user", "coordinator", prompt, "mission")
@@ -193,6 +197,11 @@ class Store:
                 expires_on=self.settings["expires_on"], timezone="America/New_York",
                 expired=day >= self.settings["expires_on"],
                 uncertain=any(x["status"] == "uncertain" for x in self.ledger),
+                cost_kind="estimate",
+                by_provider={provider: {
+                    "today_usd": round(sum(x.get("cost_usd", 0) for x in self.ledger if x["provider"] == provider and x["day"] == day), 6),
+                    "pilot_usd": round(sum(x.get("cost_usd", 0) for x in self.ledger if x["provider"] == provider), 6),
+                } for provider in ("gemini", "openai")},
             )
 
     def reserve(self, mission_id, agent_id, provider, model, amount):

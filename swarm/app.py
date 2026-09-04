@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Query
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
@@ -13,14 +13,16 @@ from .engine import Engine
 from .models import AGENTS, Disconnect, NewMission, ProviderKeys, UserMessage
 from .providers import Providers
 from .store import Store
+from .studio import GitStudio
 
 ROOT = Path(__file__).resolve().parent
 
 
-def create_app(data_dir=None, *, providers=None, demo_delay=0.8):
+def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
     store = Store(Path(data_dir or os.environ.get("SIGIL_SWARM_DATA_DIR", ROOT.parent / ".swarm" / "runtime")))
     provider_manager = providers or Providers()
-    engine = Engine(store, provider_manager, demo_delay=demo_delay)
+    studio = studio or GitStudio(ROOT.parent)
+    engine = Engine(store, provider_manager, demo_delay=demo_delay, studio=studio)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -78,7 +80,7 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8):
 
     @app.get("/api/health")
     def health():
-        return {"app": "sigil-swarm", "version": "0.1.0", "status": "ok"}
+        return {"app": "sigil-swarm", "version": "0.2.0", "status": "ok"}
 
     @app.get("/api/state")
     def state():
@@ -91,14 +93,26 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8):
             busy = {t["agent_id"] for t in active["tasks"] if t["status"] == "running"}
             busy.update(c["agent_id"] for c in active["calls"] if c["status"] == "reserved")
         return {
-            "app": {"name": "SIGIL Swarm", "version": "0.1.0"},
+            "app": {"name": "SIGIL Swarm", "version": "0.2.0"},
             "providers": providers_status, "budget": store.budget(),
             "agents": [{**a, "status": "working" if a["id"] in busy else "ready"} for a in AGENTS],
             "missions": store.summaries(), "active_mission_id": active_id,
             "backend": {"live_available": all(p["configured"] for p in providers_status.values()),
-                        "worker_execution": "research_only", "search": "approved_source_urls",
+                        "worker_execution": "development_studio", "search": "web_and_papers",
                         "credentials": "session_only"},
         }
+
+    @app.get("/api/studio")
+    def studio_manifest():
+        return studio.manifest()
+
+    @app.get("/api/studio/file")
+    def studio_file(path: str = Query(max_length=240), start: int = Query(default=1, ge=1, le=100000)):
+        return studio.read(path, start=start)
+
+    @app.get("/api/studio/search")
+    def studio_search(q: str = Query(min_length=1, max_length=400)):
+        return studio.search(q)
 
     @app.post("/api/providers")
     def configure(payload: ProviderKeys):
@@ -151,7 +165,7 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8):
         m = data["mission"]
         lines = [
             "# " + m["title"], "", "Mode: " + ("SCRIPTED SAMPLE" if m["mode"] == "demo" else "API research"),
-            "Status: " + m["status"], "Recorded model charges: $" + format(m["spent_usd"], ".6f"),
+            "Status: " + m["status"], "Estimated model/tool cost: $" + format(m["spent_usd"], ".6f"),
             "Research documents are unverified unless their evidence is independently checked.", "",
             "## Mission", m["prompt"], "", "## Conversation",
         ]
@@ -163,6 +177,10 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8):
                 parsed = urlsplit(s.get("url", ""))
                 if parsed.scheme == "https":
                     lines += [s.get("title", "Source") + ": " + s["url"]]
+        for draft in data.get("drafts", []):
+            lines += ["", "## Draft: " + draft["path"], "Not applied to the project.", "```diff", draft["diff"], "```"]
+        for result in data.get("tool_results", []):
+            lines += ["", "## Tool: " + result["tool"], result["summary"]]
         return PlainTextResponse("\n".join(lines), media_type="text/markdown",
                                  headers={"Content-Disposition": f'attachment; filename="sigil-{mission_id}.md"'})
 

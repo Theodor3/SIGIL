@@ -13,6 +13,11 @@ ALLOWED_HOSTS = {
     "arxiv.org", "export.arxiv.org",
     "proceedings.mlr.press", "fred.stlouisfed.org",
     "www.federalreserve.gov", "www.bls.gov", "www.bea.gov",
+    "api.crossref.org", "www.crossref.org", "doi.org",
+    "docs.python.org", "docs.pytest.org", "pandas.pydata.org", "numpy.org",
+    "scipy.org", "docs.scipy.org", "scikit-learn.org", "pydantic.dev", "docs.pydantic.dev",
+    "fastapi.tiangolo.com", "docs.sqlalchemy.org", "react.dev", "www.typescriptlang.org",
+    "ai.google.dev", "developers.openai.com", "platform.openai.com",
 }
 MAX_BYTES = 400_000
 

@@ -123,7 +123,7 @@ class Providers:
         # One byte per input token is deliberately conservative for text-only
         # prompts; include the complete schema and substantial framing overhead.
         input_bound = len((system + prompt + json.dumps(schema.model_json_schema())).encode("utf-8")) + 8192
-        if input_bound > 65000:
+        if input_bound > 100000:
             raise ValueError("This task's context is too large. Start a narrower mission.")
         output_bound = GEMINI_BILLED_OUTPUT_RESERVE if provider == "gemini" else MAX_OUTPUT
         inp, out = RATES[provider]

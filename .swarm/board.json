@@ -104,8 +104,9 @@
       "id": "S002",
       "owner": "coordinator",
       "title": "Verify first real API research mission",
-      "status": "ready",
-      "assignment": "Connect both providers in the dashboard and run one narrow research mission within $1/day and $7 total. Verify returned model metadata, recorded usage, peer questions, evidence limits and the experiment brief."
+      "status": "review",
+      "assignment": "Connect both providers in the dashboard and run one narrow research mission within $1/day and $7 total. Verify returned model metadata, recorded usage, peer questions, evidence limits and the experiment brief.",
+      "validationStatus": "Both providers returned verified model identity and recorded usage. First mission exposed missing source access; audit claims require review."
     },
     {
       "id": "S003",
@@ -113,9 +114,17 @@
       "title": "Correct Gemini structured-output request and diagnose model access",
       "status": "done",
       "artifact": "swarm/providers.py",
-      "validationStatus": "28 checks pass. The documented model name is unchanged. Live confirmation after re-entry of keys remains pending."
+      "validationStatus": "Live Gemini calls succeeded after schema transport correction; provider identity recorded in runtime ledger."
+    },
+    {
+      "id": "S004",
+      "owner": "coordinator",
+      "title": "Give workers a development studio and public search",
+      "status": "review",
+      "artifact": "swarm/README.md",
+      "validationStatus": "Implemented pinned reads, drafts, syntax, contained test runner, web/paper search, tool records and provider cost split. Local verification passes; real worker tool calls and Docker execution require final live checks."
     }
   ],
-  "nextEngineeringPriority": "Complete the first budgeted API research mission, verify provider identity and usage, and inspect peer-message quality. Code execution and recurring operation follow later verification.",
-  "operatingStatus": "local_dashboard_ready_api_verification_pending"
+  "nextEngineeringPriority": "Run a narrow mission using actual source reads and cited public research. Start Docker and prepare the trusted test image before validating isolated draft tests.",
+  "operatingStatus": "studio_ready_live_tool_verification_pending"
 }

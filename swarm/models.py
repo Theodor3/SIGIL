@@ -55,6 +55,14 @@ class Source(StrictModel):
     url: str = Field(max_length=1000)
 
 
+class ToolRequest(StrictModel):
+    tool: Literal["read_file", "search_code", "draft_file", "check_syntax", "run_tests", "web_search", "paper_search", "fetch_page"]
+    path: str = Field(default="", max_length=240)
+    query: str = Field(default="", max_length=400)
+    start: int = Field(default=1, ge=1, le=100000)
+    content: str = Field(default="", max_length=12000)
+
+
 class Report(StrictModel):
     summary: str = Field(min_length=1, max_length=2500)
     artifact_title: str = Field(min_length=1, max_length=180)
@@ -62,6 +70,7 @@ class Report(StrictModel):
     messages: list[PeerMessage] = Field(max_length=3)
     sources: list[Source] = Field(max_length=6)
     source_requests: list[str] = Field(max_length=2)
+    tool_requests: list[ToolRequest] = Field(default_factory=list, max_length=3)
 
 
 class Verdict(StrictModel):
