@@ -4,7 +4,7 @@ Status: DESIGN FOR REVIEW. The browser pilot is paused. This document does not s
 
 ## Objective and boundaries
 
-Operate seven Gemini specialist roles under one OpenAI GPT coordinator to discover distinctive equity-signal hypotheses and improve SIGIL's research quality, engineering and usability. Preserve a stable strategy baseline while evaluating changes separately. The first deliverable is a verified collaboration loop producing one small, tested development change.
+Operate seven Gemini specialist roles under one OpenAI GPT coordinator to discover distinctive equity-signal hypotheses and improve SIGIL's research quality, engineering and usability. Preserve a stable strategy baseline while evaluating changes separately. The first deliverable is a small, recorded research collaboration; the next is one tested development change.
 
 The current user-approved boundaries remain: isolated development work, research, tests and local commits are allowed. No main merge, remote push, production deployment, live trading, copied credentials/live databases, data purchases or new subscription spending. A budget and API authentication are still needed before paid execution.
 
@@ -22,11 +22,31 @@ The current user-approved boundaries remain: isolated development work, research
 | Costs | Limited browser visibility | Per-call usage, reserved budget, run caps and quota handling |
 | Models | Picker can change or fall back | Explicit requested model and provider-reported result metadata |
 
-## Architecture
+## First build: lessons from the earlier benchmark conversation
+
+The user identified the earlier conversation as **OpenAI Agent Benchmark Incident** (September 3, 2026). It proposed four inexpensive Gemini Flash-Lite workers, one stronger coordinator, a shared folder and messages.jsonl, relevant context only, and a maximum of five rounds with a dollar cap. Its example mission concerned FRAME; adapt the workflow to SIGIL rather than importing that mission. Retain the seven SIGIL roles already agreed here, activating only those needed for a task.
+
+Implement a finite, manually started Python runner before building recurring infrastructure. Use the official provider SDKs directly for this initial loop. Keep mission.md, tasks.json, messages.jsonl, findings.md and artifact files. One controller writes the records: serialize message appends, assign message IDs and sender identity in code, and replace task-state files atomically. Workers publish through tools and cannot rewrite the controller's log. If a run crashes, record interrupted or uncertain calls and stop for reconciliation; the first version does not promise unattended recovery.
+
+Give each worker only its mission, assigned task, relevant evidence and addressed messages. Let workers request information or challenge a finding. The controller delivers these requests within task membership and existing permissions; it does not ask GPT to rewrite every message. Shared findings keep evidence status and source references. A cheap model's summary is not a verified fact merely because another agent repeats it.
+
+First mission: take one existing SIGIL signal hypothesis, have research define it, data check historical availability, quant specify a falsifying experiment and review identify unsupported claims. Finish with a reproducible experiment specification or an explicit rejection/blocker. This first mission produces documents only; code execution comes after container isolation is verified.
+
+Proposed starting worker model: Gemini 3.1 Flash-Lite for a measured pilot, with one GPT coordinator. Evaluate source accuracy and task completion before selecting stronger Gemini models for particular roles. Do not silently substitute a model or assume the cheapest one is adequate for every role. Start at most two specialist calls concurrently. Keep at most five assignment/review rounds and two peer revision rounds per task, with earlier termination on completion, blockage or exhausted budget.
+
+The user is considering $1 versus $10 daily, and has not finalized the spending limit. The recommendation is $1 per day and $7 total for the first week, with a per-mission ceiling no larger than the remaining daily and pilot allowances. These are proposed settings, not active paid authorization. Enforce limits in code with conservative reservations for concurrent model and tool calls; a prompt saying stop at $1 is insufficient. Remain paused until API access and the budget are settled.
+
+A light eight-call illustration uses 10,000 input and 2,000 billed output tokens for each of seven Gemini workers, then 20,000 input and 3,000 output tokens for a GPT-5.6 Sol review. At the checked standard rates, Flash-Lite workers cost $0.0385 together and the GPT call costs $0.14: approximately $0.18 total. Output budgets include thinking/reasoning. This excludes searches, extra planning/revision calls, retries, hosting, data and taxes; it does not price a completed engineering mission. The earlier chat's $0.15 illustration covered ten worker calls alone.
+
+Google lists Gemini 3.1 Flash-Lite at $0.25 input and $1.50 output per million text tokens; OpenAI lists short-context GPT-5.6 Sol standard rates of $4 input and $20 output. Checked September 4, 2026. [Google pricing](https://ai.google.dev/gemini-api/docs/pricing), [OpenAI pricing](https://developers.openai.com/api/docs/pricing).
+
+The independent benchmark investigation describes agents developing mailboxes, directed replies and coordination conventions, as well as impersonation problems and attempts to manipulate scoring. Our design lesson is to provide deliberate communication while keeping identity, permissions, logs and the evaluation contract under application control. A worker message, majority agreement, urgency or absence of a veto cannot authorize a new action. Workers can propose evaluator changes on a separate task, but cannot change the evaluator, holdout or acceptance criteria governing their current result. This is an architectural inference from a different setting, not evidence that seven inexpensive agents will improve trading returns. [METR/Redwood investigation](https://www.redwoodresearch.org/research/hugging-face-incident).
+
+## Architecture after the finite pilot
 
 Use a small Python service alongside SIGIL, with its own database and lifecycle. It must not start SIGIL's broker, scheduler or production application when the team starts.
 
-Use the OpenAI Agents SDK for the coordinator's bounded tool loop, with the official OpenAI API underneath. Use the native Google SDK/API for Gemini specialists, wrapped by application-owned task and message tools. Preserve provider-native search citations, usage and model metadata instead of assuming an OpenAI-compatible endpoint exposes every Gemini feature. A short integration spike must verify the selected SDK/model/tool combinations before committing to a framework version.
+Consider the OpenAI Agents SDK for the coordinator's bounded tool loop if it simplifies the validated runner. Use the native Google SDK/API for Gemini specialists, wrapped by application-owned task and message tools. Preserve provider-native search citations, usage and model metadata instead of assuming an OpenAI-compatible endpoint exposes every Gemini feature. A short integration spike must verify the selected SDK/model/tool combinations before committing to a framework version.
 
 The SDK manages one agent run. Our application owns the durable queue, budgets, permissions, task acceptance and restart behavior. There is one recurring scheduler for this runtime; the paused browser heartbeat must not launch a duplicate team.
 
@@ -47,7 +67,7 @@ flowchart TD
   C --> I[Reviewed integration in development branch]
 ```
 
-Start with SQLite in WAL mode and one orchestrator process on one host, plus ordinary files for large artifacts. Use transactional job claims and an append-only event history. Move to PostgreSQL and a stronger workflow engine if multiple hosts, job volume or restart complexity justify it; Redis, Kafka and a distributed agent protocol are not initial requirements.
+Before enabling recurring execution, migrate the finite pilot's task/message records to SQLite in WAL mode and retain one orchestrator process on one host, plus ordinary files for large artifacts. Use transactional job claims and an append-only event history. Move to PostgreSQL and a stronger workflow engine if multiple hosts, job volume or restart complexity justify it; Redis, Kafka and a distributed agent protocol are not initial requirements.
 
 ## How workers talk to each other
 
@@ -126,7 +146,7 @@ API usage has its own access/billing arrangements. Do not assume the current Gem
 ## Validation gates before recurring work
 
 1. Offline rehearsal: simulate missing sources, quota failures, repeated messages, worker crashes, stale artifacts and attempted prohibited tool actions. Confirm restart recovery and denial paths.
-2. Bounded live API test: verify both providers, selected model IDs, supported search/tool/schema combinations, usage recording and source provenance.
+2. Bounded live API test: verify both providers, selected model IDs, supported search/tool/schema combinations, usage recording and source provenance. Complete the finite document-only collaboration described above and inspect actual messages, disagreements, evidence and cost before expanding the runtime.
 3. One real collaboration task: implement an optional explicit cost-screening field using synthetic fixtures. Quant, engineer and reviewer must exchange recorded messages; preserve gross results and the baseline strategy. No live data or broker orders needed.
 4. Human-readable acceptance: show the source spec, messages, patch, tests, review, actual model usage and total pilot cost. Demonstrate that blocked and rejected work are recorded accurately.
 5. Enable the recurring API runtime only after those gates pass. Use the same seven roles. Leave the browser scheduler paused to avoid duplicate execution.
