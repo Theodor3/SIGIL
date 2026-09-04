@@ -76,18 +76,23 @@
       "id": "R003",
       "owner": "research-events",
       "title": "Verify and correct R001 sources",
-      "status": "assigned",
+      "status": "review",
       "artifact": "https://gemini.google.com/app/f88cb33ffe5c4dfd",
-      "review": null
+      "review": ".swarm/reports/2026-09-04-chat-audit.md",
+      "responseReceived": true,
+      "validationStatus": "Corrections received; remaining evidence and scope questions are recorded in the audit."
     },
     {
       "id": "V002",
       "owner": "review",
       "title": "Correct Sharpe input assumptions and review cost-screening semantics",
-      "status": "assigned",
+      "status": "review",
       "artifact": "https://gemini.google.com/app/f7f4cf2c667590f9",
-      "review": null
+      "review": ".swarm/reports/2026-09-04-chat-audit.md",
+      "responseReceived": true,
+      "validationStatus": "Corrections received; remaining evidence and scope questions are recorded in the audit."
     }
   ],
-  "nextEngineeringPriority": "Optional explicit cost-screening layer in signal replay after corrected V002 review. Preserve gross output, actual elapsed-day semantics and baseline strategy."
+  "nextEngineeringPriority": "Proposed API collaboration rehearsal: quant specification, optional explicit cost-screening patch with synthetic fixtures, independent review and recorded peer messages. API runtime, authentication and budget are prerequisites.",
+  "operatingStatus": "paused_for_api_planning"
 }
