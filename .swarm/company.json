@@ -22,8 +22,9 @@
     "maxConcurrentSpecialists": 2,
     "maxRoundsPerMission": 5,
     "maxPeerRevisionRounds": 2,
-    "recordedSpendingUsd": 0,
-    "reservationsBeforeDispatch": true
+    "recordedSpendingUsd": 0.043992,
+    "reservationsBeforeDispatch": true,
+    "recordedSpendingAsOf": "2026-09-04 troubleshooting; runtime ledger is authoritative"
   },
   "boundaries": {
     "production": false,
@@ -39,7 +40,7 @@
   },
   "status": "local_ready_api_verification_pending",
   "lastCoordinatorCycle": "2026-09-04",
-  "modelAccessNote": "Sample workflow and mocked SDK contracts verified. API keys entered through Connections stay in server memory; reconnect after restart. No paid API mission has run.",
+  "modelAccessNote": "OpenAI planning calls succeeded on September 4, 2026; recorded model spending is $0.043992. Gemini returned HTTP 400. Corrected the JSON-schema request format and added model-metadata checks before paid planning. Live verification of the fix requires reconnected session keys.",
   "pauseReason": "Browser automation remains paused; recurring operation follows successful API pilot.",
   "automationStatus": "PAUSED",
   "architecturePlan": ".swarm/API-TEAM-PLAN.md",

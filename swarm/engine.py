@@ -293,6 +293,9 @@ class Engine:
         data = self.store.snapshot(mission_id)
         self.store.message(mission_id, "system", "user",
                            "API mission started. This pilot can exchange messages, retrieve approved public pages and write research documents.", "status")
+        self.check_stop()
+        self.providers.check_gemini_model()
+        self.check_stop()
         direct_assignments = self._pending(mission_id)
         plan, delivered_ids = self._call(
             mission_id, "coordinator",

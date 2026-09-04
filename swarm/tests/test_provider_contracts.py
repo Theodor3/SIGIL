@@ -8,7 +8,7 @@ import openai
 import pytest
 
 from swarm.models import GEMINI_MODEL, OPENAI_MODEL, Plan, Report
-from swarm.providers import ProviderFailure, Providers
+from swarm.providers import ProviderFailure, Providers, provider_failure
 
 
 def test_openai_sdk_request_and_usage(monkeypatch):
@@ -66,6 +66,11 @@ def test_gemini_sdk_request_and_thinking_usage(monkeypatch):
     assert (result.input_tokens, result.output_tokens) == (100, 150)
     assert result.returned_model == GEMINI_MODEL
     assert requests[0]["generationConfig"]["responseMimeType"] == "application/json"
+    generation = requests[0]["generationConfig"]
+    # The legacy responseSchema does not accept additionalProperties. Send the
+    # original JSON Schema via the API's JSON-schema field instead.
+    assert "responseSchema" not in generation
+    assert generation["responseJsonSchema"] == Report.model_json_schema()
     # This SDK serializes the nested protobuf field in snake case and the enum in uppercase.
     assert requests[0]["generationConfig"]["thinkingConfig"] == {"thinking_level": "MINIMAL"}
     assert not requests[0].get("tools")
@@ -80,3 +85,36 @@ def test_provider_errors_do_not_echo_keys(monkeypatch):
     with pytest.raises(ProviderFailure) as result:
         providers.run("openai", "System", "Task", Plan)
     assert "secret-fixture" not in str(result.value)
+
+
+def test_gemini_model_lookup_uses_metadata_only(monkeypatch):
+    requests = []
+    def respond(request):
+        requests.append((request.method, request.url.path))
+        return httpx.Response(200, json={"name": "models/" + GEMINI_MODEL,
+            "supportedGenerationMethods": ["generateContent"], "outputTokenLimit": 65536})
+    actual_client = genai.Client
+    def client(**kwargs):
+        kwargs["http_options"].httpx_client = httpx.Client(transport=httpx.MockTransport(respond))
+        return actual_client(**kwargs)
+    monkeypatch.setattr(genai, "Client", client)
+    providers = Providers()
+    providers.configure(gemini_api_key="fixture-only")
+    providers.check_gemini_model()
+    assert requests == [("GET", "/v1beta/models/" + GEMINI_MODEL)]
+    assert not providers.public_status()["gemini"]["verified"]
+
+
+@pytest.mark.parametrize("message,expected", [
+    ('Invalid JSON payload. Unknown name "additional_properties" at responseSchema', 'structured-output schema'),
+    ('API key not valid. Please pass a valid API key.', 'API key was rejected'),
+    ('thinking_level is unsupported', 'thinking setting'),
+])
+def test_gemini_400_errors_are_specific_and_redacted(message, expected):
+    from google.genai.errors import ClientError
+    error = ClientError(400, {"error": {"message": message + " secret-fixture-key"}})
+    result = provider_failure("gemini", error)
+    assert "Gemini (HTTP 400)" in str(result)
+    assert expected in str(result)
+    assert "secret-fixture" not in str(result)
+    assert result.definitely_unbilled

@@ -106,6 +106,14 @@
       "title": "Verify first real API research mission",
       "status": "ready",
       "assignment": "Connect both providers in the dashboard and run one narrow research mission within $1/day and $7 total. Verify returned model metadata, recorded usage, peer questions, evidence limits and the experiment brief."
+    },
+    {
+      "id": "S003",
+      "owner": "coordinator",
+      "title": "Correct Gemini structured-output request and diagnose model access",
+      "status": "done",
+      "artifact": "swarm/providers.py",
+      "validationStatus": "28 checks pass. The documented model name is unchanged. Live confirmation after re-entry of keys remains pending."
     }
   ],
   "nextEngineeringPriority": "Complete the first budgeted API research mission, verify provider identity and usage, and inspect peer-message quality. Code execution and recurring operation follow later verification.",

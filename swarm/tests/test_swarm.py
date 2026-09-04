@@ -23,6 +23,9 @@ class FakeProviders(Providers):
         self.peer_request = peer_request
         self.hook = None
 
+    def check_gemini_model(self):
+        pass
+
     def run(self, provider, system, prompt, schema):
         context = json.loads(prompt)
         agent = next(a["id"] for a in AGENT_MAP.values() if "Your role: " + a["role"] in system)
@@ -234,6 +237,20 @@ def test_stop_during_call_prevents_next_dispatch(store):
     join(engine)
     assert len(providers.calls) == 1
     assert store.snapshot(mid)["mission"]["status"] == "stopped"
+
+
+def test_failed_model_lookup_stops_before_paid_planning(store):
+    providers = FakeProviders()
+    def unavailable():
+        raise ProviderFailure("Gemini (HTTP 404): unavailable", True)
+    providers.check_gemini_model = unavailable
+    mid = store.create("A mission", "live")["id"]
+    engine = Engine(store, providers)
+    engine.start(mid)
+    join(engine)
+    assert providers.calls == []
+    assert store.ledger == []
+    assert store.snapshot(mid)["mission"]["status"] == "blocked"
 
 
 def test_local_api_guards_and_secret_redaction(tmp_path):

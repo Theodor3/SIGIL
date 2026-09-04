@@ -31,6 +31,35 @@ class ProviderFailure(RuntimeError):
         self.definitely_unbilled = definitely_unbilled
 
 
+def provider_failure(provider, exc, *, metadata_only=False):
+    """Classify provider errors without returning raw bodies, prompts or keys."""
+    code = getattr(exc, "status_code", None) or getattr(exc, "code", None)
+    label = "Gemini" if provider == "gemini" else "OpenAI"
+    if code in (400, 401, 403, 404, 422, 429):
+        descriptions = {
+            400: "The request format was rejected. No automatic retry was made.",
+            401: "The API key was rejected. Update it in Connections.",
+            403: "This API account does not have access to the selected model or service.",
+            404: "The configured model is unavailable for this API account.",
+            422: "The response schema was rejected.",
+            429: "The provider's quota was reached. Check its billing and rate limits.",
+        }
+        description = descriptions[code]
+        # Only select application-owned messages. Never echo the SDK's body.
+        detail = str(getattr(exc, "message", "") or "").lower()
+        if code == 400:
+            if "api key not valid" in detail or "api_key_invalid" in detail or "api key expired" in detail:
+                description = descriptions[401]
+            elif any(term in detail for term in ("response_schema", "responseschema", "responsejsonschema", "additional_properties")):
+                description = "The structured-output schema was rejected. Check the Gemini request format."
+            elif "thinking" in detail:
+                description = "The thinking setting was rejected for this model."
+        return ProviderFailure(f"{label} (HTTP {code}): {description}", True)
+    if metadata_only:
+        return ProviderFailure(f"{label}: model availability could not be checked. No generation calls were sent.", True)
+    return ProviderFailure(f"{label}: the call did not finish reliably. Its reservation is retained; no automatic retry was made.")
+
+
 class Providers:
     def __init__(self):
         self.lock = threading.RLock()
@@ -64,6 +93,31 @@ class Providers:
             self.keys[provider] = ""
             self.verified[provider] = False
             return self.public_status()
+
+    def check_gemini_model(self):
+        """Read model metadata before any paid planning, without generating text."""
+        from google import genai
+        from google.genai import types
+
+        with self.lock:
+            key = self.keys["gemini"]
+        if not key:
+            raise ProviderFailure("Connect Gemini in Connections before starting API work.", True)
+        try:
+            with genai.Client(api_key=key, vertexai=False, http_options=types.HttpOptions(
+                base_url="https://generativelanguage.googleapis.com", timeout=10000,
+                retry_options=types.HttpRetryOptions(attempts=1),
+            )) as client:
+                model = client.models.get(model=GEMINI_MODEL)
+            name = (model.name or "").removeprefix("models/")
+            if name != GEMINI_MODEL and not name.startswith(GEMINI_MODEL + "-"):
+                raise ProviderFailure("Gemini returned an unexpected model in its availability check. No generation calls were sent.", True)
+            if "generateContent" not in (model.supported_actions or []):
+                raise ProviderFailure("Gemini does not list text generation for this model. No generation calls were sent.", True)
+        except ProviderFailure:
+            raise
+        except Exception as exc:
+            raise provider_failure("gemini", exc, metadata_only=True) from None
 
     def reservation(self, provider, system, prompt, schema):
         # One byte per input token is deliberately conservative for text-only
@@ -121,7 +175,10 @@ class Providers:
                         config=types.GenerateContentConfig(
                             system_instruction=system, candidate_count=1,
                             max_output_tokens=MAX_OUTPUT,
-                            response_mime_type="application/json", response_schema=schema,
+                            # Pydantic emits JSON Schema (including additionalProperties),
+                            # not the older OpenAPI-style responseSchema protocol.
+                            response_mime_type="application/json",
+                            response_json_schema=schema.model_json_schema(),
                             thinking_config=types.ThinkingConfig(thinking_level="minimal"),
                             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
                         ),
@@ -143,16 +200,4 @@ class Providers:
         except ProviderFailure:
             raise
         except Exception as exc:
-            code = getattr(exc, "status_code", None) or getattr(exc, "code", None)
-            # Never echo SDK exception bodies: they can contain credentials or prompts.
-            if code in (400, 401, 403, 404, 422, 429):
-                descriptions = {
-                    400: "The provider rejected this model or request format. No automatic retry was made.",
-                    401: "The API key was rejected. Update it in Connections.",
-                    403: "This API account does not have access to the selected model.",
-                    404: "The selected model is unavailable for this API account.",
-                    422: "The provider rejected the request schema.",
-                    429: "The provider's quota was reached. Check its billing and rate limits.",
-                }
-                raise ProviderFailure(descriptions[code], True) from None
-            raise ProviderFailure("The provider call did not finish reliably. Its reservation is retained; no automatic retry was made.") from None
+            raise provider_failure(provider, exc) from None

@@ -13,6 +13,8 @@ From this isolated checkout, run `.venv-swarm/Scripts/python.exe -m swarm.server
 
 Configured means a key was entered. Verified means the provider returned a successful response. A real API mission has not yet been verified during implementation. The selected models are `gemini-3.1-flash-lite` and `gpt-5.6-sol`; unsupported accounts stop with a connection/model error rather than silently switching models.
 
+September 4 troubleshooting: OpenAI planning calls succeeded, but Gemini returned HTTP 400. The configured Gemini name matches [Google's model reference](https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite). The runner now sends Pydantic's schema through `response_json_schema`, avoiding unsupported fields in the legacy `responseSchema` format. A model-metadata lookup precedes paid planning, and errors identify the provider and distinguish known key, schema and thinking-setting failures without exposing SDK bodies. Full live verification of this correction requires reconnected session keys.
+
 ## What runs
 
 The coordinator assigns relevant roles, the reviewer makes an independent first assessment, and specialists produce bounded documents and directed messages. The controller delivers requests without asking the coordinator to rewrite them. It then presents the complete latest documents to review and coordination. User questions received during a call remain queued until delivered in a later call.
@@ -35,4 +37,4 @@ The service binds only to 127.0.0.1. It is intended for the owner of this comput
 
 ## Validation
 
-`python -m pytest swarm/tests -q` passes 23 checks covering concurrent budget reservations, persistence, interrupted calls, model provenance, user/peer delivery, complete review context, request safety, source restrictions and actual SDK request serialization with mock transports. No paid model calls were used. Desktop/mobile browser checks cover a complete sample mission, directed follow-up, navigation, evidence and download. Live model access, response quality and bill reconciliation still need the first API pilot.
+`python -m pytest swarm/tests -q` passes 28 checks covering concurrent budget reservations, persistence, interrupted calls, model provenance, user/peer delivery, complete review context, request safety, source restrictions and actual SDK request serialization with mock transports. The regression checks cover the JSON-schema transport, model-metadata lookup before paid planning and redacted error classification. These checks use no paid model calls. Desktop/mobile browser checks cover a complete sample mission, directed follow-up, navigation, evidence and download. Full live collaboration, response quality and bill reconciliation still need the first API pilot.
