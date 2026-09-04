@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     # its own targets stale and refuses to call them actionable. Two cycles at the
     # 24h prod interval, so a single missed run is not treated as an outage.
     agent_stale_after_hours: float = 48.0
+    # How far back the agent export looks for the run it diffs the current book
+    # against. The consumer is a daily brief, so the useful comparison is "since
+    # yesterday", not "since the last run" -- at a 6h cadence those differ by four
+    # runs. The export picks the newest completed run at least this much older
+    # than the current one, and falls back to the immediately previous run when
+    # history is too short, reporting which it used either way.
+    agent_diff_lookback_hours: float = 20.0
     paper_starting_equity: float = 100_000.0
 
     # Trading friction controls
