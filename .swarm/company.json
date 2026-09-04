@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 2,
+  "created": "2026-09-04",
+  "pilotReviewDate": "2026-09-18",
+  "mission": "Continuously improve SIGIL through novel signal research, reliable evaluation and reviewed engineering",
+  "repository": "C:/Users/Theodore/Documents/sigil-v2",
+  "worktree": "C:/Users/Theodore/Documents/Codex/2026-09-04/let/work/sigil-company",
+  "branch": "codex/sigil-company",
+  "baselineCommit": "794ee62",
+  "coordinatorTaskId": "01a06aed-e74d-7061-bd25-2a2773a28566",
+  "runtime": "supervised Gemini browser conversations with recurring GPT coordinator",
+  "model": "Gemini Pro; first tab picker identified 3.1 Pro",
+  "automationId": "sigil-company-coordinator",
+  "cadenceMinutes": 60,
+  "budget": {
+    "newPaidSpending": 0,
+    "maxNewWorkerAssignmentsPerWake": 2,
+    "maxActiveMinutesPerWake": 20,
+    "initialBatch": 7
+  },
+  "workers": [
+    {
+      "id": "research-events",
+      "name": "Novel research: corporate events",
+      "provider": "Gemini",
+      "task": "R003",
+      "model": "Gemini Pro (verified in page UI)",
+      "status": "working_on_source_audit",
+      "url": "https://gemini.google.com/app/f88cb33ffe5c4dfd",
+      "promptFile": ".swarm/prompts/research-events.md",
+      "initialResponseReceived": true
+    },
+    {
+      "id": "research-frontier",
+      "name": "Novel research: frontier ideas",
+      "provider": "Gemini",
+      "task": "R002",
+      "model": "Gemini Pro (verified in page UI)",
+      "status": "awaiting_source_verification",
+      "url": "https://gemini.google.com/app/3942745fbe3e1a18",
+      "promptFile": ".swarm/prompts/research-frontier.md",
+      "initialResponseReceived": true
+    },
+    {
+      "id": "data",
+      "name": "Data engineering",
+      "provider": "Gemini",
+      "task": "D001",
+      "model": "Gemini Pro (verified in page UI)",
+      "status": "awaiting_primary_data_verification",
+      "url": "https://gemini.google.com/app/bf7ceeb0f2940af5",
+      "promptFile": ".swarm/prompts/data.md",
+      "initialResponseReceived": true
+    },
+    {
+      "id": "quant",
+      "name": "Quantitative testing",
+      "provider": "Gemini",
+      "task": "Q001",
+      "model": "Gemini Pro (verified in page UI)",
+      "status": "needs_baseline_correction",
+      "url": "https://gemini.google.com/app/b4dda4d556451002",
+      "promptFile": ".swarm/prompts/quant.md",
+      "initialResponseReceived": true
+    },
+    {
+      "id": "engineering",
+      "name": "Engineering",
+      "provider": "Gemini",
+      "task": "E001",
+      "model": "Gemini Pro (verified in page UI)",
+      "status": "proposal_under_review",
+      "url": "https://gemini.google.com/app/25f44458dc7fad2d",
+      "promptFile": ".swarm/prompts/engineering.md",
+      "initialResponseReceived": true
+    },
+    {
+      "id": "review",
+      "name": "Independent review",
+      "provider": "Gemini",
+      "task": "V002",
+      "model": "Gemini Pro (verified in page UI)",
+      "status": "working_on_corrected_review",
+      "url": "https://gemini.google.com/app/f7f4cf2c667590f9",
+      "promptFile": ".swarm/prompts/review.md",
+      "initialResponseReceived": true
+    },
+    {
+      "id": "product-ops",
+      "name": "Product and operations",
+      "provider": "Gemini",
+      "task": "O001",
+      "model": "Gemini Pro (verified in page UI)",
+      "status": "initial_proposal_reviewed",
+      "url": "https://gemini.google.com/app/ac7ff9577e1c2c40",
+      "promptFile": ".swarm/prompts/product-ops.md",
+      "initialResponseReceived": true
+    }
+  ],
+  "boundaries": {
+    "production": false,
+    "liveTrading": false,
+    "newSpending": false,
+    "mainEdits": false,
+    "developmentChanges": true,
+    "tests": true,
+    "localCommits": true,
+    "remotePush": false
+  },
+  "status": "active",
+  "lastCoordinatorCycle": "2026-09-04",
+  "modelAccessNote": "Browser-based sessions. No Gemini CLI installed, API key configured or additional subscription purchased. Browser authentication and host availability are required."
+}

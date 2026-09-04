@@ -1,0 +1,93 @@
+{
+  "updated": "2026-09-04",
+  "states": [
+    "ready",
+    "assigned",
+    "review",
+    "blocked",
+    "done",
+    "rejected"
+  ],
+  "tasks": [
+    {
+      "id": "R001",
+      "owner": "research-events",
+      "title": "Novel research: corporate events initial assignment",
+      "status": "review",
+      "assignment": "Find at most two unusual, implementable US equity signals involving event timing, filing changes or economically linked firms. Avoid generic earnings drift, sentiment, insider buying and plain momentum. Research actual primary sources through September 4, 2026. Give formulas, exact observable timestamps, historical data access, the strongest primary evidence and a falsifying experiment. State what is genuinely new and what is an adaptation. Rank by evidence and testability, not novelty alone.",
+      "artifact": "https://gemini.google.com/app/f88cb33ffe5c4dfd",
+      "review": ".swarm/reports/2026-09-04-initial-review.md"
+    },
+    {
+      "id": "R002",
+      "owner": "research-frontier",
+      "title": "Novel research: frontier ideas initial assignment",
+      "status": "review",
+      "assignment": "Find at most two unusual, implementable US equity signal hypotheses from recent primary research or overlooked public datasets. Consider positioning/forced flows, labor or procurement data, price-path structure, and cross-asset information. Independently seek negative replications. Avoid generic value/momentum/quality/earnings drift. Give direct primary sources, dates, computable definitions, historical availability and failure conditions. Prioritize ideas worth disproving cheaply; do not invent predictive performance.",
+      "artifact": "https://gemini.google.com/app/3942745fbe3e1a18",
+      "review": ".swarm/reports/2026-09-04-initial-review.md"
+    },
+    {
+      "id": "D001",
+      "owner": "data",
+      "title": "Data engineering initial assignment",
+      "status": "review",
+      "assignment": "Design a point-in-time data readiness matrix for a US equity signal research platform. Initial data avenues: SEC filing metadata and filing text changes; index/ETF forced flows; customer-supplier event spillovers. Research official provider/regulator documentation. For each state exact fields, when information became observable, historical coverage/revisions, survivorship, licensing/access limits, verified costs or unknown, and archival needs. Recommend one attainable dataset to validate first. Do not sign up, purchase data, scrape private sources or assume an API module proves entitlement.",
+      "artifact": "https://gemini.google.com/app/bf7ceeb0f2940af5",
+      "review": ".swarm/reports/2026-09-04-initial-review.md"
+    },
+    {
+      "id": "Q001",
+      "owner": "quant",
+      "title": "Quantitative testing initial assignment",
+      "status": "review",
+      "assignment": "Design a falsifiable evaluation protocol for SIGIL. Baseline facts supplied by coordinator: the existing signal backtester replays dated PipelineContext snapshots; classifies scores above/below 0.5; uses adjusted closes for entry on/after snapshot date and exit on/before date plus 5/20 calendar days; subtracts SPY's return; reports hit rate and average directional alpha without deducting costs. Portfolio Sharpe/Sortino are computed separately from equity snapshots and suppressed below 60 daily returns. Configuration includes minima of 40 backtest observations and 5 forward closed trades, not established proof of efficacy. Propose prioritized fixes and an experiment schema: timestamp leakage, explicit trading/calendar horizons, overlapping observations, unseen chronological holdout, total experiment count, factor/sector controls, signal-vs-portfolio accounting, realistic costs, confidence intervals and prospective baseline comparison. State what cannot be concluded from this summary. Return an implementable plan and acceptance criteria, not claims that tests have run.",
+      "artifact": "https://gemini.google.com/app/b4dda4d556451002",
+      "review": ".swarm/reports/2026-09-04-initial-review.md"
+    },
+    {
+      "id": "E001",
+      "owner": "engineering",
+      "title": "Engineering initial assignment",
+      "status": "review",
+      "assignment": "Prepare a minimal implementation plan for adding transparent cost estimates to SIGIL's signal replay backtest. Current backtest output contains n, hit_rate, avg_alpha, long_calls, short_calls and directional hit rates per horizon. It grades individual forecasts against SPY; there is no portfolio allocation or turnover model in that calculation. Return a proposed backward-compatible result schema separating gross forecast alpha, explicit assumed round-trip costs, estimated net directional alpha and actual portfolio performance. Include precise semantics for long/short calls, missing data, fees/borrow assumptions, and meaningful test cases. Identify why subtracting a constant cost is only a screening approximation. Do not claim source access or propose enabling live trading. Keep the patch scope small enough for a coordinator to implement and an independent reviewer to assess.",
+      "artifact": "https://gemini.google.com/app/25f44458dc7fad2d",
+      "review": ".swarm/reports/2026-09-04-initial-review.md"
+    },
+    {
+      "id": "V001",
+      "owner": "review",
+      "title": "Independent review initial assignment",
+      "status": "review",
+      "assignment": "Act as an independent reviewer of SIGIL's first swarm cycle. Baseline: dated snapshot replay of signals; SPY-relative individual-return scoring; calendar-day 5/20 horizons; gross metrics without costs; separate equity-based Sharpe/Sortino with a 60-observation display threshold; config minima 40 backtest calls and 5 forward closed trades; local Alpaca client explicitly paper=True. Identify the five highest-priority ways this system could report misleading evidence and create concrete verification checks. Review assumptions rather than inventing bugs or asserting deployment facts. Define how to review new signal research and the proposed cost-screening feature. Separate confirmed facts, plausible risks and questions requiring repository/data inspection. Support statistical claims with direct primary sources where available.",
+      "artifact": "https://gemini.google.com/app/f7f4cf2c667590f9",
+      "review": ".swarm/reports/2026-09-04-initial-review.md"
+    },
+    {
+      "id": "O001",
+      "owner": "product-ops",
+      "title": "Product and operations initial assignment",
+      "status": "done",
+      "assignment": "Design a concise operating board for SIGIL's standing research/engineering team: two researchers, data engineer, quant, engineer, independent reviewer, product/ops and one GPT coordinator. Suggest exactly the essential task states, experiment fields and user dashboard information required to see what was investigated, changed, tested, rejected and learned. Include evidence links, source/version timestamps, cost assumptions, separate simulated/paper/live result labels, failures and run budgets. Propose a first-month scorecard that rewards reproducibility and justified rejection, not number of agents, trades or flattering backtests. Keep the first implementation small. No need to generate a site, create accounts or schedule jobs yourself.",
+      "artifact": "https://gemini.google.com/app/ac7ff9577e1c2c40",
+      "review": ".swarm/reports/2026-09-04-initial-review.md"
+    },
+    {
+      "id": "R003",
+      "owner": "research-events",
+      "title": "Verify and correct R001 sources",
+      "status": "assigned",
+      "artifact": "https://gemini.google.com/app/f88cb33ffe5c4dfd",
+      "review": null
+    },
+    {
+      "id": "V002",
+      "owner": "review",
+      "title": "Correct Sharpe input assumptions and review cost-screening semantics",
+      "status": "assigned",
+      "artifact": "https://gemini.google.com/app/f7f4cf2c667590f9",
+      "review": null
+    }
+  ],
+  "nextEngineeringPriority": "Optional explicit cost-screening layer in signal replay after corrected V002 review. Preserve gross output, actual elapsed-day semantics and baseline strategy."
+}

@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1,
+  "policy": "Register hypotheses, parameter variants and holdouts before testing. Retain negative outcomes. Forward/paper results are not live profits.",
+  "experiments": []
+}
