@@ -8,7 +8,7 @@
   "branch": "codex/sigil-company",
   "baselineCommit": "794ee62",
   "coordinatorTaskId": "01a06aed-e74d-7061-bd25-2a2773a28566",
-  "runtime": "Local dashboard with pinned development studio, draft/syntax tools and public search; container execution blocked pending Docker",
+  "runtime": "API dashboard and pinned Studio operational; supervised hourly coordinator enabled; Docker execution unavailable",
   "model": "gemini-3.1-flash-lite workers; gpt-5.6-sol coordinator; gpt-4.1-mini web-search utility",
   "automationId": "sigil-company-coordinator",
   "cadenceMinutes": 60,
@@ -44,11 +44,11 @@
     "recurringDispatch": false,
     "workerDrafts": true
   },
-  "status": "studio_ready_live_tool_verification_pending",
-  "lastCoordinatorCycle": "2026-09-04",
-  "modelAccessNote": "Both Gemini and OpenAI returned verified live responses. The first mission lacked source access and its audit conclusions remain unverified. Studio/search tools are now installed; restart clears session keys.",
-  "pauseReason": "Recurring dispatch remains paused while the finite API pilot and tools are evaluated.",
-  "automationStatus": "PAUSED",
+  "status": "continuous_coordinator_ready_supervised",
+  "lastCoordinatorCycle": "2026-09-04 Studio pilot",
+  "modelAccessNote": "Both providers and the cited web-search utility completed calls in the Studio pilot. The pilot ended needs_review after exposing scope-expansion and source-retry loops; controller fixes were added and verified locally.",
+  "pauseReason": null,
+  "automationStatus": "ACTIVE",
   "architecturePlan": ".swarm/API-TEAM-PLAN.md",
   "latestAudit": ".swarm/reports/2026-09-04-chat-audit.md",
   "dashboardUrl": "http://127.0.0.1:8765/",
@@ -191,5 +191,6 @@
     "webSearch": "gpt-4.1-mini with citations, at most one search tool call per request",
     "paperSearch": "Crossref public metadata",
     "pageFetch": "approved public research and documentation domains"
-  }
+  },
+  "continuousOperations": ".swarm/CONTINUOUS-OPERATIONS.md"
 }

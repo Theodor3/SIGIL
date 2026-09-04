@@ -122,9 +122,24 @@
       "title": "Give workers a development studio and public search",
       "status": "review",
       "artifact": "swarm/README.md",
-      "validationStatus": "Implemented pinned reads, drafts, syntax, contained test runner, web/paper search, tool records and provider cost split. Local verification passes; real worker tool calls and Docker execution require final live checks."
+      "validationStatus": "Studio pilot verified file reads, code search, cited web search, draft storage and matching JSON syntax checks. The draft was rejected for incomplete evaluation semantics and evidence; scope/retry loop defects were fixed."
+    },
+    {
+      "id": "S005",
+      "owner": "coordinator",
+      "title": "Bound mission membership and unavailable-source retries",
+      "status": "done",
+      "artifact": "swarm/engine.py",
+      "validationStatus": "Direct user follow-ups no longer spawn unrelated product/ops work, peer requests cannot add roles outside a scoped mission, and failed sources are recorded once. Full local suite: 59 passed."
+    },
+    {
+      "id": "S006",
+      "owner": "coordinator",
+      "title": "Validate one clean supervised hourly cycle",
+      "status": "ready",
+      "assignment": "Run one narrow mission with at most two assigned specialists and automatic review. Require relevant source inspection, one reviewable artifact, no role expansion or repeated unavailable-source request, and no unsupported performance claim."
     }
   ],
-  "nextEngineeringPriority": "Run a narrow mission using actual source reads and cited public research. Start Docker and prepare the trusted test image before validating isolated draft tests.",
-  "operatingStatus": "studio_ready_live_tool_verification_pending"
+  "nextEngineeringPriority": "Validate one narrow supervised hourly cycle after restarting the dashboard onto the controller fixes. Keep Docker-backed code execution blocked until its engine and trusted image are available.",
+  "operatingStatus": "continuous_coordinator_ready_supervised"
 }

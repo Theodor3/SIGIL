@@ -304,12 +304,19 @@ class Engine:
                 self.store.message(mission_id, "system", agent_id,
                                    "The requested page was retrieved. Assess its actual support for your claim: " + source["url"], "request")
             except Exception:
+                with self.store.lock:
+                    data = self.store.get(mission_id)
+                    data["sources"].append({"url": url, "title": "Unavailable source", "text": "",
+                                             "fetched_at": now(), "status": "unavailable",
+                                             "note": "Retrieval failed within the pilot's limits."})
+                    self.store.save(data)
                 self.store.message(mission_id, "system", agent_id,
                                    "The source could not be retrieved within this pilot's limits. Treat it as unavailable: " + url[:1000], "finding")
 
     def _pending(self, mission_id):
         with self.store.lock:
             data = self.store.get(mission_id)
+            participants = set(data.get("participants", []))
             selected = []
             seen = set()
             for m in data["messages"]:
@@ -322,12 +329,32 @@ class Engine:
                         continue
                 elif m["kind"] in ("request", "challenge") and m["recipient"] != "coordinator":
                     recipient = m["recipient"]
+                    if participants and recipient not in participants:
+                        continue
                 else:
                     continue
                 if recipient in AGENT_MAP and recipient != "coordinator" and recipient not in seen:
                     selected.append(Assignment(agent_id=recipient, task="Answer the addressed request, referring to the evidence: " + m["text"][:1500]))
                     seen.add(recipient)
             return selected
+
+    def _pending_general_followup(self, mission_id):
+        """Route only coordinator-addressed user follow-ups through product/ops.
+
+        Direct questions are already returned by _pending(). Treating every
+        unhandled user message as general caused an unrelated product/ops run
+        while its intended specialist was still answering.
+        """
+        with self.store.lock:
+            messages = [
+                m for m in self.store.get(mission_id)["messages"]
+                if m["sender"] == "user" and m["recipient"] == "coordinator"
+                and m["kind"] != "mission" and not m["handled"]
+            ]
+        if not messages:
+            return []
+        return [Assignment(agent_id="product-ops",
+                           task="Help answer the user's latest follow-up: " + messages[-1]["text"][:1500])]
 
     def _mark_user_messages_handled(self, mission_id, delivered_ids):
         with self.store.lock:
@@ -371,6 +398,10 @@ class Engine:
         assignments = [a for a in plan.assignments if a.agent_id != "review"] + direct_assignments
         if not assignments:
             assignments = [Assignment(agent_id="quant", task="Define an auditable experiment specification for the user's mission.")]
+        with self.store.lock:
+            data = self.store.get(mission_id)
+            data["participants"] = sorted({"review", *(a.agent_id for a in assignments)})
+            self.store.save(data)
         # Independent first critique is made before the reviewer sees author artifacts.
         self.check_stop()
         reviewer_task = Assignment(agent_id="review", task="Independently critique the original mission. Identify assumptions and evidence required before reading the authors' conclusions.")
@@ -387,6 +418,10 @@ class Engine:
                 self.store.save(data)
             # Deduplicate roles within a batch and keep actual concurrency at two.
             batch = list({a.agent_id: a for a in assignments}.values())[:7]
+            with self.store.lock:
+                data = self.store.get(mission_id)
+                data["participants"] = sorted(set(data.get("participants", [])) | {a.agent_id for a in batch})
+                self.store.save(data)
             failure = None
             with ThreadPoolExecutor(max_workers=2, thread_name_prefix="sigil-worker") as pool:
                 futures = [pool.submit(self._worker, mission_id, a) for a in batch]
@@ -430,14 +465,7 @@ class Engine:
             self.store.message(mission_id, "coordinator", "user", verdict.message, "decision")
             self.store.artifact(mission_id, "coordinator", "Coordinator's review", verdict.message)
             peers = self._pending(mission_id)
-            with self.store.lock:
-                fresh_questions = [
-                    m for m in self.store.get(mission_id)["messages"]
-                    if m["sender"] == "user" and not m["handled"]
-                ]
-            if fresh_questions:
-                peers.append(Assignment(agent_id="product-ops",
-                                        task="Help answer the user's latest follow-up: " + fresh_questions[-1]["text"][:1500]))
+            peers.extend(self._pending_general_followup(mission_id))
             with self.store.lock:
                 data = self.store.get(mission_id)
                 can_peer = data["mission"]["peer_rounds"] < 2

@@ -181,6 +181,38 @@ def test_pending_queue_is_not_erased_by_inspection_or_peer_cap(store):
     assert not next(m for m in store.snapshot(mid)["messages"] if m["id"] == msg["id"])["handled"]
 
 
+def test_direct_followup_does_not_spawn_unrelated_product_ops_work(store):
+    mid = store.create("A mission", "live")["id"]
+    store.message(mid, "user", "engineering", "Inspect the requested files.", "question")
+    engine = Engine(store, FakeProviders())
+    assert [assignment.agent_id for assignment in engine._pending(mid)] == ["engineering"]
+    assert engine._pending_general_followup(mid) == []
+    store.message(mid, "user", "coordinator", "Summarize the open decision.", "question")
+    assert [assignment.agent_id for assignment in engine._pending_general_followup(mid)] == ["product-ops"]
+
+
+def test_peer_request_cannot_expand_a_scoped_mission(store):
+    mid = store.create("A mission", "live")["id"]
+    store.get(mid)["participants"] = ["engineering", "review"]
+    store.message(mid, "review", "research-frontier", "Join this task.", "request")
+    store.message(mid, "review", "engineering", "Check the draft.", "request")
+    assert [assignment.agent_id for assignment in Engine(store, FakeProviders())._pending(mid)] == ["engineering"]
+
+
+def test_failed_source_is_recorded_and_not_requested_repeatedly(store, monkeypatch):
+    mid = store.create("A mission", "live")["id"]
+    engine = Engine(store, FakeProviders())
+    monkeypatch.setattr("swarm.engine.fetch_source", lambda url: (_ for _ in ()).throw(ValueError("unavailable")))
+    report = Report(summary="Finding", artifact_title="Artifact", artifact_body="Body", messages=[],
+                    sources=[], source_requests=["https://www.sec.gov/example"], tool_requests=[])
+    engine._record_report(mid, "review", report, [])
+    engine._record_report(mid, "review", report, [])
+    data = store.snapshot(mid)
+    assert len(data["sources"]) == 1
+    assert data["sources"][0]["status"] == "unavailable"
+    assert len([m for m in data["messages"] if "could not be retrieved" in m["text"]]) == 1
+
+
 def test_unexpected_model_retains_billing_reservation(store):
     providers = FakeProviders()
     providers.run = lambda *args: ProviderResult('{"message":"x","assignments":[]}', 100, 100, "unexpected-expensive-model", "response-42")
