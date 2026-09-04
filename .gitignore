@@ -7,3 +7,5 @@ web/dist/
 *.db
 *.log
 *.tsbuildinfo
+.venv-swarm/
+.swarm/runtime/

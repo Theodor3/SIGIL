@@ -91,8 +91,23 @@
       "review": ".swarm/reports/2026-09-04-chat-audit.md",
       "responseReceived": true,
       "validationStatus": "Corrections received; remaining evidence and scope questions are recorded in the audit."
+    },
+    {
+      "id": "S001",
+      "owner": "coordinator",
+      "title": "Build the local swarm dashboard and finite API runner",
+      "status": "done",
+      "artifact": "swarm/README.md",
+      "validationStatus": "23 local checks passed; sample mission and directed follow-up verified in browser. Live API verification remains pending."
+    },
+    {
+      "id": "S002",
+      "owner": "coordinator",
+      "title": "Verify first real API research mission",
+      "status": "ready",
+      "assignment": "Connect both providers in the dashboard and run one narrow research mission within $1/day and $7 total. Verify returned model metadata, recorded usage, peer questions, evidence limits and the experiment brief."
     }
   ],
-  "nextEngineeringPriority": "Proposed API collaboration rehearsal: quant specification, optional explicit cost-screening patch with synthetic fixtures, independent review and recorded peer messages. API runtime, authentication and budget are prerequisites.",
-  "operatingStatus": "paused_for_api_planning"
+  "nextEngineeringPriority": "Complete the first budgeted API research mission, verify provider identity and usage, and inspect peer-message quality. Code execution and recurring operation follow later verification.",
+  "operatingStatus": "local_dashboard_ready_api_verification_pending"
 }

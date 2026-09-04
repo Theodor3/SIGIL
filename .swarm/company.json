@@ -1,24 +1,52 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "created": "2026-09-04",
-  "pilotReviewDate": "2026-09-18",
+  "pilotReviewDate": "2026-09-11",
   "mission": "Continuously improve SIGIL through novel signal research, reliable evaluation and reviewed engineering",
   "repository": "C:/Users/Theodore/Documents/sigil-v2",
   "worktree": "C:/Users/Theodore/Documents/Codex/2026-09-04/let/work/sigil-company",
   "branch": "codex/sigil-company",
   "baselineCommit": "794ee62",
   "coordinatorTaskId": "01a06aed-e74d-7061-bd25-2a2773a28566",
-  "runtime": "paused browser pilot; API replacement proposed, not running",
-  "model": "Historical browser labels only; exact response models unverified. Review chat now shows Flash-Lite fallback.",
+  "runtime": "Local dashboard and finite API runner installed; live verification pending",
+  "model": "gemini-3.1-flash-lite workers; gpt-5.6-sol coordinator; provider access unverified",
   "automationId": "sigil-company-coordinator",
   "cadenceMinutes": 60,
   "budget": {
-    "newPaidSpending": 0,
-    "maxNewWorkerAssignmentsPerWake": 2,
-    "maxActiveMinutesPerWake": 20,
-    "initialBatch": 7
+    "dailyUsd": 1,
+    "pilotTotalUsd": 7,
+    "timezone": "America/New_York",
+    "expiresOn": "2026-09-11",
+    "authorized": true,
+    "authorization": "User accepted the proposed pilot and dashboard on September 4, 2026.",
+    "maxConcurrentSpecialists": 2,
+    "maxRoundsPerMission": 5,
+    "maxPeerRevisionRounds": 2,
+    "recordedSpendingUsd": 0,
+    "reservationsBeforeDispatch": true
   },
-  "workers": [
+  "boundaries": {
+    "production": false,
+    "liveTrading": false,
+    "newSpending": "model API calls within the accepted pilot allowance only",
+    "mainEdits": false,
+    "developmentChanges": true,
+    "tests": true,
+    "localCommits": true,
+    "remotePush": false,
+    "workerCodeExecution": false,
+    "recurringDispatch": false
+  },
+  "status": "local_ready_api_verification_pending",
+  "lastCoordinatorCycle": "2026-09-04",
+  "modelAccessNote": "Sample workflow and mocked SDK contracts verified. API keys entered through Connections stay in server memory; reconnect after restart. No paid API mission has run.",
+  "pauseReason": "Browser automation remains paused; recurring operation follows successful API pilot.",
+  "automationStatus": "PAUSED",
+  "architecturePlan": ".swarm/API-TEAM-PLAN.md",
+  "latestAudit": ".swarm/reports/2026-09-04-chat-audit.md",
+  "dashboardUrl": "http://127.0.0.1:8765/",
+  "runtimeGuide": "swarm/README.md",
+  "historicalBrowserWorkers": [
     {
       "id": "research-events",
       "name": "Novel research: corporate events",
@@ -97,21 +125,55 @@
       "initialResponseReceived": true
     }
   ],
-  "boundaries": {
-    "production": false,
-    "liveTrading": false,
-    "newSpending": false,
-    "mainEdits": false,
-    "developmentChanges": true,
-    "tests": true,
-    "localCommits": true,
-    "remotePush": false
-  },
-  "status": "paused",
-  "lastCoordinatorCycle": "2026-09-04",
-  "modelAccessNote": "Browser pilot paused after quota fallback and traffic verification. No API runtime or new paid spending started. API authentication and budget are needed for the proposed replacement.",
-  "pauseReason": "User requested chat audit, direct collaboration and better API planning.",
-  "automationStatus": "PAUSED",
-  "architecturePlan": ".swarm/API-TEAM-PLAN.md",
-  "latestAudit": ".swarm/reports/2026-09-04-chat-audit.md"
+  "workers": [
+    {
+      "id": "research-events",
+      "name": "Novel research: corporate events",
+      "provider": "Gemini",
+      "model": "gemini-3.1-flash-lite",
+      "status": "awaiting_live_verification"
+    },
+    {
+      "id": "research-frontier",
+      "name": "Novel research: frontier ideas",
+      "provider": "Gemini",
+      "model": "gemini-3.1-flash-lite",
+      "status": "awaiting_live_verification"
+    },
+    {
+      "id": "data",
+      "name": "Data engineering",
+      "provider": "Gemini",
+      "model": "gemini-3.1-flash-lite",
+      "status": "awaiting_live_verification"
+    },
+    {
+      "id": "quant",
+      "name": "Quantitative testing",
+      "provider": "Gemini",
+      "model": "gemini-3.1-flash-lite",
+      "status": "awaiting_live_verification"
+    },
+    {
+      "id": "engineering",
+      "name": "Engineering",
+      "provider": "Gemini",
+      "model": "gemini-3.1-flash-lite",
+      "status": "awaiting_live_verification"
+    },
+    {
+      "id": "review",
+      "name": "Independent review",
+      "provider": "Gemini",
+      "model": "gemini-3.1-flash-lite",
+      "status": "awaiting_live_verification"
+    },
+    {
+      "id": "product-ops",
+      "name": "Product and operations",
+      "provider": "Gemini",
+      "model": "gemini-3.1-flash-lite",
+      "status": "awaiting_live_verification"
+    }
+  ]
 }

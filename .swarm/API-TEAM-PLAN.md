@@ -1,12 +1,12 @@
-# SIGIL API team — proposed implementation plan
+# SIGIL API team — implementation plan and roadmap
 
-Status: DESIGN FOR REVIEW. The browser pilot is paused. This document does not start API calls, new paid services, model workers, or a replacement scheduler.
+Status: FINITE PILOT IMPLEMENTED, LIVE VERIFICATION PENDING. The user accepted the $1/day, $7 total pilot and dashboard on September 4, 2026. The local runtime is documented in swarm/README.md. Sample mode, peer routing and mocked provider requests are verified. API calls require connected keys and an explicitly started mission. The browser scheduler remains paused. Later sections describe future capabilities, not capabilities already installed.
 
 ## Objective and boundaries
 
 Operate seven Gemini specialist roles under one OpenAI GPT coordinator to discover distinctive equity-signal hypotheses and improve SIGIL's research quality, engineering and usability. Preserve a stable strategy baseline while evaluating changes separately. The first deliverable is a small, recorded research collaboration; the next is one tested development change.
 
-The current user-approved boundaries remain: isolated development work, research, tests and local commits are allowed. No main merge, remote push, production deployment, live trading, copied credentials/live databases, data purchases or new subscription spending. A budget and API authentication are still needed before paid execution.
+The current user-approved boundaries remain: isolated development work, research, tests and local commits are allowed. No main merge, remote push, production deployment, live trading, copied credentials/live databases, data purchases or new subscription spending. The accepted model API allowance is $1/day and $7 total; API authentication is required before execution.
 
 ## What changes from the pilot
 
@@ -34,7 +34,7 @@ First mission: take one existing SIGIL signal hypothesis, have research define i
 
 Proposed starting worker model: Gemini 3.1 Flash-Lite for a measured pilot, with one GPT coordinator. Evaluate source accuracy and task completion before selecting stronger Gemini models for particular roles. Do not silently substitute a model or assume the cheapest one is adequate for every role. Start at most two specialist calls concurrently. Keep at most five assignment/review rounds and two peer revision rounds per task, with earlier termination on completion, blockage or exhausted budget.
 
-The user is considering $1 versus $10 daily, and has not finalized the spending limit. The recommendation is $1 per day and $7 total for the first week, with a per-mission ceiling no larger than the remaining daily and pilot allowances. These are proposed settings, not active paid authorization. Enforce limits in code with conservative reservations for concurrent model and tool calls; a prompt saying stop at $1 is insufficient. Remain paused until API access and the budget are settled.
+The user accepted $1 per America/New_York calendar day and $7 total for the first week. The installed controller enforces these allowances with conservative reservations before dispatch, including concurrent calls. It records usage and blocks on uncertainty. No API spending has occurred during implementation. Live account/model verification remains pending; recurring operation stays paused.
 
 A light eight-call illustration uses 10,000 input and 2,000 billed output tokens for each of seven Gemini workers, then 20,000 input and 3,000 output tokens for a GPT-5.6 Sol review. At the checked standard rates, Flash-Lite workers cost $0.0385 together and the GPT call costs $0.14: approximately $0.18 total. Output budgets include thinking/reasoning. This excludes searches, extra planning/revision calls, retries, hosting, data and taxes; it does not price a completed engineering mission. The earlier chat's $0.15 illustration covered ten worker calls alone.
 
