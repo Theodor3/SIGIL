@@ -263,7 +263,8 @@ async def _build_book(db: AsyncSession) -> dict:
     else:
         try:
             previous = await _construct(db, prev_run, watch)
-            changes = _diff_books(current, previous, prev_run, now, fell_back)
+            changes = _diff_books(current, previous, prev_run, now, completed_at,
+                                  fell_back)
         except Exception as e:
             print(f"[agent] Diff against run {prev_run.id} failed: {e}")
             no_diff_reason = f"comparison against run {prev_run.id} failed"
@@ -349,7 +350,7 @@ async def _pick_comparison_run(db: AsyncSession,
 
 
 def _diff_books(current: _Constructed, previous: _Constructed,
-                prev_run: PipelineRun, now: datetime,
+                prev_run: PipelineRun, now: datetime, current_at: datetime,
                 fell_back: bool) -> dict:
     """What changed between two books.
 
@@ -416,9 +417,13 @@ def _diff_books(current: _Constructed, previous: _Constructed,
         "compared_to": {
             "run_id": prev_run.id,
             "completed_at": _iso(prev_at),
-            "hours_before_current": round(
-                (now - prev_at).total_seconds() / 3600, 2
+            # Two different spans, and confusing them misreports the window. The
+            # diff covers hours_between_runs; hours_ago is only how old the older
+            # run is now, which is larger by the age of the current run.
+            "hours_between_runs": round(
+                (current_at - prev_at).total_seconds() / 3600, 2
             ),
+            "hours_ago": round((now - prev_at).total_seconds() / 3600, 2),
             # True when history was too short to reach back the configured
             # window, so the diff covers less time than the consumer expects.
             "fell_back_to_previous_run": fell_back,
