@@ -1,6 +1,6 @@
 # SIGIL API team — implementation plan and roadmap
 
-Status: FINITE PILOT IMPLEMENTED, LIVE VERIFICATION PENDING. The user accepted the $1/day, $7 total pilot and dashboard on September 4, 2026. The local runtime is documented in swarm/README.md. Sample mode, peer routing and mocked provider requests are verified. API calls require connected keys and an explicitly started mission. The browser scheduler remains paused. Later sections describe future capabilities, not capabilities already installed.
+Status: SUPERVISED API COMPANY IMPLEMENTED. The user accepted the $1/day, $7 total pilot and dashboard on September 4, 2026. Both selected provider models completed verified calls, and the preserved local estimate is $0.612476. Version 0.3 adds a readiness-gated hourly coordinator, fixed two-specialist missions, a twenty-minute deadline, durable SQLite/WAL records and a checked launcher. API calls still require session keys and controller approval. The historical browser scheduler remains paused. Later sections retain the original roadmap and should be read as design history where the installed state has advanced beyond them.
 
 ## Objective and boundaries
 
@@ -34,7 +34,7 @@ First mission: take one existing SIGIL signal hypothesis, have research define i
 
 Proposed starting worker model: Gemini 3.1 Flash-Lite for a measured pilot, with one GPT coordinator. Evaluate source accuracy and task completion before selecting stronger Gemini models for particular roles. Do not silently substitute a model or assume the cheapest one is adequate for every role. Start at most two specialist calls concurrently. Keep at most five assignment/review rounds and two peer revision rounds per task, with earlier termination on completion, blockage or exhausted budget.
 
-The user accepted $1 per America/New_York calendar day and $7 total for the first week. The installed controller enforces these allowances with conservative reservations before dispatch, including concurrent calls. It records usage and blocks on uncertainty. No API spending has occurred during implementation. Live account/model verification remains pending; recurring operation stays paused.
+The user accepted $1 per America/New_York calendar day and $7 total for the first week. The installed controller enforces these allowances with conservative reservations before dispatch, including concurrent calls. It records usage and blocks on uncertainty. Both requested provider models completed verified calls. The supervised hourly coordinator is active, but readiness keeps it idle when session keys are missing, spending is uncertain, the Studio snapshot is stale, another mission is active, or the pilot is exhausted or expired.
 
 A light eight-call illustration uses 10,000 input and 2,000 billed output tokens for each of seven Gemini workers, then 20,000 input and 3,000 output tokens for a GPT-5.6 Sol review. At the checked standard rates, Flash-Lite workers cost $0.0385 together and the GPT call costs $0.14: approximately $0.18 total. Output budgets include thinking/reasoning. This excludes searches, extra planning/revision calls, retries, hosting, data and taxes; it does not price a completed engineering mission. The earlier chat's $0.15 illustration covered ten worker calls alone.
 
@@ -67,7 +67,7 @@ flowchart TD
   C --> I[Reviewed integration in development branch]
 ```
 
-Before enabling recurring execution, migrate the finite pilot's task/message records to SQLite in WAL mode and retain one orchestrator process on one host, plus ordinary files for large artifacts. Use transactional job claims and an append-only event history. Move to PostgreSQL and a stronger workflow engine if multiple hosts, job volume or restart complexity justify it; Redis, Kafka and a distributed agent protocol are not initial requirements.
+Version 0.3 migrates the finite pilot's mission, event and spend records to SQLite in WAL mode and retains one controller process on one host. The migration creates a checksummed legacy backup and preserves a persistent store identity. Move to PostgreSQL and a stronger workflow engine only if multiple hosts, job volume or restart complexity justify it; Redis, Kafka and a distributed agent protocol are not current requirements.
 
 ## How workers talk to each other
 
@@ -139,17 +139,17 @@ Persist a job before dispatch and use leases and idempotency keys for local tool
 
 On quota or provider errors, back off and pause the affected queue. No silent model fallback. Log model unavailability; substitutions require an explicit configured policy. A broken source fetch is a blocker for source verification, not permission to invent a citation.
 
-Reserve a conservative per-call budget before launching concurrent work, including bounded output and tool costs. Reconcile provider usage after the response. Enforce run/day caps locally and use provider project controls as an additional layer. Provider billing controls can have delays, so they are not a substitute for local dispatch limits. Current new API-spend authorization remains zero until the user sets a budget.
+Reserve a conservative per-call budget before launching concurrent work, including bounded output and tool costs. Reconcile provider usage after the response. Enforce run/day caps locally and use provider project controls as an additional layer. Provider billing controls can have delays, so they are not a substitute for local dispatch limits. The current authorization is the compiled $1 daily and $7 pilot cap; changing it requires fresh user direction and a reviewed controller change.
 
 API usage has its own access/billing arrangements. Do not assume the current Gemini or ChatGPT browser subscriptions fund this runtime. No OPENAI_API_KEY, GEMINI_API_KEY or GOOGLE_API_KEY was present in the checked process environment; that does not establish whether the user has keys elsewhere.
 
-## Validation gates before recurring work
+## Validation gates for routine recurring work
 
 1. Offline rehearsal: simulate missing sources, quota failures, repeated messages, worker crashes, stale artifacts and attempted prohibited tool actions. Confirm restart recovery and denial paths.
 2. Bounded live API test: verify both providers, selected model IDs, supported search/tool/schema combinations, usage recording and source provenance. Complete the finite document-only collaboration described above and inspect actual messages, disagreements, evidence and cost before expanding the runtime.
 3. One real collaboration task: implement an optional explicit cost-screening field using synthetic fixtures. Quant, engineer and reviewer must exchange recorded messages; preserve gross results and the baseline strategy. No live data or broker orders needed.
 4. Human-readable acceptance: show the source spec, messages, patch, tests, review, actual model usage and total pilot cost. Demonstrate that blocked and rejected work are recorded accurately.
-5. Enable the recurring API runtime only after those gates pass. Use the same seven roles. Leave the browser scheduler paused to avoid duplicate execution.
+5. The recurring API coordinator is enabled in supervised mode after the initial provider and Studio pilot. It uses the same seven standing roles while limiting each mission to two relevant specialists plus independent review. Leave the browser scheduler paused to avoid duplicate execution.
 6. Consider an always-on host after the local loop works. Local execution stops when the host is off; API use alone does not provide a scheduler or persistent company.
 
 ## First-month measures

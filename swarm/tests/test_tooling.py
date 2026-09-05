@@ -132,6 +132,34 @@ def test_search_rejects_private_queries_before_dispatch(tmp_path, monkeypatch):
         store.close()
 
 
+def test_public_search_is_blocked_after_role_reads_project_source(tmp_path, monkeypatch):
+    store = Store(tmp_path)
+    try:
+        mid = store.create("Keep source and public search separate", "live")["id"]
+        runner = MissionTools(store, FakeProviders(), StudioFixture())
+        read = runner.execute(
+            mid, "data", ToolRequest(tool="read_file", path="api/example.py"),
+            lambda: None, task_id="task-one",
+        )
+        assert read["status"] == "completed"
+        monkeypatch.setattr("swarm.tooling.paper_search", lambda *args: pytest.fail("Tainted query reached public search"))
+        search = runner.execute(
+            mid, "data", ToolRequest(tool="paper_search", query="public market research"),
+            lambda: None, task_id="task-one",
+        )
+        assert search["status"] == "blocked"
+        assert "already received private project source" in search["summary"]
+        monkeypatch.setattr("swarm.tooling.fetch_source", lambda *args: pytest.fail("Tainted URL reached public host"))
+        fetch = runner.execute(
+            mid, "data", ToolRequest(tool="fetch_page", query="https://www.sec.gov/example"),
+            lambda: None, task_id="task-one",
+        )
+        assert fetch["status"] == "blocked"
+        assert "already received private project source" in fetch["summary"]
+    finally:
+        store.close()
+
+
 def test_malformed_search_metadata_holds_budget_as_uncertain(tmp_path, monkeypatch):
     store = Store(tmp_path)
     try:

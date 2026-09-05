@@ -104,7 +104,7 @@ def test_second_controller_cannot_share_budget(store):
 def test_demo_has_no_provider_calls_and_exports(tmp_path):
     providers = FakeProviders()
     app = create_app(tmp_path, providers=providers, demo_delay=0)
-    with TestClient(app) as client:
+    with TestClient(app, headers={"Origin": "http://testserver"}) as client:
         created = client.post("/api/missions", json={"prompt": "Sample: test one unusual idea", "mode": "demo"}).json()
         assert client.post(f"/api/missions/{created['id']}/run", json={}).status_code == 200
         join(app.state.engine)
@@ -134,6 +134,58 @@ def test_peer_question_reaches_the_addressed_worker(store):
     assert reviews[1]["relevant_artifacts"]
 
 
+def test_controller_enforces_two_specialist_membership(store):
+    class OverstaffedPlan(FakeProviders):
+        def run(self, provider, system, prompt, schema):
+            result = super().run(provider, system, prompt, schema)
+            if schema is Plan:
+                payload = {
+                    "message": "Use every role",
+                    "assignments": [
+                        {"agent_id": role, "task": "Inspect one bounded question"}
+                        for role in ("research-events", "data", "quant", "engineering", "product-ops")
+                    ],
+                }
+                result.text = json.dumps(payload)
+            return result
+
+    providers = OverstaffedPlan(peer_request=False)
+    mid = store.create("Use a small research team", "live")["id"]
+    engine = Engine(store, providers)
+    engine.start(mid)
+    join(engine)
+    data = store.snapshot(mid)
+    assert set(data["participants"]) == {"review", "research-events", "data"}
+    worker_roles = {agent for agent, schema, _ in providers.calls if schema == "Report" and agent != "review"}
+    assert worker_roles == {"research-events", "data"}
+    assert any(message["kind"] == "scope" and "limited" in message["text"] for message in data["messages"])
+
+
+def test_out_of_scope_peer_request_forces_review_instead_of_disappearing(store):
+    class OutOfScopeRequest(FakeProviders):
+        def run(self, provider, system, prompt, schema):
+            result = super().run(provider, system, prompt, schema)
+            context = json.loads(prompt)
+            if schema is Report and "Define the idea" in context["your_task"]:
+                payload = json.loads(result.text)
+                payload["messages"] = [{
+                    "recipient": "engineering", "kind": "request",
+                    "text": "Please inspect an implementation detail.",
+                }]
+                result.text = json.dumps(payload)
+            return result
+
+    providers = OutOfScopeRequest(peer_request=False)
+    mid = store.create("Keep role requests auditable", "live")["id"]
+    engine = Engine(store, providers)
+    engine.start(mid)
+    join(engine)
+    data = store.snapshot(mid)
+    assert data["mission"]["status"] == "needs_review"
+    assert "outside this mission" in data["mission"]["summary"]
+    assert any(message["kind"] == "scope" and "engineering" in message["text"] for message in data["messages"])
+
+
 def test_full_document_tail_and_all_authors_reach_reviewer(store):
     mid = store.create("Read whole documents", "live")["id"]
     for index, agent in enumerate(a for a in AGENT_MAP if a not in ("coordinator", "review")):
@@ -143,6 +195,29 @@ def test_full_document_tail_and_all_authors_reach_reviewer(store):
     context = json.loads(prompt)
     assert len(context["relevant_artifacts"]) == 6
     assert all("CRITICAL_TAIL_" in a["body"] for a in context["relevant_artifacts"])
+
+
+def test_detailed_tool_context_is_current_task_only_and_independent_review_is_clean(store):
+    mid = store.create("Separate assignment evidence", "live")["id"]
+    store.get(mid)["tool_results"] = [
+        {"id": "old", "task_id": "task-old", "agent_id": "data", "tool": "read_file",
+         "status": "completed", "summary": "old", "result": {"text": "old source"}},
+        {"id": "new", "task_id": "task-new", "agent_id": "data", "tool": "paper_search",
+         "status": "completed", "summary": "new", "result": {"status": "retrieved"}},
+    ]
+    store.get(mid)["drafts"] = [{
+        "id": "draft_one", "path": "api/example.py", "author": "engineering",
+        "diff": "+x = 1", "status": "draft",
+    }]
+    engine = Engine(store, FakeProviders())
+    prompt, _ = engine._context(mid, "data", "Continue", task_id="task-new")
+    context = json.loads(prompt)
+    assert [item["id"] for item in context["your_recent_tool_results"]] == ["new"]
+    assert context["draft_changes"] == []
+    prompt, _ = engine._context(mid, "review", "Independent critique", independent=True, task_id="review-task")
+    context = json.loads(prompt)
+    assert context["your_recent_tool_results"] == []
+    assert context["draft_changes"] == []
 
 
 def test_direct_user_followup_is_not_consumed_by_planner(store):
@@ -213,6 +288,27 @@ def test_failed_source_is_recorded_and_not_requested_repeatedly(store, monkeypat
     assert len([m for m in data["messages"] if "could not be retrieved" in m["text"]]) == 1
 
 
+def test_legacy_page_request_is_blocked_after_project_source_access(store, monkeypatch):
+    mid = store.create("Separate private source from public retrieval", "live")["id"]
+    store.get(mid)["tool_results"] = [{
+        "id": "read_one", "task_id": "task_one", "agent_id": "engineering",
+        "tool": "read_file", "status": "completed", "result": {},
+    }]
+    monkeypatch.setattr(
+        "swarm.engine.fetch_source",
+        lambda *args: pytest.fail("A source-bearing role reached a public host"),
+    )
+    report = Report(
+        summary="Finding", artifact_title="Artifact", artifact_body="Body",
+        messages=[], sources=[], source_requests=["https://www.sec.gov/example"],
+        tool_requests=[],
+    )
+    Engine(store, FakeProviders())._record_report(mid, "engineering", report, [])
+    data = store.snapshot(mid)
+    assert data["sources"] == []
+    assert "external page request was not sent" in data["messages"][-1]["text"]
+
+
 def test_unexpected_model_retains_billing_reservation(store):
     providers = FakeProviders()
     providers.run = lambda *args: ProviderResult('{"message":"x","assignments":[]}', 100, 100, "unexpected-expensive-model", "response-42")
@@ -271,6 +367,39 @@ def test_stop_during_call_prevents_next_dispatch(store):
     assert store.snapshot(mid)["mission"]["status"] == "stopped"
 
 
+def test_shutdown_retains_controller_lock_while_worker_survives(store):
+    release = threading.Event()
+    engine = Engine(store, FakeProviders())
+    engine.thread = threading.Thread(target=release.wait, daemon=True)
+    engine.thread.start()
+    assert engine.shutdown() is False
+    with pytest.raises(RuntimeError, match="Another"):
+        Store(store.root)
+    release.set()
+    engine.thread.join(timeout=2)
+
+
+def test_terminal_live_mission_cannot_be_replayed(store):
+    mid = store.create("One paid attempt", "live")["id"]
+    store.get(mid)["mission"]["status"] = "completed"
+    with pytest.raises(ValueError, match="not replayed"):
+        Engine(store, FakeProviders()).start(mid)
+
+
+def test_mission_deadline_stops_further_dispatch(store, monkeypatch):
+    monkeypatch.setattr("swarm.engine.MAX_MISSION_SECONDS", 0)
+    providers = FakeProviders()
+    mid = store.create("Bound unattended work", "live")["id"]
+    engine = Engine(store, providers)
+    engine.start(mid)
+    join(engine)
+    mission = store.snapshot(mid)["mission"]
+    assert mission["status"] == "needs_review"
+    assert mission["max_runtime_minutes"] == 0
+    assert providers.calls == []
+    assert engine.deadline is None
+
+
 def test_failed_model_lookup_stops_before_paid_planning(store):
     providers = FakeProviders()
     def unavailable():
@@ -290,6 +419,8 @@ def test_local_api_guards_and_secret_redaction(tmp_path):
     providers.keys = {"gemini": "", "openai": ""}
     app = create_app(tmp_path, providers=providers)
     with TestClient(app) as client:
+        assert client.post("/api/providers", json={"gemini_api_key": "secret-fixture-key"}).status_code == 403
+        client.headers["Origin"] = "http://testserver"
         response = client.post("/api/providers", json={"gemini_api_key": "secret-fixture-key"}, headers={"Origin": "https://evil.invalid"})
         assert response.status_code == 403
         response = client.post("/api/providers", json={"gemini_api_key": "secret-fixture-key"})
@@ -306,6 +437,90 @@ def test_local_api_guards_and_secret_redaction(tmp_path):
         assert client.get("/api/state", headers={"Host": "attacker.invalid"}).status_code == 400
     assert not any("secret-fixture" in p.read_text(encoding="utf-8", errors="ignore")
                    for p in tmp_path.glob("*.json*"))
+
+
+def test_environment_provider_keys_require_explicit_opt_in(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "openai-fixture")
+    monkeypatch.setenv("GEMINI_API_KEY", "gemini-fixture")
+    monkeypatch.delenv("SIGIL_SWARM_ALLOW_ENV_KEYS", raising=False)
+    providers = Providers()
+    assert not any(item["configured"] for item in providers.public_status().values())
+
+    monkeypatch.setenv("SIGIL_SWARM_ALLOW_ENV_KEYS", "1")
+    providers = Providers()
+    assert all(item["configured"] for item in providers.public_status().values())
+    assert {item["source"] for item in providers.public_status().values()} == {"environment"}
+
+
+def test_stale_studio_blocks_live_dispatch_before_a_provider_call(tmp_path):
+    class StaleStudio:
+        root = tmp_path
+
+        def manifest(self):
+            return {
+                "commit": "a" * 40, "current_head": "b" * 40,
+                "branch": "codex/sigil-company", "is_current": False,
+                "capabilities": {"execution": False}, "files": [],
+            }
+
+    providers = FakeProviders()
+    app = create_app(tmp_path, providers=providers, studio=StaleStudio())
+    with TestClient(app, headers={"Origin": "http://testserver"}) as client:
+        state = client.get("/api/state").json()
+        assert state["runtime"]["status"] == "restart_required"
+        assert state["runtime"]["can_start_live"] is False
+        mission = client.post("/api/missions", json={"prompt": "Do not run stale code", "mode": "live"}).json()
+        response = client.post(f"/api/missions/{mission['id']}/run", json={})
+        assert response.status_code == 400
+        assert "safe restart" in response.json()["detail"]
+        assert providers.calls == []
+
+
+def test_readiness_explains_connections_budget_and_agent_state(tmp_path):
+    providers = Providers()
+    providers.keys = {"gemini": "", "openai": ""}
+    app = create_app(tmp_path, providers=providers)
+    with TestClient(app, headers={"Origin": "http://testserver"}) as client:
+        state = client.get("/api/state").json()
+        assert state["app"]["version"] == "0.3.0"
+        assert state["runtime"]["status"] == "waiting_for_connections"
+        assert state["runtime"]["can_start_live"] is False
+        assert {agent["status"] for agent in state["agents"]} == {"offline"}
+        health = client.get("/api/health").json()
+        assert health["studio_current"] is True
+        assert health["workspace"]
+        client.post("/api/providers", json={"gemini_api_key": "fixture", "openai_api_key": "fixture"})
+        state = client.get("/api/state").json()
+        assert state["runtime"]["can_start_live"] is True
+        assert {agent["status"] for agent in state["agents"]} == {"unverified"}
+        assert all(provider["source"] == "session" for provider in state["providers"].values())
+        mid = client.post("/api/missions", json={"prompt": "Immutable history", "mode": "live"}).json()["id"]
+        app.state.store.get(mid)["mission"]["status"] = "completed"
+        response = client.post(f"/api/missions/{mid}/messages", json={"text": "Replay this", "recipient": "coordinator"})
+        assert response.status_code == 400
+        assert "immutable" in response.json()["detail"]
+
+
+def test_export_contains_draft_hashes_checks_and_call_ledger(tmp_path):
+    app = create_app(tmp_path, providers=FakeProviders())
+    with TestClient(app, headers={"Origin": "http://testserver"}) as client:
+        mid = client.post("/api/missions", json={"prompt": "Export provenance", "mode": "live"}).json()["id"]
+        data = app.state.store.get(mid)
+        data["participants"] = ["engineering", "review"]
+        data["studio"] = {"commit": "a" * 40, "branch": "codex/sigil-company"}
+        data["drafts"] = [{"id": "draft_one", "path": "api/example.py", "author": "engineering",
+                           "content": "x = 1\n", "diff": "+x = 1\n", "before_sha256": "b" * 64,
+                           "commit": "a" * 40, "status": "draft"}]
+        data["tool_results"] = [{"id": "tool_one", "task_id": "task_one", "agent_id": "engineering",
+                                 "tool": "check_syntax", "status": "completed", "summary": "parsed",
+                                 "result": {"checked_drafts": [{"id": "draft_one", "path": "api/example.py", "sha256": "c" * 64}]}}]
+        call_id = app.state.store.reserve(mid, "engineering", "gemini", GEMINI_MODEL, 0.1, task_id="task_one")
+        app.state.store.settle(call_id, cost=0.01, usage={"input_tokens": 1, "output_tokens": 1}, returned_model=GEMINI_MODEL)
+        exported = client.get(f"/api/missions/{mid}/export").text
+        assert "Draft SHA-256:" in exported
+        assert "Checked draft: draft_one" in exported
+        assert "Provider call ledger" in exported
+        assert GEMINI_MODEL in exported
 
 
 @pytest.mark.parametrize("url", [

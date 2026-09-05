@@ -198,7 +198,12 @@ class GitStudio:
 
     def manifest(self):
         sandbox = self._sandbox()
+        try:
+            current_head = self._git("rev-parse", "--verify", "HEAD^{commit}").decode().strip()
+        except ValueError:
+            current_head = None
         return {"commit": self.commit, "branch": self.branch, "file_count": len(self.files),
+                "current_head": current_head, "is_current": current_head == self.commit,
                 "files": [{"path": p, "size": len(t.encode("utf-8"))} for p, t in sorted(self.files.items())],
                 "capabilities": {"read": True, "search": True, "draft": True, "syntax": True,
                                  "execution": sandbox["available"], "run_pytest": sandbox["available"]},
@@ -254,7 +259,8 @@ class GitStudio:
             raise ValueError("This draft changes too much text. Propose a narrower change with a diff below 24 KB.")
         return {"id": uid("draft"), "path": path, "author": author,
                 "before_sha256": _sha(before) if before is not None else None,
-                "content": content, "diff": diff, "status": "draft", "created_at": now(),
+                "content": content, "content_sha256": _sha(content),
+                "diff": diff, "status": "draft", "created_at": now(),
                 "commit": self.commit}
 
     def _draft_files(self, drafts):

@@ -16,6 +16,7 @@ OPENAI_MODEL = "gpt-5.6-sol"
 DAILY_LIMIT = 1.0
 PILOT_LIMIT = 7.0
 MAX_ROUNDS = 5
+MAX_SPECIALISTS = 2
 
 AGENTS = [
     dict(id="coordinator", name="Coordinator", role="Keeps the mission focused and reviews the result", initials="CO", color="#c3d76a", provider="OpenAI", model=OPENAI_MODEL),

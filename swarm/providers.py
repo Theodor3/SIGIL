@@ -1,6 +1,7 @@
 import json
 import os
 import threading
+from datetime import datetime, timezone
 from dataclasses import dataclass
 
 from .models import GEMINI_MODEL, OPENAI_MODEL
@@ -63,16 +64,25 @@ def provider_failure(provider, exc, *, metadata_only=False):
 class Providers:
     def __init__(self):
         self.lock = threading.RLock()
+        allow_environment = os.environ.get("SIGIL_SWARM_ALLOW_ENV_KEYS") == "1"
+        openai_key = os.environ.get("OPENAI_API_KEY", "") if allow_environment else ""
+        gemini_key = (os.environ.get("GEMINI_API_KEY", "") or os.environ.get("GOOGLE_API_KEY", "")) if allow_environment else ""
         self.keys = {
-            "openai": os.environ.get("OPENAI_API_KEY", ""),
-            "gemini": os.environ.get("GEMINI_API_KEY", "") or os.environ.get("GOOGLE_API_KEY", ""),
+            "openai": openai_key,
+            "gemini": gemini_key,
         }
         self.verified = {"openai": False, "gemini": False}
+        self.verified_at = {"openai": None, "gemini": None}
+        self.sources = {
+            "openai": "environment" if openai_key else None,
+            "gemini": "environment" if gemini_key else None,
+        }
 
     def public_status(self):
         with self.lock:
             return {
                 p: dict(configured=bool(self.keys[p]), verified=self.verified[p],
+                        source=self.sources[p], verified_at=self.verified_at[p],
                         model=GEMINI_MODEL if p == "gemini" else OPENAI_MODEL)
                 for p in self.keys
             }
@@ -86,12 +96,16 @@ class Providers:
                         raise ValueError("An API key cannot contain spaces or line breaks.")
                     self.keys[p] = value.strip()
                     self.verified[p] = False
+                    self.verified_at[p] = None
+                    self.sources[p] = "session"
             return self.public_status()
 
     def disconnect(self, provider):
         with self.lock:
             self.keys[provider] = ""
             self.verified[provider] = False
+            self.verified_at[provider] = None
+            self.sources[provider] = None
             return self.public_status()
 
     def check_gemini_model(self):
@@ -196,8 +210,13 @@ class Providers:
                     client.close()
             with self.lock:
                 self.verified[provider] = True
+                self.verified_at[provider] = datetime.now(timezone.utc).isoformat()
             return result
         except ProviderFailure:
+            with self.lock:
+                self.verified[provider] = False
             raise
         except Exception as exc:
+            with self.lock:
+                self.verified[provider] = False
             raise provider_failure(provider, exc) from None

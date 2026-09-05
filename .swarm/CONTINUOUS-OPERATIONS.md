@@ -8,12 +8,12 @@ Advance one evidence-backed SIGIL improvement at a time on `codex/sigil-company`
 
 ## Hourly coordinator cycle
 
-1. Start or locate the local dashboard without starting a mission automatically.
+1. Start or locate the local dashboard with the checked launcher, without starting a mission automatically. Confirm `/api/health` reports version 0.3, this checkout, the current Studio commit and the canonical store identity.
 2. Read `AGENTS.md`, `.swarm/company.json`, `.swarm/board.json`, recent mission status, Studio commit, tool records, drafts, reviews and the budget state.
-3. If a mission is running, monitor it. Do not launch another.
+3. Read `/api/readiness`. If a mission is running, monitor it. Do not launch another. Treat every listed blocker as authoritative; do not work around it.
 4. If a mission needs review, verify its source/tool evidence and convert concrete defects into one bounded board item. Do not rerun the same broad audit.
 5. Select the highest-value ready board item whose acceptance criteria can be checked with current tools. Use no more than two relevant specialists plus the automatic reviewer unless the task explicitly requires another role.
-6. Create at most one narrow mission in a cycle. State required files, allowed research, deliverable and failure criteria. Keep the stable strategy unchanged.
+6. Create at most one narrow mission in a cycle. State required files, allowed research, deliverable and failure criteria. Keep the stable strategy unchanged. A live mission has fixed membership and a twenty-minute controller deadline.
 7. Run the mission only when both providers are connected, the controller reports no uncertain spending, and its conservative reservation fits the existing limits.
 8. Inspect the final draft, exact check versions, citations and objections. A syntax check is not a behavioral test. An unavailable page does not support a claim.
 9. Apply a worker draft only after independent review and appropriate validation. Changes stay on the isolated branch and receive a local commit. Never merge, push, deploy or trade.
@@ -29,12 +29,12 @@ A source claim completes only when the retrieved record supports it. Search snip
 
 ## Recovery
 
-The local dashboard retains missions and its ledger. Submitted API keys remain in memory and must be re-entered after a dashboard restart. If connections are missing, report the blocker once and do not retry provider calls.
+The local dashboard retains missions, events and its ledger in the canonical SQLite database. WAL journaling, foreign keys, a persistent store identity and the controller lock protect one runtime history. The first version-0.3 launch imports legacy JSON once after making a checksummed backup. Submitted API keys remain in memory and must be re-entered after a dashboard restart. If connections are missing, report the blocker once and do not retry provider calls.
 
-Never clear or relocate the ledger, replay an uncertain call, create a second controller, or restart a running mission. Resume from persisted task and message records. Failed source URLs are recorded so workers do not repeatedly request them.
+Never clear or relocate the ledger, replay an uncertain or terminal API mission, create a second controller, or restart a running mission. A server interruption blocks that run and preserves any unsettled reservation as uncertain. Continue through a focused mission after review. Failed source URLs are recorded so workers do not repeatedly request them.
 
 ## Current rollout
 
-The September 4 Studio pilot verified pinned file reads, code search, one cited web-search call, draft storage and JSON syntax checking. It also exposed role expansion and repeated unavailable-source requests; controller fixes were added after the run. The pilot's draft was not accepted because it omitted exact evaluation semantics, used a weak p-value-only rule, and did not retrieve the cited paper.
+The September 4 Studio pilot verified pinned file reads, code search, one cited web-search call, draft storage and JSON syntax checking. It also exposed role expansion and repeated unavailable-source requests. Version 0.3 enforces two fixed specialists, records out-of-scope dependencies, separates source-reading roles from outbound research, ties detailed tool context and calls to task IDs, records exact draft hashes, and blocks paid work against a stale Studio snapshot. The pilot's draft was not accepted because it omitted exact evaluation semantics, used a weak p-value-only rule, and did not retrieve the cited paper.
 
 The first hourly cycles should remain supervised. Promote to quieter routine operation after one narrow mission finishes within its assigned roles with reviewable evidence and no repeated tool loops. Container-backed development remains blocked until Docker Desktop and the trusted test image are available.

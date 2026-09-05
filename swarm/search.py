@@ -1,6 +1,7 @@
 """Public search adapters. Queries only; no repository contents or credentials in search prompts."""
 from urllib.parse import urlsplit
 import re
+import time
 
 import httpx
 
@@ -13,6 +14,7 @@ SEARCH_MODEL = "gpt-4.1-mini"
 # content block, 1200 output tokens at $1.60/M and one $0.01 tool call.
 # This reserve is deliberately much larger than a normal search's final estimate.
 SEARCH_RESERVATION = 0.45
+PAPER_SEARCH_DEADLINE_SECONDS = 20
 
 
 def validate_query(query):
@@ -84,6 +86,7 @@ def web_search(providers, query):
 def paper_search(query):
     """Crossref's public scholarly metadata API; no key or model call."""
     query = validate_query(query)
+    deadline = time.monotonic() + PAPER_SEARCH_DEADLINE_SECONDS
     with httpx.Client(timeout=12, follow_redirects=False, trust_env=False,
                       headers={"User-Agent": "SIGIL-Research-Studio/0.2", "Accept": "application/json"}) as client:
         with client.stream("GET", "https://api.crossref.org/works", params={
@@ -93,6 +96,8 @@ def paper_search(query):
             response.raise_for_status()
             raw = bytearray()
             for chunk in response.iter_bytes():
+                if time.monotonic() >= deadline:
+                    raise ValueError("Paper search did not finish within the total retrieval deadline.")
                 raw.extend(chunk)
                 if len(raw) > 300000:
                     raise ValueError("Paper-search response exceeded its limit.")

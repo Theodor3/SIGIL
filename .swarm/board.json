@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-04",
+  "updated": "2026-09-05",
   "states": [
     "ready",
     "assigned",
@@ -98,7 +98,7 @@
       "title": "Build the local swarm dashboard and finite API runner",
       "status": "done",
       "artifact": "swarm/README.md",
-      "validationStatus": "23 local checks passed; sample mission and directed follow-up verified in browser. Live API verification remains pending."
+      "validationStatus": "Dashboard and finite API runner were validated, then upgraded to v0.3; the complete offline suite passes."
     },
     {
       "id": "S002",
@@ -106,7 +106,8 @@
       "title": "Verify first real API research mission",
       "status": "review",
       "assignment": "Connect both providers in the dashboard and run one narrow research mission within $1/day and $7 total. Verify returned model metadata, recorded usage, peer questions, evidence limits and the experiment brief.",
-      "validationStatus": "Both providers returned verified model identity and recorded usage. First mission exposed missing source access; audit claims require review."
+      "validationStatus": "Both providers returned verified model identity and recorded usage. First mission exposed missing source access; audit claims require review.",
+      "missionId": "m_bf36dc4ff78e46e4"
     },
     {
       "id": "S003",
@@ -122,7 +123,8 @@
       "title": "Give workers a development studio and public search",
       "status": "review",
       "artifact": "swarm/README.md",
-      "validationStatus": "Studio pilot verified file reads, code search, cited web search, draft storage and matching JSON syntax checks. The draft was rejected for incomplete evaluation semantics and evidence; scope/retry loop defects were fixed."
+      "validationStatus": "Studio pilot verified file reads, code search, cited web search, draft storage and matching JSON syntax checks. The draft was rejected for incomplete evaluation semantics and evidence; scope/retry loop defects were fixed.",
+      "missionId": "m_387add676aca4455"
     },
     {
       "id": "S005",
@@ -130,7 +132,7 @@
       "title": "Bound mission membership and unavailable-source retries",
       "status": "done",
       "artifact": "swarm/engine.py",
-      "validationStatus": "Direct user follow-ups no longer spawn unrelated product/ops work, peer requests cannot add roles outside a scoped mission, and failed sources are recorded once. Full local suite: 59 passed."
+      "validationStatus": "The controller enforces fixed two-specialist membership, records out-of-scope requests, separates private source access from outbound research, and avoids repeated unavailable-source requests. Included in the 74-check v0.3 suite."
     },
     {
       "id": "S006",
@@ -138,8 +140,18 @@
       "title": "Validate one clean supervised hourly cycle",
       "status": "ready",
       "assignment": "Run one narrow mission with at most two assigned specialists and automatic review. Require relevant source inspection, one reviewable artifact, no role expansion or repeated unavailable-source request, and no unsupported performance claim."
+    },
+    {
+      "id": "S007",
+      "owner": "coordinator",
+      "title": "Upgrade the always-on swarm control plane before reconnecting keys",
+      "status": "done",
+      "artifact": "swarm/README.md",
+      "validationStatus": "Version 0.3 adds a readiness contract, checked launcher, SQLite/WAL migration with checksummed backup, immutable paid-run history, task-scoped provenance, twenty-minute deadlines, safer private/public tool separation, and an operator dashboard. Full offline suite: 74 passed; no provider calls were made."
     }
   ],
-  "nextEngineeringPriority": "Validate one narrow supervised hourly cycle after restarting the dashboard onto the controller fixes. Keep Docker-backed code execution blocked until its engine and trusted image are available.",
-  "operatingStatus": "continuous_coordinator_ready_supervised"
+  "nextEngineeringPriority": "Reconnect both session keys, then validate S006 with one narrow supervised mission using at most two specialists and automatic review. Do not claim a trading signal is validated from workflow completion.",
+  "operatingStatus": "continuous_coordinator_ready_supervised_waiting_for_connections",
+  "runtimeVersion": "0.3.0"
 }
+

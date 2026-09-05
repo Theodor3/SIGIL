@@ -1,13 +1,21 @@
 import json
+import logging
 import threading
 import time
 from concurrent.futures import CancelledError, ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta, timezone
 
-from .models import AGENT_MAP, GEMINI_MODEL, MAX_ROUNDS, OPENAI_MODEL, Assignment, Plan, Report, Verdict
+from .models import (
+    AGENT_MAP, GEMINI_MODEL, MAX_ROUNDS, MAX_SPECIALISTS, OPENAI_MODEL,
+    Assignment, Plan, Report, Verdict,
+)
 from .providers import ProviderFailure
 from .sources import fetch_source
 from .store import BudgetError, now, uid
 from .tooling import MissionTools
+
+LOGGER = logging.getLogger("sigil.swarm.engine")
+MAX_MISSION_SECONDS = 20 * 60
 
 BASELINE = (
     "SIGIL is a US-equity research and paper-portfolio project. Supplied baseline "
@@ -35,6 +43,10 @@ class Stopped(Exception):
     pass
 
 
+class MissionDeadline(Exception):
+    pass
+
+
 class Engine:
     def __init__(self, store, providers, *, demo_delay=0.8, studio=None):
         self.store = store
@@ -43,6 +55,7 @@ class Engine:
         self.active_id = None
         self.stop_event = threading.Event()
         self.thread = None
+        self.deadline = None
         self.demo_delay = demo_delay
         self.studio = studio
         self.tools = MissionTools(store, providers, studio) if studio else None
@@ -57,6 +70,10 @@ class Engine:
             if data["mission"]["round"] >= MAX_ROUNDS:
                 raise ValueError("This mission has reached five rounds. Start a new, focused mission.")
             if data["mission"]["mode"] == "live":
+                if data["mission"]["status"] != "ready":
+                    raise ValueError("API missions are not replayed after they stop. Start a focused follow-up mission so prior calls are not duplicated.")
+                if self.studio and not self.studio.manifest().get("is_current", True):
+                    raise ValueError("The dashboard needs a safe restart to load the latest development commit.")
                 status = self.providers.public_status()
                 if not all(p["configured"] for p in status.values()):
                     raise ValueError("Connect both Gemini and OpenAI in Connections before starting API work.")
@@ -65,8 +82,13 @@ class Engine:
                     raise BudgetError("Live work is paused by the pilot budget. Review the budget panel.")
             self.active_id = mission_id
             self.stop_event.clear()
+            self.deadline = time.monotonic() + MAX_MISSION_SECONDS
             data["mission"]["status"] = "running"
             data["mission"]["summary"] = "The team is preparing this mission."
+            data["mission"]["max_runtime_minutes"] = MAX_MISSION_SECONDS // 60
+            data["mission"]["deadline_at"] = (
+                datetime.now(timezone.utc) + timedelta(seconds=MAX_MISSION_SECONDS)
+            ).isoformat()
             self.store.save(data)
             self.thread = threading.Thread(target=self._run, args=(mission_id,), daemon=True, name="sigil-mission")
             self.thread.start()
@@ -85,11 +107,17 @@ class Engine:
     def shutdown(self):
         self.stop_event.set()
         if self.thread and self.thread.is_alive():
-            self.thread.join(timeout=95)
+            self.thread.join(timeout=5)
+        # The app keeps the Store lock open when work has not stopped. The
+        # process can then exit and let the OS release the lock atomically;
+        # a replacement controller can never overlap a surviving worker.
+        return not (self.thread and self.thread.is_alive())
 
     def check_stop(self):
         if self.stop_event.is_set():
             raise Stopped()
+        if self.deadline is not None and time.monotonic() >= self.deadline:
+            raise MissionDeadline()
 
     def _status(self, mission_id, status, summary):
         with self.store.lock:
@@ -107,11 +135,22 @@ class Engine:
         except Stopped:
             self._status(mission_id, "stopped", "Stopped. Completed messages and documents are saved.")
             self.store.message(mission_id, "system", "user", "This mission was stopped. No further calls will be sent.", "status")
+        except MissionDeadline:
+            self._status(
+                mission_id, "needs_review",
+                "The twenty-minute mission limit was reached. Existing evidence was preserved for review.",
+            )
+            self.store.message(
+                mission_id, "system", "user",
+                "The mission reached its twenty-minute limit, so no further work was dispatched. Start a focused follow-up if more work is justified.",
+                "status",
+            )
         except (BudgetError, ProviderFailure, ValueError) as exc:
             self._status(mission_id, "blocked", str(exc))
             self.store.message(mission_id, "system", "user", str(exc), "error")
         except Exception:
             # Do not persist arbitrary exceptions, which could contain provider secrets.
+            LOGGER.exception("Mission %s stopped after an internal controller error", mission_id)
             self._status(mission_id, "blocked", "The mission stopped after an internal error. Its existing records are preserved.")
             self.store.message(mission_id, "system", "user", "The runner encountered an internal error. Check local diagnostics before continuing.", "error")
         finally:
@@ -123,14 +162,15 @@ class Engine:
                 self.store.save(data)
             with self.lock:
                 self.active_id = None
+                self.deadline = None
 
-    def _context(self, mission_id, agent_id, task, *, independent=False):
+    def _context(self, mission_id, agent_id, task, *, independent=False, task_id=None):
         data = self.store.snapshot(mission_id)
         messages = [
             {k: m[k] for k in ("id", "sender", "recipient", "kind", "text")}
             for m in data["messages"]
             if m["sender"] == "user" or m["recipient"] == agent_id or
-            (agent_id == "coordinator" and m["kind"] == "finding")
+            (agent_id == "coordinator" and m["kind"] in ("finding", "request", "challenge", "scope"))
         ][-10:]
         # Review the complete latest document from every author. Never silently
         # cut off a finding's evidence or omit a worker to fit the context.
@@ -151,7 +191,11 @@ class Engine:
         # Keep every result from the two allowed rounds of three tools. Draft
         # text is already represented by its diff below; avoid duplicating it.
         recent_tools = []
-        for record in [r for r in tool_records if r["agent_id"] == agent_id][-6:]:
+        current_task_tools = [
+            r for r in tool_records
+            if r["agent_id"] == agent_id and task_id is not None and r.get("task_id") == task_id
+        ]
+        for record in ([] if independent else current_task_tools[-6:]):
             result = dict(record["result"])
             if record["tool"] == "draft_file":
                 result.pop("content", None)
@@ -176,11 +220,14 @@ class Engine:
                  "checked_drafts": r["result"].get("checked_drafts", [])}
                 for r in tool_records
             ],
-            "draft_changes": [{k: d[k] for k in ("id", "path", "author", "diff", "status")} for d in latest_drafts.values()],
+            "draft_changes": [] if independent or agent_id not in ("coordinator", "review", "engineering", "quant") else [
+                {k: d[k] for k in ("id", "path", "author", "diff", "status")}
+                for d in latest_drafts.values()
+            ],
         }, ensure_ascii=False)
         return prompt, [m["id"] for m in messages]
 
-    def _call(self, mission_id, agent_id, task, schema, *, independent=False):
+    def _call(self, mission_id, agent_id, task, schema, *, independent=False, task_id=None):
         self.check_stop()
         provider = "openai" if agent_id == "coordinator" else "gemini"
         model = OPENAI_MODEL if provider == "openai" else GEMINI_MODEL
@@ -200,10 +247,12 @@ class Engine:
                 "search utility with citations. Search only public concepts, never repository text, keys or local paths. "
                 "Leave tool_requests empty when you can finish. Missing entitlements cannot be inferred from code."
             )
-        prompt, delivered_ids = self._context(mission_id, agent_id, task, independent=independent)
+        prompt, delivered_ids = self._context(
+            mission_id, agent_id, task, independent=independent, task_id=task_id,
+        )
         amount = self.providers.reservation(provider, system, prompt, schema)
         self.check_stop()
-        call_id = self.store.reserve(mission_id, agent_id, provider, model, amount)
+        call_id = self.store.reserve(mission_id, agent_id, provider, model, amount, task_id=task_id)
         try:
             # Recheck after reserving so a stop does not dispatch another queued call.
             if self.stop_event.is_set():
@@ -249,7 +298,7 @@ class Engine:
             for tool_round in range(3):
                 result, received_ids = self._call(mission_id, assignment.agent_id,
                     assignment.task + ("\nUse the recorded tool results to finish this task." if tool_round else ""),
-                    Report, independent=independent)
+                    Report, independent=independent, task_id=task["id"])
                 delivered_ids.extend(received_ids)
                 if not result.tool_requests or not self.tools:
                     break
@@ -258,7 +307,10 @@ class Engine:
                         "The two tool rounds are complete. Remaining requests were not executed.", "finding")
                     break
                 for request in result.tool_requests:
-                    self.tools.execute(mission_id, assignment.agent_id, request, self.check_stop)
+                    self.tools.execute(
+                        mission_id, assignment.agent_id, request, self.check_stop,
+                        task_id=task["id"],
+                    )
             with self.store.lock:
                 task["status"] = "completed"
                 self.store.save(self.store.get(mission_id))
@@ -286,8 +338,22 @@ class Engine:
             self.check_stop()
             with self.store.lock:
                 data = self.store.get(mission_id)
+                source_exposed = any(
+                    item["agent_id"] == agent_id
+                    and item.get("tool") in ("read_file", "search_code", "draft_file")
+                    and item.get("status") == "completed"
+                    for item in data.get("tool_results", [])
+                )
                 if len(data["sources"]) >= 8 or any(s["url"] == url for s in data["sources"]):
                     continue
+            if source_exposed:
+                self.store.message(
+                    mission_id, "system", agent_id,
+                    "This role already received private project source, so its external page request was not sent. "
+                    "Ask a research role without repository access to retrieve the public source.",
+                    "tool_result",
+                )
+                continue
             try:
                 source = fetch_source(url)
                 # Bound source content sent back into future model prompts.
@@ -346,15 +412,71 @@ class Engine:
         while its intended specialist was still answering.
         """
         with self.store.lock:
+            data = self.store.get(mission_id)
             messages = [
-                m for m in self.store.get(mission_id)["messages"]
+                m for m in data["messages"]
                 if m["sender"] == "user" and m["recipient"] == "coordinator"
                 and m["kind"] != "mission" and not m["handled"]
             ]
+            participants = sorted(p for p in data.get("participants", []) if p != "review")
         if not messages:
             return []
-        return [Assignment(agent_id="product-ops",
+        # Once scope is established, use an existing participant so a late
+        # coordinator question gets another verdict without adding a role.
+        helper = participants[0] if participants else "product-ops"
+        return [Assignment(agent_id=helper,
                            task="Help answer the user's latest follow-up: " + messages[-1]["text"][:1500])]
+
+    def _bound_assignments(self, mission_id, assignments, *, establish=False):
+        """Enforce a stable, two-specialist mission membership in controller code."""
+        with self.store.lock:
+            data = self.store.get(mission_id)
+            existing = {
+                participant for participant in data.get("participants", [])
+                if participant != "review"
+            }
+        selected, omitted, seen = [], [], set()
+        for assignment in assignments:
+            if assignment.agent_id == "review" or assignment.agent_id in seen:
+                continue
+            seen.add(assignment.agent_id)
+            if existing:
+                allowed = assignment.agent_id in existing
+            else:
+                allowed = establish and len(selected) < MAX_SPECIALISTS
+            if allowed and len(selected) < MAX_SPECIALISTS:
+                selected.append(assignment)
+            else:
+                omitted.append(assignment)
+        return selected, omitted
+
+    def _unresolved_scope_requests(self, mission_id):
+        """Return requests that cannot run without expanding the mission."""
+        with self.store.lock:
+            data = self.store.get(mission_id)
+            participants = set(data.get("participants", []))
+            return [
+                m for m in data["messages"]
+                if not m.get("handled") and m.get("recipient") not in participants
+                and m.get("recipient") != "coordinator"
+                and (m.get("sender") == "user" or m.get("kind") in ("request", "challenge"))
+            ]
+
+    def _record_scope_stop(self, mission_id, messages):
+        with self.store.lock:
+            data = self.store.get(mission_id)
+            ids = {m["id"] for m in messages}
+            for message in data["messages"]:
+                if message["id"] in ids:
+                    message["handled"] = True
+            self.store.save(data)
+        roles = sorted({m["recipient"] for m in messages})
+        self.store.message(
+            mission_id, "system", "coordinator",
+            "The controller did not add out-of-scope role(s): " + ", ".join(roles) +
+            ". Start a focused follow-up mission if that expertise is essential.",
+            "scope",
+        )
 
     def _mark_user_messages_handled(self, mission_id, delivered_ids):
         with self.store.lock:
@@ -385,7 +507,7 @@ class Engine:
         direct_assignments = self._pending(mission_id)
         plan, delivered_ids = self._call(
             mission_id, "coordinator",
-            "Assign the fewest specialists needed for this mission (usually 2–4). "
+            "Assign no more than two specialists for this mission. "
             "A reviewer will independently critique the mission and later review the artifacts automatically. "
             "Use the actual development_studio manifest. Workers can inspect source, draft changes and use "
             "bounded tools; no trading, deployment or main-branch changes. Assign inspection of real files "
@@ -395,9 +517,20 @@ class Engine:
         )
         self._mark_user_messages_handled(mission_id, delivered_ids)
         self.store.message(mission_id, "coordinator", "team", plan.message, "assignment")
-        assignments = [a for a in plan.assignments if a.agent_id != "review"] + direct_assignments
+        assignments, omitted = self._bound_assignments(
+            mission_id,
+            direct_assignments + [a for a in plan.assignments if a.agent_id != "review"],
+            establish=True,
+        )
         if not assignments:
             assignments = [Assignment(agent_id="quant", task="Define an auditable experiment specification for the user's mission.")]
+        if omitted:
+            self.store.message(
+                mission_id, "system", "coordinator",
+                "The controller limited this mission to two specialists. Omitted proposed role(s): " +
+                ", ".join(sorted({a.agent_id for a in omitted})) + ".",
+                "scope",
+            )
         with self.store.lock:
             data = self.store.get(mission_id)
             data["participants"] = sorted({"review", *(a.agent_id for a in assignments)})
@@ -417,11 +550,17 @@ class Engine:
                 data["mission"]["round"] += 1
                 self.store.save(data)
             # Deduplicate roles within a batch and keep actual concurrency at two.
-            batch = list({a.agent_id: a for a in assignments}.values())[:7]
-            with self.store.lock:
-                data = self.store.get(mission_id)
-                data["participants"] = sorted(set(data.get("participants", [])) | {a.agent_id for a in batch})
-                self.store.save(data)
+            batch, omitted = self._bound_assignments(mission_id, assignments)
+            if omitted:
+                self.store.message(
+                    mission_id, "system", "coordinator",
+                    "A revision tried to add a role outside the fixed two-specialist scope: " +
+                    ", ".join(sorted({a.agent_id for a in omitted})) +
+                    ". The mission stopped for review instead of expanding silently.",
+                    "scope",
+                )
+                self._status(mission_id, "needs_review", "A requested revision exceeded this mission's fixed specialist scope. Start a focused follow-up mission if the added role is necessary.")
+                return
             failure = None
             with ThreadPoolExecutor(max_workers=2, thread_name_prefix="sigil-worker") as pool:
                 futures = [pool.submit(self._worker, mission_id, a) for a in batch]
@@ -466,6 +605,14 @@ class Engine:
             self.store.artifact(mission_id, "coordinator", "Coordinator's review", verdict.message)
             peers = self._pending(mission_id)
             peers.extend(self._pending_general_followup(mission_id))
+            scope_requests = self._unresolved_scope_requests(mission_id)
+            if scope_requests:
+                self._record_scope_stop(mission_id, scope_requests)
+                self._status(
+                    mission_id, "needs_review",
+                    "A peer or user requested a role outside this mission's fixed scope. The request was recorded; start a focused follow-up mission if it is essential.",
+                )
+                return
             with self.store.lock:
                 data = self.store.get(mission_id)
                 can_peer = data["mission"]["peer_rounds"] < 2

@@ -11,7 +11,7 @@ class MissionTools:
     def __init__(self, store, providers, studio):
         self.store, self.providers, self.studio = store, providers, studio
 
-    def execute(self, mission_id, agent_id, request, check_stop):
+    def execute(self, mission_id, agent_id, request, check_stop, *, task_id=None):
         check_stop()
         query_error = None
         if request.tool in ("web_search", "paper_search"):
@@ -29,7 +29,7 @@ class MissionTools:
                 self.store.message(mission_id, "system", agent_id,
                                    "This mission reached its 32-tool limit. Your tool request was not executed; finish from existing evidence.", "tool_result")
                 return {"status": "blocked", "summary": "This mission reached its 32-tool limit."}
-            record = dict(id=uid("tool"), agent_id=agent_id, tool=request.tool, status="running",
+            record = dict(id=uid("tool"), task_id=task_id, agent_id=agent_id, tool=request.tool, status="running",
                           path=request.path, query="[withheld: invalid public search query]" if query_error else request.query,
                           created_at=now(), summary="Tool is running.", result={})
             prior_count = sum(r["tool"] == request.tool for r in records)
@@ -38,6 +38,19 @@ class MissionTools:
         try:
             if query_error:
                 raise ValueError(query_error)
+            if request.tool in ("web_search", "paper_search", "fetch_page"):
+                with self.store.lock:
+                    source_exposed = any(
+                        item["agent_id"] == agent_id
+                        and item.get("tool") in ("read_file", "search_code", "draft_file")
+                        and item.get("status") == "completed"
+                        for item in self.store.get(mission_id).get("tool_results", [])
+                    )
+                if source_exposed:
+                    raise ValueError(
+                        "This role already received private project source in this mission. "
+                        "Route external research to a role that has not read repository text."
+                    )
             if request.tool == "read_file":
                 result = self.studio.read(request.path, start=request.start)
             elif request.tool == "search_code":
@@ -65,7 +78,7 @@ class MissionTools:
             elif request.tool == "web_search":
                 if prior_count >= 2:
                     raise ValueError("This mission reached its two web-search limit. Use existing results or free paper search.")
-                result = self._web_search(mission_id, agent_id, request.query, check_stop)
+                result = self._web_search(mission_id, agent_id, request.query, check_stop, task_id=task_id)
             elif request.tool == "paper_search":
                 if prior_count >= 4:
                     raise ValueError("This mission reached its four paper-search limit.")
@@ -100,11 +113,14 @@ class MissionTools:
             self.store.message(mission_id, "system", agent_id, record["summary"], "tool_result")
         return record
 
-    def _web_search(self, mission_id, agent_id, query, check_stop):
+    def _web_search(self, mission_id, agent_id, query, check_stop, *, task_id=None):
         if not query.strip():
             raise ValueError("Write a specific public web-search query.")
         check_stop()
-        call_id = self.store.reserve(mission_id, agent_id, "openai", SEARCH_MODEL, SEARCH_RESERVATION)
+        call_id = self.store.reserve(
+            mission_id, agent_id, "openai", SEARCH_MODEL, SEARCH_RESERVATION,
+            task_id=task_id,
+        )
         try:
             try:
                 check_stop()

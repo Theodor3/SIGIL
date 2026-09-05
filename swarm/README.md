@@ -4,9 +4,9 @@ Seven Gemini specialist roles and one OpenAI coordinator work through a local da
 
 ## Start
 
-Run `.venv-swarm/Scripts/python.exe -m swarm.server --port 8765` from this checkout and open <http://127.0.0.1:8765/>. The handoff includes a hidden-process launcher. Rebuild the Python 3.11+ environment with `swarm/requirements.txt` if necessary.
+Run `outputs/sigil-swarm/Start Swarm.ps1` from the Codex handoff, or the versioned `swarm/scripts/Start Swarm.ps1` in this checkout, and open <http://127.0.0.1:8765/>. The launcher validates the served checkout, version, process identity and Studio commit before it reports ready. Use its `-Status` or `-Restart` switch for a checked status or safe restart. Rebuild the Python 3.11+ environment with `swarm/requirements.txt` if necessary.
 
-1. Enter both keys in **API connections**. They remain in server memory until restart/disconnection. The app never saves them or reads SIGIL's `.env`. Process environment variables are supported.
+1. Enter both keys in **API connections**. They remain in server memory until restart/disconnection. The app never saves them or reads SIGIL's `.env`. Environment keys are ignored unless the owner deliberately starts the process with `SIGIL_SWARM_ALLOW_ENV_KEYS=1`.
 2. Open **Studio** to browse the pinned source snapshot.
 3. Create a narrow **API mode** mission and start it. Only relevant roles run. The saved **Sample mode** mission is scripted and costs nothing.
 4. Send follow-ups to a specialist or coordinator. **Stop** prevents further dispatch; calls already sent may finish and be charged.
@@ -31,7 +31,7 @@ Each worker gets two rounds of up to three tools, and retains all six results. S
 
 Per mission: at most 32 tool attempts, eight drafts, two web searches, four paper searches, six page fetches and two isolated test requests. Legacy `source_requests` also allow up to eight retrieved pages. Search rejects recognizable credentials, local paths and copied source lines. Queries must use public concepts. Retrieval proves access, not the truth of a model's interpretation. No PDF extraction or market-data subscription is included.
 
-Snapshots are fixed when the service starts. Commit reviewed changes and restart to expose a new version. Missions already pinned to an older commit require a new mission. Historical records retain their original commit; the file browser identifies the current snapshot.
+Snapshots are fixed when the service starts. Commit reviewed changes and restart to expose a new version. Readiness blocks new paid work when the served snapshot is older than the branch head. Missions already pinned to an older commit require a new mission. Historical records retain their original commit; the file browser identifies the current snapshot.
 
 ## Isolated Python tests
 
@@ -47,18 +47,20 @@ The image installs only Python and pytest. Tests needing other dependencies fail
 
 ## Budget and persistence
 
-The allowance is **$1 per America/New_York calendar day and $7 total, expiring September 11, 2026**. One mission can run at a time, with at most two concurrent specialists, five assignment rounds and two peer-revision rounds. Missions are manually started. Recurring dispatch remains paused.
+The allowance is **$1 per America/New_York calendar day and $7 total, expiring September 11, 2026**. One mission can run at a time, with at most two fixed specialists, an automatic independent reviewer, five assignment rounds, two peer-revision rounds and twenty active minutes. Revision and peer requests cannot silently add roles. Completed, stopped and interrupted API missions are immutable; additional work starts as a focused mission so paid calls are not replayed.
+
+The supervised hourly Codex coordinator is active. It checks readiness first, reviews existing work, and may create at most one narrow mission. It stays idle while keys are disconnected or another blocker is present. This schedule runs only while the local host and Codex are available; it does not make the computer an always-on server.
 
 Reservations precede every model/search request. Standard input/output estimates per million tokens are Gemini $0.25/$1.50, coordinator $4/$20, and search utility $0.40/$1.60. Search adds $0.01 per tool call and a conservative 8,000-input-token content allowance. Each search reserves $0.45 for an upper bound and releases the unused allowance; a reservation is not a charge. Rates checked September 4 against [Google pricing](https://ai.google.dev/gemini-api/docs/pricing), [OpenAI pricing](https://developers.openai.com/api/docs/pricing) and [GPT-4.1 Mini](https://developers.openai.com/api/docs/models/gpt-4.1-mini).
 
-Before this studio/search pilot, recorded Gemini usage was **$0.022762**, OpenAI coordination **$0.154408**, total **$0.177170**. The dashboard now separates providers. Runtime records remain authoritative. These are local estimates, not invoices or account-wide caps; caching, search accounting, billing, taxes and unrelated usage can differ. Historical records and limits were preserved.
+The preserved runtime ledger currently records Gemini usage of **$0.140585**, OpenAI coordination/search of **$0.471891**, total **$0.612476**. The dashboard separates providers and shows every mission's reservations, returned model, token usage, estimated cost and error state. Runtime records remain authoritative. These are local estimates, not invoices or account-wide caps; caching, search accounting, billing, taxes and unrelated usage can differ.
 
-SDK retries are disabled. Missing usage, unexpected model identity, uncertain failures and interrupted reservations retain their allowance and block further live work pending reconciliation. Preserve `.swarm/runtime/` and its ledger; one controller owns this directory. Never select a new directory to reset the allowance. Restarts retain records, lose submitted keys and do not resume missions automatically.
+SDK retries are disabled. Missing usage, unexpected model identity, uncertain failures and interrupted reservations retain their allowance and block further live work pending reconciliation. Version 0.3 stores missions, events and calls in `.swarm/runtime/swarm.sqlite3` with WAL journaling, foreign keys and a persistent store identity. On first launch it checksums and retains the legacy JSON files before importing them once. Preserve the canonical runtime directory; one controller owns it. Restarts retain records, lose submitted keys and do not resume missions automatically.
 
 The service binds only to 127.0.0.1 and has no multiuser authentication. Keep it local. SIGIL's production services and trading scheduler are not started; research does not automatically change trading strategies.
 
 ## Validation
 
-Run `python -m pytest swarm/tests -q`. Local checks cover budget concurrency/persistence, real SDK serialization with mock responses, Gemini model/schema handling, peer delivery, source restrictions, pinned snapshots, secret/symlink exclusions, draft integrity, isolated container commands, timeout/startup failures, and worker tool-result delivery.
+Run `python -m pytest swarm/tests -q`. The version-0.3 upgrade passes 74 offline checks covering budget concurrency and SQLite migration, real SDK serialization with mock responses, Gemini model/schema handling, fixed mission membership, peer delivery, private/public tool separation, pinned snapshots, secret/symlink exclusions, draft integrity, isolated container commands, deadlines, timeout/startup failures, readiness and worker tool-result delivery.
 
-The first live mission verified worker/coordinator models and usage, but lacked source tools; its audit conclusions remain unverified. Crossref returned real publication metadata during implementation. Paid search and worker use of the new tools need a new live mission after reconnecting keys. Actual container execution requires separate verification once Docker and the image are available.
+The first live mission verified worker/coordinator models and usage. The later Studio pilot verified file reads, code search, one cited search call, draft storage and matching syntax checks; it ended for review and did not validate a trading signal. The next supervised cycle should be one narrow two-specialist research mission after reconnecting keys. Actual container execution requires separate verification once Docker and the image are available.

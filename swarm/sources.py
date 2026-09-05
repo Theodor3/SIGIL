@@ -1,6 +1,7 @@
 import hashlib
 import ipaddress
 import socket
+import time
 from urllib.parse import urljoin, urlsplit
 
 import httpx
@@ -20,6 +21,7 @@ ALLOWED_HOSTS = {
     "ai.google.dev", "developers.openai.com", "platform.openai.com",
 }
 MAX_BYTES = 400_000
+FETCH_DEADLINE_SECONDS = 30
 
 
 def validate_url(url, *, resolve=True):
@@ -38,9 +40,12 @@ def validate_url(url, *, resolve=True):
 def fetch_source(url):
     """Read a small public source. No cookies, proxy credentials, or private URLs."""
     validate_url(url)
+    deadline = time.monotonic() + FETCH_DEADLINE_SECONDS
     with httpx.Client(timeout=12, follow_redirects=False, trust_env=False,
                       headers={"User-Agent": "SIGIL-Research-Pilot/0.1", "Accept": "text/html,text/plain,application/json"}) as client:
         for _ in range(4):
+            if time.monotonic() >= deadline:
+                raise ValueError("The source did not finish within the total retrieval deadline.")
             with client.stream("GET", url) as response:
                 if response.is_redirect:
                     url = urljoin(url, response.headers.get("location", ""))
@@ -52,6 +57,8 @@ def fetch_source(url):
                     raise ValueError("Only HTML, text and JSON sources can be read in this pilot.")
                 raw = bytearray()
                 for chunk in response.iter_bytes():
+                    if time.monotonic() >= deadline:
+                        raise ValueError("The source did not finish within the total retrieval deadline.")
                     raw.extend(chunk)
                     if len(raw) > MAX_BYTES:
                         raise ValueError("The source exceeds the pilot's download limit.")

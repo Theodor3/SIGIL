@@ -21,7 +21,7 @@ const roleDescriptions = {
 };
 const fallbackNames = { coordinator: "GPT coordinator", "research-events": "Events researcher", "research-frontier": "Frontier researcher", data: "Data specialist", quant: "Quant analyst", engineering: "Engineer", review: "Independent reviewer", "product-ops": "Product & operations", user: "You", system: "Workspace", all: "The team" };
 const avatarColors = { "research-events": ["#ede6d4", "#9b8150"], "research-frontier": ["#e9e3f1", "#9784a7"], data: ["#e2ebf0", "#78949f"], quant: ["#e8edda", "#8b995f"], engineering: ["#ede7df", "#9d8976"], review: ["#f0e2dd", "#b28d7c"], "product-ops": ["#e3ebe5", "#7a9984"], user: ["#f1ebdc", "#9b8654"] };
-const statuses = { ready: "Ready", running: "Working", stopping: "Stopping", stopped: "Stopped", needs_review: "Needs review", blocked: "Blocked", completed: "Complete", done: "Complete", queued: "Queued", assigned: "Assigned", pending: "Pending", idle: "Standing by", working: "Working", failed: "Failed", review: "In review" };
+const statuses = { ready: "Ready", running: "Working", stopping: "Stopping", stopped: "Stopped", needs_review: "Needs review", blocked: "Blocked", completed: "Research complete", done: "Research complete", queued: "Queued", assigned: "Assigned", pending: "Pending", idle: "Standing by", working: "Working", failed: "Failed", review: "In review", offline: "Needs connection", unverified: "First call unverified" };
 const samplePrompt = "Design a careful first experiment for a novel trading signal. Have the team exchange evidence, identify data timing risks, and agree on a reproducible evaluation plan. Do not claim that a signal is profitable.";
 const startupConnectionError = "The local workspace isn’t responding yet. Keep the server running; this page will reconnect automatically.";
 let state = null;
@@ -36,6 +36,8 @@ let selectedDetailSignature = "";
 let toastTimer = null;
 let lastError = "";
 let busy = false;
+let companyActionIntent = "mission";
+let missionActionIntent = "none";
 const signatures = new Map();
 
 function element(tag, className, text) {
@@ -85,6 +87,21 @@ function formatDate(value, timeOnly = false) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleString(undefined, timeOnly ? { hour: "numeric", minute: "2-digit" } : { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+function formatDateOnly(value) {
+  if (!value) return "";
+  const date = new Date(`${value}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function readable(value) {
+  return String(value || "").replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function providerName(value) {
+  return String(value || "").toLowerCase() === "openai" ? "OpenAI" : String(value || "").toLowerCase() === "gemini" ? "Gemini" : readable(value) || "Provider";
 }
 
 function updateGroup(id, signature, nodes) {
@@ -147,7 +164,27 @@ function isRunning(mission = currentMission()) {
 }
 
 function liveAvailable() {
+  if (typeof state?.runtime?.can_start_live === "boolean") return state.runtime.can_start_live;
   return Boolean(state?.backend?.live_available && state?.providers?.gemini?.configured && state?.providers?.openai?.configured);
+}
+
+function firstRuntimeIssue() {
+  return state?.runtime?.blockers?.[0] || null;
+}
+
+function intentForRuntimeAction(action, code = "") {
+  const value = `${action || ""} ${code || ""}`.toLowerCase();
+  if (/connect|credential|provider|api.?key|missing.?key/.test(value)) return "connections";
+  if (/restart|studio|source/.test(value)) return "studio";
+  if (/call|cost|budget|uncertain|reconcil|pilot/.test(value)) return "calls";
+  if (/review|evidence|attention/.test(value)) return "review";
+  if (/running|active|open.?mission/.test(value)) return "active";
+  if (/start|mission|ready/.test(value)) return "mission";
+  return "status";
+}
+
+function missionAtAttention() {
+  return (state?.missions || []).find((mission) => mission.status === "needs_review") || (state?.missions || []).find((mission) => mission.status === "blocked") || null;
 }
 
 function renderBudget() {
@@ -166,6 +203,11 @@ function renderBudget() {
   meter.setAttribute("aria-valuetext", `Estimated ${money(used)} spent and ${money(reserved)} reserved of ${money(limit)}`);
   $("budget-detail").textContent = `${money(budget.remaining_today_usd)} available · ${money(reserved)} reserved`;
   $("pilot-budget").textContent = `${money(budget.pilot_usd)} / ${money(budget.pilot_limit_usd || 7)}`;
+  const expiration = formatDateOnly(budget.expires_on);
+  $("pilot-expiration").textContent = expiration ? `Pilot estimate / limit · closes ${expiration}` : "Pilot estimate / limit";
+  const budgetConcern = budget.expired ? "The pilot window has closed. API research is paused." : budget.uncertain ? "A provider call has an uncertain final cost. Review the call ledger before more API research." : "";
+  $("budget-alert").textContent = budgetConcern;
+  $("budget-alert").hidden = !budgetConcern;
   $("mobile-budget").textContent = `Est. ${money(used)} / ${money(limit)} today`;
   for (const provider of ["gemini", "openai"]) {
     $(`${provider}-spent-today`).textContent = estimatedMoney(budget.by_provider?.[provider]?.today_usd);
@@ -176,7 +218,9 @@ function renderBudget() {
 function renderProviders() {
   const providers = state?.providers || {};
   const configured = Object.values(providers).filter((provider) => provider.configured).length;
-  $("connection-summary").textContent = configured === 2 ? "Both keys configured" : configured === 1 ? "One key configured" : "Add keys to use API research";
+  const verified = Object.values(providers).filter((provider) => provider.verified).length;
+  $("connection-summary").textContent = configured === 2 ? verified === 2 ? "Both providers verified" : "Both keys ready for a first call" : configured === 1 ? "One provider needs a key" : "Add keys to use API research";
+  $("mobile-connection-status").textContent = configured === 2 ? verified === 2 ? "Providers verified" : "Keys ready · first call verifies" : configured === 1 ? "One key needed" : "Connect keys";
   $("connection-indicator").classList.toggle("connected", configured === 2);
   for (const id of ["gemini", "openai"]) {
     const provider = providers[id] || {};
@@ -189,8 +233,48 @@ function renderProviders() {
   }
   $("live-mode-input").disabled = !liveAvailable();
   $("mission-connect").hidden = liveAvailable();
+  $("mission-connect").textContent = configured < 2 ? "Connect providers" : "Review what needs attention";
+  $("mission-connect").dataset.intent = configured < 2 ? "connections" : "company";
   if (!liveAvailable() && $("live-mode-input").checked) document.querySelector('input[name="mission-mode"][value="demo"]').checked = true;
   renderModeNote();
+}
+
+function renderCompanyStatus() {
+  const runtime = state?.runtime || {};
+  const issue = runtime.blockers?.[0] || null;
+  const warning = runtime.warnings?.[0] || null;
+  const attention = Number(runtime.attention_count || 0);
+  const reviewCount = Number(runtime.review_count || 0);
+  const running = (state?.missions || []).some((mission) => isRunning(mission));
+  const configured = ["gemini", "openai"].filter((id) => state?.providers?.[id]?.configured).length;
+  const rawStatus = String(runtime.status || "").toLowerCase();
+  let tone = "attention";
+  if (running || rawStatus === "running" || rawStatus === "working") tone = "running";
+  else if (rawStatus === "ready" || (!issue && liveAvailable())) tone = "ready";
+  else if (/offline|connect|credential/.test(rawStatus) || configured < 2) tone = "offline";
+  else if (/block|pause|expired|budget|pilot|restart/.test(rawStatus)) tone = "blocked";
+  const title = runtime.label || (running ? "Your company is working" : liveAvailable() ? "Your company is ready" : configured < 2 ? "Reconnect to start API research" : "Your company needs attention");
+  let description = issue?.message || warning?.message || "The team is ready for a focused research mission. A first provider call may verify access before work continues.";
+  if (running && !issue) description = "The coordinator is supervising the active mission and will surface evidence or a decision when it needs you.";
+  $("company-status-title").textContent = title;
+  $("company-status-detail").textContent = description;
+  const statusCard = $("company-status");
+  statusCard.className = `company-status ${tone}`;
+  $("company-status-kicker").textContent = attention ? `COMPANY STATUS · ${attention} NEED${attention === 1 ? "" : "S"} ATTENTION` : "COMPANY STATUS";
+  const cadence = Number(runtime.cadence_minutes || 60);
+  $("company-cadence").textContent = runtime.scheduler_enabled === false ? "Supervised runs are paused" : `Supervised every ${cadence === 60 ? "hour" : `${cadence} minutes`}`;
+  $("company-last-run").textContent = runtime.last_mission_at ? `Last mission ${formatDate(runtime.last_mission_at)}` : "No mission activity yet";
+  $("company-key-policy").textContent = runtime.credentials_persist ? "Provider keys available" : "Keys reset with the local server";
+
+  if (issue) companyActionIntent = intentForRuntimeAction(issue.action, issue.code);
+  else if (reviewCount || attention) companyActionIntent = "review";
+  else if (running) companyActionIntent = "active";
+  else companyActionIntent = liveAvailable() ? "mission" : configured < 2 ? "connections" : "status";
+  const labels = { connections: "Reconnect keys", studio: "Review Studio", review: "Open review", calls: "Review calls", active: "Open active mission", mission: "Start a mission", status: "Open status" };
+  const action = $("company-action");
+  action.textContent = labels[companyActionIntent] || "Open status";
+  action.hidden = false;
+  $("mobile-company-status").textContent = attention ? `${title} · ${attention} waiting` : title;
 }
 
 function renderModeNote() {
@@ -222,8 +306,9 @@ function renderAgents() {
     row.setAttribute("aria-label", `Message ${item.name}`);
     row.addEventListener("click", () => selectAgent(item.id));
     const name = element("div", "agent-row-name", item.name);
-    name.append(element("div", "agent-row-role", item.id === "coordinator" ? "OpenAI · Connects the team" : `Gemini · ${statuses[item.status] || "Standing by"}`));
-    const indicator = element("span", `agent-indicator ${["running", "working", "blocked"].includes(item.status) ? item.status : ""}`);
+    const provider = providerName(item.provider);
+    name.append(element("div", "agent-row-role", `${provider} · ${statuses[item.status] || "Standing by"}`));
+    const indicator = element("span", `agent-indicator ${["running", "working", "blocked", "offline", "unverified"].includes(item.status) ? item.status : ""}`);
     indicator.title = statuses[item.status] || "Standing by";
     row.append(avatar(item.id), name, indicator);
     previewNodes.push(row);
@@ -234,7 +319,6 @@ function renderAgents() {
     const top = element("div", "team-card-top");
     top.append(avatar(item.id), element("span", "pill neutral", item.id === "coordinator" ? "COORDINATOR" : "SPECIALIST"));
     const footer = element("div", "team-card-footer");
-    const provider = String(item.provider).toLowerCase() === "openai" ? "OpenAI" : "Gemini";
     footer.append(element("span", "", `${provider} · ${statuses[item.status] || "Standing by"}`), icon("arrow"));
     card.append(top, element("h3", "", item.name), element("p", "", roleDescriptions[item.id] || item.role), footer);
     directoryNodes.push(card);
@@ -289,17 +373,19 @@ function renderMissions() {
 function renderMissionHeader() {
   const mission = currentMission();
   const hasMission = Boolean(mission);
+  const roundLimit = hasMission && Number(mission.round || 0) >= Number(mission.max_rounds || 5);
   $("conversation-heading").textContent = mission?.title || "Give good ideas a place to grow.";
   $("mission-eyebrow").textContent = hasMission ? "THE SHARED CONVERSATION" : "YOUR NEXT QUESTION STARTS HERE";
   $("mission-mode").textContent = mission?.mode === "live" ? "API research" : "Sample mode";
   $("mission-mode").className = `pill ${mission?.mode === "live" ? "live" : "sample"}`;
   $("sample-banner").hidden = mission?.mode === "live";
   $("mission-toolbar").hidden = !hasMission;
-  $("message-input").disabled = !hasMission || busy;
-  $("recipient-select").disabled = !hasMission || busy;
-  $("send-message").disabled = !hasMission || busy || !$("message-input").value.trim();
-  $("message-input").placeholder = hasMission ? "Ask a question, challenge a finding, or steer the next step…" : "Start a mission to talk with your team…";
-  $("composer-note").textContent = mission?.mode === "demo" ? "Sample replies are scripted. Your messages are saved, but no model reads them." : hasMission ? "Messages are shared with the selected role. Only relevant context is passed to other workers." : "Your team works in a separate research workspace.";
+  const canCompose = hasMission && !busy && !roundLimit;
+  $("message-input").disabled = !canCompose;
+  $("recipient-select").disabled = !canCompose;
+  $("send-message").disabled = !canCompose || !$("message-input").value.trim();
+  $("message-input").placeholder = !hasMission ? "Start a mission to talk with your team…" : roundLimit ? "This mission reached its round limit. Start a focused follow-up to continue." : "Ask a question, challenge a finding, or steer the next step…";
+  $("composer-note").textContent = roundLimit ? "This research cycle is closed. Start a focused follow-up to keep the next question narrow and auditable." : mission?.mode === "demo" ? "Sample replies are scripted. Your messages are saved, but no model reads them." : hasMission ? "Messages are shared with the selected role. Only relevant context is passed to other workers." : "Your team works in a separate research workspace.";
   if (mission) {
     $("mission-status").textContent = statuses[mission.status] || "Unknown status";
     $("mission-status").className = `status-pill ${Object.hasOwn(statuses, mission.status) ? mission.status : "ready"}`;
@@ -307,13 +393,74 @@ function renderMissionHeader() {
     $("mission-cost").textContent = `Est. ${estimatedMoney(mission.spent_usd)}`;
     $("stop-mission").hidden = !isRunning(mission);
     $("stop-mission").disabled = busy || mission.status === "stopping";
-    $("resume-mission").hidden = isRunning(mission) || mission.status === "completed" || mission.status === "needs_review";
+    $("resume-mission").hidden = isRunning(mission) || ["completed", "needs_review", "blocked"].includes(mission.status) || roundLimit;
     $("resume-mission").disabled = busy || (mission.mode === "live" && !liveAvailable());
     $("export-mission").href = `/api/missions/${encodeURIComponent(mission.id)}/export`;
     $("export-mission").setAttribute("download", "");
   }
   $("mission-summary").hidden = !mission?.summary;
   $("mission-summary-text").textContent = mission?.summary || "";
+  renderMissionGuidance(mission, roundLimit);
+}
+
+function renderMissionGuidance(mission, roundLimit = false) {
+  const panel = $("mission-guidance");
+  if (!mission) {
+    panel.hidden = true;
+    missionActionIntent = "none";
+    return;
+  }
+  const action = String(mission.required_action || "").toLowerCase();
+  const combined = `${action} ${mission.status_reason || ""}`.toLowerCase();
+  let label = "NEXT STEP";
+  const rawReason = String(mission.status_reason || "");
+  let text = rawReason.length > 280 ? `${rawReason.slice(0, 277)}…` : rawReason;
+  let button = "";
+  missionActionIntent = "none";
+
+  if (roundLimit || /new.?mission|follow.?up/.test(combined)) {
+    label = "RESEARCH CYCLE COMPLETE";
+    text = mission.status_reason || "This mission reached its round limit. Carry the strongest unresolved question into a focused follow-up.";
+    button = "Start focused follow-up";
+    missionActionIntent = "followup";
+  } else if (mission.status === "needs_review") {
+    label = "YOUR REVIEW IS NEEDED";
+    text = text || "The team has finished this research pass. Review the evidence before deciding what to test next.";
+    button = "Review evidence";
+    missionActionIntent = "evidence";
+  } else if (mission.status === "completed") {
+    label = "RESEARCH COMPLETE";
+    text = text || "The team completed this research pass. Review its evidence before using it to choose another experiment.";
+    button = "Review evidence";
+    missionActionIntent = "evidence";
+  } else if (mission.status === "blocked") {
+    label = "MISSION BLOCKED";
+    text = text || "The team cannot safely continue until this issue is resolved.";
+    if (/connect|credential|provider|api.?key/.test(combined)) {
+      button = "Reconnect keys";
+      missionActionIntent = "connections";
+    } else if (/call|cost|budget|uncertain|reconcil|pilot/.test(combined)) {
+      button = "Review API calls";
+      missionActionIntent = "calls";
+    } else if (mission.retryable && (mission.mode !== "live" || liveAvailable())) {
+      button = "Retry mission";
+      missionActionIntent = "retry";
+    } else {
+      button = "Review evidence";
+      missionActionIntent = "evidence";
+    }
+  } else if (mission.mode === "live" && !liveAvailable() && !isRunning(mission) && mission.status !== "completed") {
+    label = "API RESEARCH PAUSED";
+    text = firstRuntimeIssue()?.message || "Resolve the company status before continuing this API mission.";
+    button = intentForRuntimeAction(firstRuntimeIssue()?.action, firstRuntimeIssue()?.code) === "connections" ? "Reconnect keys" : "Open company status";
+    missionActionIntent = button === "Reconnect keys" ? "connections" : "company";
+  }
+
+  panel.hidden = missionActionIntent === "none";
+  $("mission-guidance-label").textContent = label;
+  $("mission-guidance-text").textContent = text;
+  $("mission-action").textContent = button;
+  $("mission-action").disabled = busy;
 }
 
 function renderMessages() {
@@ -416,15 +563,89 @@ function renderTasks() {
   updateGroup("task-preview", signature, nodes);
 }
 
+function callStatusPill(status) {
+  const value = String(status || "unknown").toLowerCase();
+  const safe = ["completed", "failed", "running", "reserved", "pending", "cancelled", "uncertain"].includes(value) ? value : "unknown";
+  return element("span", `call-status ${safe}`, readable(value));
+}
+
+function callErrorText(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value?.message === "string") return value.message;
+  return "The provider returned an error. Open the company status before retrying.";
+}
+
+function renderCallLedger() {
+  const calls = detail?.mission?.id === selectedMissionId ? detail.calls || [] : [];
+  const budget = state?.budget || {};
+  const signature = JSON.stringify([selectedMissionId, calls, budget.uncertain, budget.expired, budget.expires_on]);
+  const total = calls.reduce((sum, call) => sum + (Number(call.cost_usd) || 0), 0);
+  const reserved = calls.reduce((sum, call) => ["reserved", "uncertain"].includes(call.status) ? sum + (Number(call.reservation_usd) || 0) : sum, 0);
+  $("call-ledger-note").textContent = calls.length ? `${calls.length} provider call${calls.length === 1 ? "" : "s"} · ${estimatedMoney(total)} estimated${reserved ? ` · ${estimatedMoney(reserved)} reserved` : ""}` : currentMission() ? "No model calls in this mission." : "Choose a mission to inspect its model calls.";
+  $("open-call-ledger").disabled = !currentMission();
+
+  const previewNodes = [...calls].slice(-3).reverse().map((call) => {
+    const row = element("div", "call-preview-item");
+    const content = element("div", "call-preview-copy");
+    content.append(element("strong", "", `${providerName(call.provider)} · ${agentName(call.agent_id)}`), element("small", "", call.model || "Model not reported"));
+    const meta = element("div", "call-preview-meta");
+    meta.append(callStatusPill(call.status), element("span", "call-cost", estimatedMoney(call.cost_usd)));
+    row.append(content, meta);
+    return row;
+  });
+  if (!previewNodes.length) previewNodes.push(element("p", "subtle-empty", "Costs and call outcomes will appear here."));
+  updateGroup("call-preview", signature, previewNodes);
+
+  const ledgerNodes = [...calls].reverse().map((call) => {
+    const card = element("article", "call-ledger-row");
+    const head = element("div", "call-ledger-row-head");
+    const title = element("div");
+    title.append(element("strong", "", `${providerName(call.provider)} · ${agentName(call.agent_id)}`), element("small", "", formatDate(call.created_at) || "Time not reported"));
+    head.append(title, callStatusPill(call.status));
+    const facts = element("dl", "call-facts");
+    const entries = [
+      ["Requested model", call.model || "Not reported"],
+      ["Returned model", call.returned_model || "Not reported"],
+      ["Estimated cost", estimatedMoney(call.cost_usd)],
+      [["reserved", "uncertain"].includes(call.status) ? "Held reservation" : "Initial reservation", estimatedMoney(call.reservation_usd)],
+    ];
+    for (const [term, value] of entries) {
+      facts.append(element("dt", "", term), element("dd", "", value));
+    }
+    if (call.usage && typeof call.usage === "object") {
+      const inputTokens = Number(call.usage.input_tokens ?? call.usage.prompt_tokens);
+      const outputTokens = Number(call.usage.output_tokens ?? call.usage.completion_tokens);
+      if (Number.isFinite(inputTokens) || Number.isFinite(outputTokens)) {
+        facts.append(element("dt", "", "Reported usage"), element("dd", "", `${Number.isFinite(inputTokens) ? inputTokens.toLocaleString() : "—"} in · ${Number.isFinite(outputTokens) ? outputTokens.toLocaleString() : "—"} out`));
+      }
+    }
+    card.append(head, facts);
+    const callError = callErrorText(call.error);
+    if (callError) card.append(element("p", "call-error", callError));
+    return card;
+  });
+  if (!ledgerNodes.length) ledgerNodes.push(emptyCard("No API calls for this mission.", "Sample missions never call a provider. Live calls will show their model, status, reservation, estimated cost, and any error here."));
+  updateGroup("call-ledger-list", signature, ledgerNodes);
+  $("call-ledger-total").textContent = `Estimated total: ${estimatedMoney(total)}${reserved ? ` · ${estimatedMoney(reserved)} reserved` : ""}`;
+  const expiration = formatDateOnly(budget.expires_on);
+  $("call-ledger-description").textContent = expiration ? `Provider amounts are estimates. The $7 pilot window closes ${expiration} (${budget.timezone || "America/New_York"}).` : "Provider amounts are estimates and may change when usage is reconciled.";
+  const warning = budget.expired ? "The pilot window has closed. API research is paused." : budget.uncertain ? "At least one provider call has an uncertain final cost. Review its status before continuing paid work." : "";
+  $("call-ledger-warning").textContent = warning;
+  $("call-ledger-warning").hidden = !warning;
+}
+
 function render() {
   renderBudget();
   renderProviders();
+  renderCompanyStatus();
   renderAgents();
   renderMissions();
   renderMissionHeader();
   renderMessages();
   renderEvidence();
   renderTasks();
+  renderCallLedger();
   window.sigilStudio?.render();
 }
 
@@ -510,9 +731,10 @@ async function chooseMission(id, nextView = "workspace") {
   } catch (error) { showError(error); }
 }
 
-function openMissionDialog() {
+function openMissionDialog(prefill = "") {
   $("new-mission-error").hidden = true;
   renderProviders();
+  if (prefill) $("new-mission-input").value = prefill;
   $("mission-dialog").showModal();
   $("new-mission-input").focus();
 }
@@ -524,6 +746,87 @@ function openConnections() {
   renderProviders();
   $("connections-dialog").showModal();
   (!state?.providers?.gemini?.configured ? $("gemini-key") : $("openai-key")).focus();
+}
+
+function openCallLedger() {
+  if (!currentMission()) {
+    switchView("missions");
+    toast("Choose a mission to inspect its API calls.");
+    return;
+  }
+  renderCallLedger();
+  $("call-ledger-dialog").showModal();
+  $("call-ledger-dialog").querySelector("[data-close]")?.focus();
+}
+
+function focusedFollowupPrompt(mission) {
+  const unresolved = String(mission?.status_reason || mission?.summary || "the strongest unresolved question").slice(0, 1200);
+  return `Focused follow-up to “${mission?.title || "the previous mission"}”:\n\nInvestigate one decision-ready next step from this prior finding: ${unresolved}\n\nState the hypothesis, evidence needed, data-timing risks, falsification test, and a clear stop condition.`;
+}
+
+function startFocusedFollowup() {
+  const mission = currentMission();
+  if (!mission) return;
+  openMissionDialog(focusedFollowupPrompt(mission));
+  const preferred = mission.mode === "live" && liveAvailable() ? "live" : "demo";
+  document.querySelector(`input[name="mission-mode"][value="${preferred}"]`).checked = true;
+  renderModeNote();
+  if (mission.mode === "live" && !liveAvailable()) {
+    showError("The follow-up is ready. Resolve the company status before choosing API research, or run it as a free sample.", "new-mission-error");
+  }
+}
+
+function reviewAttentionMission() {
+  const mission = missionAtAttention();
+  if (!mission) {
+    switchView("missions");
+    return;
+  }
+  chooseMission(mission.id, mission.status === "needs_review" ? "evidence" : "workspace");
+}
+
+function performCompanyAction() {
+  if (companyActionIntent === "connections") openConnections();
+  else if (companyActionIntent === "studio") switchView("studio");
+  else if (companyActionIntent === "review") reviewAttentionMission();
+  else if (companyActionIntent === "calls") openCallLedger();
+  else if (companyActionIntent === "active") {
+    const mission = (state?.missions || []).find((item) => isRunning(item)) || (state?.missions || []).find((item) => item.id === state?.active_mission_id);
+    if (mission) chooseMission(mission.id);
+    else switchView("missions");
+  } else if (companyActionIntent === "mission") openMissionDialog();
+  else {
+    const issue = firstRuntimeIssue();
+    if (issue && intentForRuntimeAction(issue.action, issue.code) === "connections") openConnections();
+    else switchView("missions");
+  }
+}
+
+async function retryCurrentMission() {
+  const mission = currentMission();
+  if (!mission || busy) return;
+  if (mission.mode === "live" && !liveAvailable()) {
+    performCompanyAction();
+    return;
+  }
+  busy = true;
+  renderMissionHeader();
+  try {
+    const updated = await post(`/api/missions/${encodeURIComponent(mission.id)}/run`);
+    if (detail?.mission?.id === mission.id) detail.mission = updated;
+    render();
+    await refresh();
+  } catch (error) { showError(error); }
+  finally { busy = false; renderMissionHeader(); }
+}
+
+function performMissionAction() {
+  if (missionActionIntent === "followup") startFocusedFollowup();
+  else if (missionActionIntent === "evidence") switchView("evidence");
+  else if (missionActionIntent === "connections") openConnections();
+  else if (missionActionIntent === "calls") openCallLedger();
+  else if (missionActionIntent === "retry") retryCurrentMission();
+  else if (missionActionIntent === "company") performCompanyAction();
 }
 
 async function createAndRun(prompt, mode) {
@@ -605,11 +908,20 @@ function downloadArtifact() {
 document.querySelectorAll("[data-view]").forEach((button) => button.addEventListener("click", () => switchView(button.dataset.view)));
 document.querySelectorAll("[data-close]").forEach((button) => button.addEventListener("click", () => $(button.dataset.close).close()));
 document.querySelectorAll('input[name="mission-mode"]').forEach((input) => input.addEventListener("change", renderModeNote));
-$("new-mission").addEventListener("click", openMissionDialog);
+$("new-mission").addEventListener("click", () => openMissionDialog());
 $("try-sample").addEventListener("click", startSample);
 $("open-connections").addEventListener("click", openConnections);
 $("mobile-connections").addEventListener("click", openConnections);
-$("mission-connect").addEventListener("click", openConnections);
+$("mission-connect").addEventListener("click", () => {
+  if ($("mission-connect").dataset.intent === "company") {
+    $("mission-dialog").close();
+    performCompanyAction();
+  } else openConnections();
+});
+$("company-action").addEventListener("click", performCompanyAction);
+$("mobile-company-action").addEventListener("click", performCompanyAction);
+$("mission-action").addEventListener("click", performMissionAction);
+$("open-call-ledger").addEventListener("click", openCallLedger);
 $("download-artifact").addEventListener("click", downloadArtifact);
 $("dismiss-error").addEventListener("click", () => { $("global-error").hidden = true; });
 $("copy-error").addEventListener("click", async () => {
@@ -633,7 +945,7 @@ $("new-mission-form").addEventListener("submit", async (event) => {
   const prompt = $("new-mission-input").value.trim();
   if (!prompt) return;
   const mode = document.querySelector('input[name="mission-mode"]:checked').value;
-  if (mode === "live" && !liveAvailable()) { showError("Connect both provider keys before starting API research.", "new-mission-error"); return; }
+  if (mode === "live" && !liveAvailable()) { showError(firstRuntimeIssue()?.message || "Resolve the company status before starting API research.", "new-mission-error"); return; }
   busy = true;
   $("create-mission").disabled = true;
   $("new-mission-error").hidden = true;
@@ -655,6 +967,11 @@ $("new-mission-form").addEventListener("submit", async (event) => {
 $("message-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (busy || !selectedMissionId) return;
+  const selected = currentMission();
+  if (selected && Number(selected.round || 0) >= Number(selected.max_rounds || 5)) {
+    startFocusedFollowup();
+    return;
+  }
   const text = $("message-input").value.trim();
   if (!text) return;
   const id = selectedMissionId;
@@ -691,6 +1008,10 @@ $("stop-mission").addEventListener("click", async () => {
 
 $("resume-mission").addEventListener("click", async () => {
   if (busy || !selectedMissionId) return;
+  if (currentMission()?.mode === "live" && !liveAvailable()) {
+    performCompanyAction();
+    return;
+  }
   busy = true;
   renderMissionHeader();
   try {

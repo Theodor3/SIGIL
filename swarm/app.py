@@ -1,3 +1,5 @@
+import hashlib
+import json
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -9,10 +11,11 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from . import __version__
 from .engine import Engine
 from .models import AGENTS, Disconnect, NewMission, ProviderKeys, UserMessage
 from .providers import Providers
-from .store import Store
+from .store import Store, now
 from .studio import GitStudio
 
 ROOT = Path(__file__).resolve().parent
@@ -23,14 +26,16 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
     provider_manager = providers or Providers()
     studio = studio or GitStudio(ROOT.parent)
     engine = Engine(store, provider_manager, demo_delay=demo_delay, studio=studio)
+    started_at = now()
 
     @asynccontextmanager
     async def lifespan(app):
         yield
-        engine.shutdown()
-        for provider in ("gemini", "openai"):
-            provider_manager.disconnect(provider)
-        store.close()
+        stopped = engine.shutdown()
+        if stopped:
+            for provider in ("gemini", "openai"):
+                provider_manager.disconnect(provider)
+            store.close()
 
     app = FastAPI(title="SIGIL Swarm", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     app.state.store = store
@@ -43,7 +48,7 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
         if request.method in ("POST", "PUT", "PATCH", "DELETE"):
             origin = request.headers.get("origin")
             expected = "http://" + request.headers.get("host", "")
-            if origin and origin != expected:
+            if origin != expected:
                 return JSONResponse({"detail": "Requests must come from this local dashboard."}, status_code=403)
             if request.headers.get("sec-fetch-site") == "cross-site":
                 return JSONResponse({"detail": "Cross-site requests are not allowed."}, status_code=403)
@@ -78,13 +83,110 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
     async def missing(request, exc):
         return JSONResponse({"detail": "Mission not found."}, status_code=404)
 
+    def runtime_status(providers_status=None):
+        providers_status = providers_status or provider_manager.public_status()
+        budget = store.budget()
+        manifest = studio.manifest()
+        with engine.lock:
+            active_id = engine.active_id
+        summaries = store.summaries()
+        missing = [name for name, value in providers_status.items() if not value["configured"]]
+        blockers = []
+        if active_id:
+            blockers.append({"code": "mission_running", "message": "A mission is already running.", "action": "open_active_mission"})
+        if not manifest.get("is_current", True):
+            blockers.append({"code": "studio_stale", "message": "The dashboard needs a safe restart to load the latest development commit.", "action": "restart_dashboard"})
+        if missing:
+            labels = ["OpenAI" if name == "openai" else "Gemini" for name in missing]
+            blockers.append({"code": "providers_missing", "message": "Reconnect " + " and ".join(labels) + " before API research can run.", "action": "connect_providers"})
+        if budget["uncertain"]:
+            blockers.append({"code": "billing_uncertain", "message": "An API call has uncertain billing and must be reviewed before another paid call.", "action": "review_api_calls"})
+        if budget["expired"]:
+            blockers.append({"code": "pilot_expired", "message": "The seven-day pilot has ended.", "action": "review_pilot"})
+        elif min(budget["remaining_today_usd"], budget["remaining_pilot_usd"]) <= 0:
+            blockers.append({"code": "budget_exhausted", "message": "The current API allowance is exhausted.", "action": "review_budget"})
+
+        warnings = []
+        unverified = [name for name, value in providers_status.items() if value["configured"] and not value["verified"]]
+        if unverified:
+            warnings.append({"code": "access_unverified", "message": "Connected provider access will be verified by the first model call."})
+        if not manifest.get("capabilities", {}).get("execution"):
+            warnings.append({"code": "execution_unavailable", "message": "Container-backed code execution is unavailable; research and draft review still work."})
+
+        attention_count = sum(m["status"] in ("needs_review", "blocked") for m in summaries)
+        review_count = sum(m["status"] == "needs_review" for m in summaries)
+        if active_id:
+            status, label = "working", "Mission in progress"
+        elif any(item["code"] == "studio_stale" for item in blockers):
+            status, label = "restart_required", "Safe restart needed"
+        elif budget["uncertain"]:
+            status, label = "budget_review", "API call review needed"
+        elif budget["expired"]:
+            status, label = "pilot_ended", "Pilot ended"
+        elif missing:
+            status, label = "waiting_for_connections", "Reconnect APIs"
+        elif blockers:
+            status, label = "paused", "API work paused"
+        elif review_count:
+            status, label = "ready_with_review", "Ready · results to review"
+        else:
+            status, label = "ready", "Ready for a mission"
+        return {
+            "status": status, "label": label, "can_start_live": not blockers,
+            "blockers": blockers, "warnings": warnings,
+            "scheduler_enabled": True, "scheduler_mode": "supervised_hourly",
+            "cadence_minutes": 60, "max_mission_minutes": 20, "credentials_persist": False,
+            "attention_count": attention_count, "review_count": review_count,
+            "last_mission_at": summaries[0]["updated_at"] if summaries else None,
+            "studio_current": manifest.get("is_current", True),
+            "studio_commit": manifest.get("commit"), "current_head": manifest.get("current_head"),
+            "storage": store.runtime_identity(),
+        }
+
+    def mission_view(mission, runtime):
+        result = dict(mission)
+        status = result.get("status")
+        result["status_reason"] = result.get("summary") or ""
+        result["retryable"] = False
+        if result.get("round", 0) >= result.get("max_rounds", 5):
+            result["required_action"] = "start_focused_followup"
+        elif status == "needs_review":
+            result["required_action"] = "review_evidence"
+        elif status in ("running", "stopping"):
+            result["required_action"] = "wait_for_mission"
+        elif status == "completed":
+            result["required_action"] = "review_evidence"
+        elif status == "blocked":
+            if result.get("mode") == "live":
+                result["required_action"] = (runtime["blockers"][0]["action"] if runtime["blockers"] else "start_focused_followup")
+            else:
+                result["required_action"] = "start_mission"
+                result["retryable"] = True
+        elif status == "stopped" and result.get("mode") == "live":
+            result["required_action"] = "start_focused_followup"
+        else:
+            result["required_action"] = "start_mission"
+            result["retryable"] = runtime["can_start_live"] or result.get("mode") == "demo"
+        result["evidence_status"] = "workflow_complete_unvalidated" if status == "completed" and result.get("mode") == "live" else "not_validated"
+        return result
+
     @app.get("/api/health")
     def health():
-        return {"app": "sigil-swarm", "version": "0.2.0", "status": "ok"}
+        manifest = studio.manifest()
+        return {"app": "sigil-swarm", "version": __version__, "status": "ok",
+                "started_at": started_at, "pid": os.getpid(),
+                "workspace": str(studio.root), "branch": manifest["branch"],
+                "studio_commit": manifest["commit"], "studio_current": manifest.get("is_current", True),
+                "storage": store.runtime_identity()}
+
+    @app.get("/api/readiness")
+    def readiness():
+        return runtime_status()
 
     @app.get("/api/state")
     def state():
         providers_status = provider_manager.public_status()
+        runtime = runtime_status(providers_status)
         with engine.lock:
             active_id = engine.active_id
         busy = set()
@@ -92,14 +194,18 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
             active = store.snapshot(active_id)
             busy = {t["agent_id"] for t in active["tasks"] if t["status"] == "running"}
             busy.update(c["agent_id"] for c in active["calls"] if c["status"] == "reserved")
+        summaries = [mission_view(mission, runtime) for mission in store.summaries()]
         return {
-            "app": {"name": "SIGIL Swarm", "version": "0.2.0"},
+            "app": {"name": "SIGIL Swarm", "version": __version__},
             "providers": providers_status, "budget": store.budget(),
-            "agents": [{**a, "status": "working" if a["id"] in busy else "ready"} for a in AGENTS],
-            "missions": store.summaries(), "active_mission_id": active_id,
-            "backend": {"live_available": all(p["configured"] for p in providers_status.values()),
-                        "worker_execution": "development_studio", "search": "web_and_papers",
-                        "credentials": "session_only"},
+            "agents": [{**a, "status": "working" if a["id"] in busy else
+                        "offline" if not providers_status["openai" if a["id"] == "coordinator" else "gemini"]["configured"] else
+                        "unverified" if not providers_status["openai" if a["id"] == "coordinator" else "gemini"]["verified"] else "ready"}
+                       for a in AGENTS],
+            "missions": summaries, "active_mission_id": active_id, "runtime": runtime,
+            "backend": {"live_available": runtime["can_start_live"],
+                         "worker_execution": "development_studio", "search": "web_and_papers",
+                         "credentials": "session_only"},
         }
 
     @app.get("/api/studio")
@@ -134,7 +240,14 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
 
     @app.get("/api/missions/{mission_id}")
     def detail(mission_id: str):
-        return store.snapshot(mission_id)
+        data = store.snapshot(mission_id)
+        data["mission"] = mission_view(data["mission"], runtime_status())
+        data["evidence_summary"] = {
+            "validated_signals": 0,
+            "unverified_artifacts": sum(a.get("verification") == "unverified" for a in data["artifacts"]),
+            "review_documents": sum(a.get("author") in ("review", "coordinator") for a in data["artifacts"]),
+        }
+        return data
 
     @app.post("/api/missions/{mission_id}/run")
     def run(mission_id: str):
@@ -152,6 +265,8 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
             data = store.get(mission_id)
             if data["mission"]["round"] >= data["mission"]["max_rounds"]:
                 raise ValueError("This mission reached its round limit. Start a new mission with your follow-up.")
+            if data["mission"]["mode"] == "live" and data["mission"]["status"] not in ("ready", "running", "stopping"):
+                raise ValueError("Keep this run as an immutable record. Start a focused follow-up mission so prior API calls are not replayed.")
             result = store.message(mission_id, "user", payload.recipient, payload.text.strip(), "question")
             if data["mission"]["status"] not in ("running", "stopping"):
                 data["mission"]["status"] = "ready"
@@ -162,12 +277,18 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
     @app.get("/api/missions/{mission_id}/export")
     def export(mission_id: str):
         data = store.snapshot(mission_id)
-        m = data["mission"]
+        m = mission_view(data["mission"], runtime_status())
         lines = [
             "# " + m["title"], "", "Mode: " + ("SCRIPTED SAMPLE" if m["mode"] == "demo" else "API research"),
             "Status: " + m["status"], "Estimated model/tool cost: $" + format(m["spent_usd"], ".6f"),
+            "Evidence status: no trading signal was validated by this workflow.",
             "Research documents are unverified unless their evidence is independently checked.", "",
-            "## Mission", m["prompt"], "", "## Conversation",
+            "## Run record",
+            "Required action: " + m["required_action"],
+            "Specialists: " + (", ".join(p for p in data.get("participants", []) if p != "review") or "not assigned"),
+            "Studio commit: " + ((data.get("studio") or {}).get("commit") or "not pinned"),
+            "Studio branch: " + ((data.get("studio") or {}).get("branch") or "not pinned"),
+            "", "## Mission", m["prompt"], "", "## Conversation",
         ]
         for msg in data["messages"]:
             lines += ["", f"### {msg['sender']} → {msg['recipient']} · {msg['kind']}", msg["text"]]
@@ -178,9 +299,33 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
                 if parsed.scheme == "https":
                     lines += [s.get("title", "Source") + ": " + s["url"]]
         for draft in data.get("drafts", []):
-            lines += ["", "## Draft: " + draft["path"], "Not applied to the project.", "```diff", draft["diff"], "```"]
+            content_hash = draft.get("content_sha256") or hashlib.sha256(draft.get("content", "").encode("utf-8")).hexdigest()
+            lines += ["", "## Draft: " + draft["path"], "Not applied to the project.",
+                      "Draft ID: " + draft["id"], "Source commit: " + draft.get("commit", "unavailable"),
+                      "Original SHA-256: " + (draft.get("before_sha256") or "new file"),
+                      "Draft SHA-256: " + content_hash, "```diff", draft["diff"], "```"]
         for result in data.get("tool_results", []):
-            lines += ["", "## Tool: " + result["tool"], result["summary"]]
+            lines += ["", "## Tool: " + result["tool"], "Status: " + result["status"],
+                      "Task ID: " + (result.get("task_id") or "legacy record"), result["summary"]]
+            checked = result.get("result", {}).get("checked_drafts", [])
+            for item in checked:
+                lines.append("Checked draft: " + item.get("id", "unknown") + " · " + item.get("path", "unknown") + " · SHA-256 " + item.get("sha256", "unknown"))
+        lines += ["", "## Provider call ledger"]
+        if not data.get("calls"):
+            lines.append("No provider calls were recorded.")
+        for call in data.get("calls", []):
+            usage = json.dumps(call.get("usage"), sort_keys=True) if call.get("usage") is not None else "unavailable"
+            lines += ["", "### " + call["id"],
+                      "Agent/provider: " + call.get("agent_id", "unknown") + " / " + call.get("provider", "unknown"),
+                      "Task ID: " + (call.get("task_id") or "mission-level call"),
+                      "Requested model: " + call.get("model", "unknown"),
+                      "Returned model: " + (call.get("returned_model") or "unavailable"),
+                      "Status: " + call.get("status", "unknown"),
+                      "Reservation: $" + format(call.get("reservation_usd", 0), ".6f"),
+                      "Estimated cost: $" + format(call.get("cost_usd", 0), ".6f"),
+                      "Usage: " + usage]
+            if call.get("error"):
+                lines.append("Recorded error: " + call["error"])
         return PlainTextResponse("\n".join(lines), media_type="text/markdown",
                                  headers={"Content-Disposition": f'attachment; filename="sigil-{mission_id}.md"'})
 
