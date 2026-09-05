@@ -147,11 +147,10 @@
       "title": "Upgrade the always-on swarm control plane before reconnecting keys",
       "status": "done",
       "artifact": "swarm/README.md",
-      "validationStatus": "Version 0.3 adds a readiness contract, checked launcher, SQLite/WAL migration with checksummed backup, immutable paid-run history, task-scoped provenance, twenty-minute deadlines, safer private/public tool separation, and an operator dashboard. Full offline suite: 74 passed; no provider calls were made."
+      "validationStatus": "Version 0.3 adds the readiness contract, checked launcher, SQLite/WAL history, immutable paid-run records, task-scoped provenance, twenty-minute deadlines, private/public tool separation, and operator dashboard. Full offline suite: 74 passed. Live cutover preserved 3 missions, 79 calls, 316 events and the exact $0.612476 estimate; integrity and foreign-key checks passed. No provider calls were made."
     }
   ],
   "nextEngineeringPriority": "Reconnect both session keys, then validate S006 with one narrow supervised mission using at most two specialists and automatic review. Do not claim a trading signal is validated from workflow completion.",
   "operatingStatus": "continuous_coordinator_ready_supervised_waiting_for_connections",
   "runtimeVersion": "0.3.0"
 }
-

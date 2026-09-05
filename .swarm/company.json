@@ -24,7 +24,7 @@
     "maxPeerRevisionRounds": 2,
     "recordedSpendingUsd": 0.612476,
     "reservationsBeforeDispatch": true,
-    "recordedSpendingAsOf": "2026-09-05 before the v0.3 storage migration; runtime ledger is authoritative",
+    "recordedSpendingAsOf": "2026-09-05 after the verified v0.3 storage migration; runtime ledger is authoritative",
     "costKind": "estimate",
     "recordedProviderEstimates": {
       "gemini": 0.140585,
@@ -46,7 +46,7 @@
     "recurringDispatchMode": "supervised_hourly_readiness_gated"
   },
   "status": "continuous_coordinator_ready_supervised",
-  "lastCoordinatorCycle": "2026-09-05 control-plane upgrade",
+  "lastCoordinatorCycle": "2026-09-05 v0.3 cutover verified",
   "modelAccessNote": "Both requested provider models and the web-search utility previously completed calls with returned identities and usage. Session keys are intentionally disconnected during the v0.3 upgrade; no provider call is part of the upgrade.",
   "pauseReason": null,
   "automationStatus": "ACTIVE",
@@ -198,14 +198,21 @@
   "runtimeVersion": "0.3.0",
   "readinessEndpoint": "http://127.0.0.1:8765/api/readiness",
   "currentReadiness": "waiting_for_connections",
-  "currentBlocker": "Provider keys intentionally disconnected for the v0.3 upgrade; reconnect them only after the checked restart.",
+  "currentBlocker": "Both provider keys are intentionally disconnected. The checked v0.3 restart passed; reconnect them from the dashboard for the next supervised mission.",
   "storage": {
     "engine": "SQLite",
     "schemaVersion": 1,
     "journalMode": "WAL",
     "path": ".swarm/runtime/swarm.sqlite3",
     "migration": "Legacy JSON is imported once after a checksummed local backup.",
-    "singleControllerLock": true
+    "singleControllerLock": true,
+    "storeId": "store_4b6c94a3538f4cb4",
+    "legacyBackup": "legacy-json-backup-20260905T112338Z",
+    "importedMissions": 3,
+    "importedCalls": 79,
+    "importedEvents": 316,
+    "integrityCheck": "ok",
+    "foreignKeyViolations": 0
   },
   "missionControls": {
     "maxSpecialists": 2,
