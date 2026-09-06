@@ -427,7 +427,8 @@ class Store:
                 reverse=True,
             )]
 
-    def create(self, prompt, mode):
+    def create(self, prompt, mode, *, max_revisions=MAX_ROUNDS - 1,
+               specialist_execution="parallel"):
         prompt = prompt.strip()
         if not prompt:
             raise ValueError("Write a mission for the team first.")
@@ -440,7 +441,9 @@ class Store:
                 "mission": dict(
                     id=mission_id, title=prompt.splitlines()[0][:80],
                     prompt=prompt, mode=mode, status="ready", created_at=timestamp,
-                    updated_at=timestamp, round=0, max_rounds=MAX_ROUNDS,
+                    updated_at=timestamp, round=0,
+                    max_revisions=max_revisions, max_rounds=1 + max_revisions,
+                    specialist_execution=specialist_execution,
                     max_specialists=MAX_SPECIALISTS, spent_usd=0, summary="", peer_rounds=0,
                     replay_allowed=True,
                 ),

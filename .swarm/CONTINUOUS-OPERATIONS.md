@@ -8,12 +8,12 @@ Advance one evidence-backed SIGIL improvement at a time on `codex/sigil-company`
 
 ## Hourly coordinator cycle
 
-1. Start or locate the local dashboard with the checked launcher, without starting a mission automatically. Confirm `/api/health` reports version 0.3, this checkout, the current Studio commit and the canonical store identity.
+1. Start or locate the local dashboard with the checked launcher, without starting a mission automatically. Confirm `/api/health` reports version 0.3.1, this checkout, the current Studio commit and the canonical store identity.
 2. Read `AGENTS.md`, `.swarm/company.json`, `.swarm/board.json`, recent mission status, Studio commit, tool records, drafts, reviews and the budget state.
 3. Read `/api/readiness`. If a mission is running, monitor it. Do not launch another. Treat every listed blocker as authoritative; do not work around it.
 4. If a mission needs review, verify its source/tool evidence and convert concrete defects into one bounded board item. Do not rerun the same broad audit.
 5. Select the highest-value ready board item whose acceptance criteria can be checked with current tools. Use no more than two relevant specialists plus the automatic reviewer unless the task explicitly requires another role.
-6. Create at most one narrow mission in a cycle. State required files, allowed research, deliverable and failure criteria. Keep the stable strategy unchanged. A live mission has fixed membership and a twenty-minute controller deadline.
+6. Create at most one narrow mission in a cycle. State required files, allowed research, deliverable and failure criteria. Use the structured `max_revisions` field; the first supervised cycles allow one revision. Use sequential specialist execution only when a later role depends on an earlier role's evidence, and otherwise keep every assignment independently completable. Keep the stable strategy unchanged. A live mission has fixed membership and a twenty-minute controller deadline.
 7. Run the mission only when both providers are connected, the controller reports no uncertain spending, and its conservative reservation fits the existing limits.
 8. Inspect the final draft, exact check versions, citations and objections. A syntax check is not a behavioral test. An unavailable page does not support a claim.
 9. Apply a worker draft only after independent review and appropriate validation. Changes stay on the isolated branch and receive a local commit. Never merge, push, deploy or trade.
@@ -25,7 +25,7 @@ A research task completes only with a precise hypothesis, point-in-time data def
 
 A development task completes only when the current Studio commit was inspected, the draft is tied to source hashes, every claimed check names the exact draft version, reviewer objections are resolved or recorded, and applicable tests actually ran. Docker-unavailable results are blockers, not passes.
 
-A source claim completes only when the retrieved record supports it. Search snippets and publication metadata identify leads; they do not verify a paper's results.
+A source claim completes only when the retrieved record supports it. An assigned source path must have a completed read with an exact range, full-file hash and pinned commit. Studio paths use `read_file`, never public source requests. Search snippets and publication metadata identify leads; they do not verify a paper's results.
 
 ## Recovery
 
@@ -35,6 +35,8 @@ Never clear or relocate the ledger, replay an uncertain or terminal API mission,
 
 ## Current rollout
 
-The September 4 Studio pilot verified pinned file reads, code search, one cited web-search call, draft storage and JSON syntax checking. It also exposed role expansion and repeated unavailable-source requests. Version 0.3 enforces two fixed specialists, records out-of-scope dependencies, separates source-reading roles from outbound research, ties detailed tool context and calls to task IDs, records exact draft hashes, and blocks paid work against a stale Studio snapshot. The pilot's draft was not accepted because it omitted exact evaluation semantics, used a weak p-value-only rule, and did not retrieve the cited paper.
+The September 4 Studio pilot verified pinned file reads, code search, one cited web-search call, draft storage and JSON syntax checking. It also exposed role expansion and repeated unavailable-source requests. Version 0.3 enforced two fixed specialists, recorded out-of-scope dependencies, separated source-reading roles from outbound research, tied detailed tool context and calls to task IDs, recorded exact draft hashes, and blocked paid work against a stale Studio snapshot.
+
+The September 5 S006 cycle kept the correct membership, verified both provider models and respected private/public separation, but failed the substantive evidence gate. Engineering recorded no reads, workers asserted Item 1A text and acceptance timestamps absent from the pinned source, and prompt prose did not stop a second revision. Version 0.3.1 adds structured revision limits, ordered specialist handoffs, assigned-path reads, exact reviewer source context and retrieval-backed citations. S006 is rejected; its terminal API mission must not be replayed. The next ready item is the narrow S009 field-availability check, which should record the source-grounded incompatibility rather than draft an experiment.
 
 The first hourly cycles should remain supervised. Promote to quieter routine operation after one narrow mission finishes within its assigned roles with reviewable evidence and no repeated tool loops. Container-backed development remains blocked until Docker Desktop and the trusted test image are available.

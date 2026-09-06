@@ -40,12 +40,22 @@ class MissionTools:
                 raise ValueError(query_error)
             if request.tool in ("web_search", "paper_search", "fetch_page"):
                 with self.store.lock:
+                    data = self.store.get(mission_id)
+                    sequential_shared = (
+                        data["mission"].get("specialist_execution") == "sequential"
+                        and any(
+                            item.get("agent_id") not in (agent_id, "review")
+                            and item.get("tool") in ("read_file", "search_code", "draft_file")
+                            and item.get("status") == "completed"
+                            for item in data.get("tool_results", [])
+                        )
+                    )
                     source_exposed = any(
-                        item["agent_id"] == agent_id
+                        (item["agent_id"] == agent_id or agent_id == "review")
                         and item.get("tool") in ("read_file", "search_code", "draft_file")
                         and item.get("status") == "completed"
-                        for item in self.store.get(mission_id).get("tool_results", [])
-                    )
+                        for item in data.get("tool_results", [])
+                    ) or sequential_shared
                 if source_exposed:
                     raise ValueError(
                         "This role already received private project source in this mission. "

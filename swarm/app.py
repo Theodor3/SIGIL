@@ -236,7 +236,10 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
 
     @app.post("/api/missions")
     def create(payload: NewMission):
-        return store.create(payload.prompt, payload.mode)
+        return store.create(
+            payload.prompt, payload.mode, max_revisions=payload.max_revisions,
+            specialist_execution=payload.specialist_execution,
+        )
 
     @app.get("/api/missions/{mission_id}")
     def detail(mission_id: str):

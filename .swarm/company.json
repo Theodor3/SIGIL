@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "created": "2026-09-04",
   "pilotReviewDate": "2026-09-11",
   "mission": "Continuously improve SIGIL through novel signal research, reliable evaluation and reviewed engineering",
@@ -8,7 +8,7 @@
   "branch": "codex/sigil-company",
   "baselineCommit": "794ee62",
   "coordinatorTaskId": "01a06aed-e74d-7061-bd25-2a2773a28566",
-  "runtime": "API dashboard v0.3 with readiness gates, SQLite history, fixed two-specialist missions and supervised hourly coordination; Docker execution unavailable",
+  "runtime": "API dashboard v0.3.1 with structured revision limits, ordered specialist handoffs, exact source-evidence review, SQLite history and supervised hourly coordination; Docker execution unavailable",
   "model": "gemini-3.1-flash-lite workers; gpt-5.6-sol coordinator; gpt-4.1-mini web-search utility",
   "automationId": "sigil-company-coordinator",
   "cadenceMinutes": 60,
@@ -22,13 +22,13 @@
     "maxConcurrentSpecialists": 2,
     "maxRoundsPerMission": 5,
     "maxPeerRevisionRounds": 2,
-    "recordedSpendingUsd": 0.612476,
+    "recordedSpendingUsd": 0.788608,
     "reservationsBeforeDispatch": true,
-    "recordedSpendingAsOf": "2026-09-05 after the verified v0.3 storage migration; runtime ledger is authoritative",
+    "recordedSpendingAsOf": "2026-09-05 after S006 stopped with settled billing; runtime ledger is authoritative",
     "costKind": "estimate",
     "recordedProviderEstimates": {
-      "gemini": 0.140585,
-      "openai": 0.471891
+      "gemini": 0.180621,
+      "openai": 0.607987
     }
   },
   "boundaries": {
@@ -46,8 +46,8 @@
     "recurringDispatchMode": "supervised_hourly_readiness_gated"
   },
   "status": "continuous_coordinator_ready_supervised",
-  "lastCoordinatorCycle": "2026-09-05 v0.3 cutover verified",
-  "modelAccessNote": "Both requested provider models and the web-search utility previously completed calls with returned identities and usage. Session keys are intentionally disconnected during the v0.3 upgrade; no provider call is part of the upgrade.",
+  "lastCoordinatorCycle": "2026-09-05 S006 rejected after the evidence gate failed; v0.3.1 controller hardening validated offline",
+  "modelAccessNote": "Both requested provider models returned verified identities during S006. Session keys are cleared by the v0.3.1 restart and must be re-entered for the next mission.",
   "pauseReason": null,
   "automationStatus": "ACTIVE",
   "architecturePlan": ".swarm/API-TEAM-PLAN.md",
@@ -192,13 +192,14 @@
     "webSearch": "gpt-4.1-mini with citations, at most one search tool call per request",
     "paperSearch": "Crossref public metadata",
     "pageFetch": "approved public research and documentation domains",
-    "sourceSeparation": "A role that reads or drafts private project source cannot invoke public search, paper search or page retrieval in that mission."
+    "sourceSeparation": "A role that reads or drafts private project source cannot invoke public search, paper search or page retrieval in that mission.",
+    "sourceEvidence": "Assigned Studio paths are preloaded with exact line ranges, full-file SHA-256 and commit; independent review retains its own reads and sees bounded team evidence."
   },
   "continuousOperations": ".swarm/CONTINUOUS-OPERATIONS.md",
-  "runtimeVersion": "0.3.0",
+  "runtimeVersion": "0.3.1",
   "readinessEndpoint": "http://127.0.0.1:8765/api/readiness",
   "currentReadiness": "waiting_for_connections",
-  "currentBlocker": "Both provider keys are intentionally disconnected. The checked v0.3 restart passed; reconnect them from the dashboard for the next supervised mission.",
+  "currentBlocker": "The safe v0.3.1 restart clears session-only provider keys. Reconnect both providers before S009.",
   "storage": {
     "engine": "SQLite",
     "schemaVersion": 1,
@@ -220,6 +221,11 @@
     "maxRounds": 5,
     "maxPeerRevisionRounds": 2,
     "maxRuntimeMinutes": 20,
-    "terminalApiRunsImmutable": true
+    "terminalApiRunsImmutable": true,
+    "structuredRevisionLimit": true,
+    "orderedSpecialistExecution": true,
+    "assignedSourcePreload": true,
+    "exactReviewerSourceEvidence": true,
+    "retrievedCitationAllowlist": true
   }
 }

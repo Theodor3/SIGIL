@@ -7,10 +7,10 @@ from datetime import datetime, timedelta, timezone
 
 from .models import (
     AGENT_MAP, GEMINI_MODEL, MAX_ROUNDS, MAX_SPECIALISTS, OPENAI_MODEL,
-    Assignment, Plan, Report, Verdict,
+    Assignment, Plan, Report, ToolRequest, Verdict,
 )
 from .providers import ProviderFailure
-from .sources import fetch_source
+from .sources import fetch_source, validate_url
 from .store import BudgetError, now, uid
 from .tooling import MissionTools
 
@@ -67,8 +67,9 @@ class Engine:
                     return self.store.snapshot(mission_id)["mission"]
                 raise ValueError("A mission is already running. Stop it or wait for it to finish.")
             data = self.store.get(mission_id)
-            if data["mission"]["round"] >= MAX_ROUNDS:
-                raise ValueError("This mission has reached five rounds. Start a new, focused mission.")
+            round_limit = min(MAX_ROUNDS, data["mission"].get("max_rounds", MAX_ROUNDS))
+            if data["mission"]["round"] >= round_limit:
+                raise ValueError("This mission has reached its round limit. Start a new, focused mission.")
             if data["mission"]["mode"] == "live":
                 if data["mission"]["status"] != "ready":
                     raise ValueError("API missions are not replayed after they stop. Start a focused follow-up mission so prior calls are not duplicated.")
@@ -118,6 +119,50 @@ class Engine:
             raise Stopped()
         if self.deadline is not None and time.monotonic() >= self.deadline:
             raise MissionDeadline()
+
+    @staticmethod
+    def _source_evidence(records, *, limit=6, text_budget=18000):
+        """Return bounded, exact Studio reads for model-side evidence review."""
+        selected = [
+            record for record in records
+            if record.get("tool") == "read_file" and record.get("status") == "completed"
+        ][-limit:]
+        evidence = []
+        remaining = text_budget
+        for record in selected:
+            raw = record.get("result", {})
+            full_text = raw.get("text", "")
+            excerpt = full_text[:remaining]
+            remaining = max(0, remaining - len(excerpt))
+            evidence.append({
+                "id": record.get("id"),
+                "task_id": record.get("task_id"),
+                "agent_id": record.get("agent_id"),
+                "path": raw.get("path") or record.get("path"),
+                "start": raw.get("start"),
+                "end": raw.get("end"),
+                "total_lines": raw.get("total_lines"),
+                "text": excerpt,
+                "text_truncated": len(excerpt) < len(full_text),
+                "sha256": raw.get("sha256"),
+                "commit": raw.get("commit"),
+            })
+        return evidence
+
+    def _assigned_source_paths(self, mission_id, agent_id, task):
+        """Find explicitly assigned Studio paths that this worker has not read."""
+        if not self.tools:
+            return []
+        data = self.store.snapshot(mission_id)
+        available = (data.get("studio") or {}).get("files", [])
+        already_read = {
+            item.get("result", {}).get("path") or item.get("path")
+            for item in data.get("tool_results", [])
+            if item.get("agent_id") == agent_id
+            and item.get("tool") == "read_file"
+            and item.get("status") == "completed"
+        }
+        return [path for path in available if path in task and path not in already_read][:6]
 
     def _status(self, mission_id, status, summary):
         with self.store.lock:
@@ -195,13 +240,31 @@ class Engine:
             r for r in tool_records
             if r["agent_id"] == agent_id and task_id is not None and r.get("task_id") == task_id
         ]
-        for record in ([] if independent else current_task_tools[-6:]):
+        for record in current_task_tools[-6:]:
             result = dict(record["result"])
             if record["tool"] == "draft_file":
                 result.pop("content", None)
                 result.pop("diff", None)
                 result["note"] = "The draft diff is included in draft_changes."
             recent_tools.append({k: record[k] for k in ("id", "tool", "status", "summary")} | {"result": result})
+        current_source_evidence = self._source_evidence(current_task_tools)
+        prior_source_evidence = self._source_evidence([
+            record for record in tool_records
+            if record.get("agent_id") == agent_id and record.get("task_id") != task_id
+        ])
+        team_source_evidence = [] if independent or agent_id not in ("coordinator", "review") else self._source_evidence(
+            tool_records, limit=8, text_budget=24000,
+        )
+        upstream_source_evidence = []
+        if (
+            not independent
+            and agent_id not in ("coordinator", "review")
+            and data["mission"].get("specialist_execution") == "sequential"
+        ):
+            upstream_source_evidence = self._source_evidence([
+                record for record in tool_records
+                if record.get("agent_id") not in (agent_id, "review")
+            ])
         latest_drafts = {d["path"]: d for d in data.get("drafts", [])}
         prompt = json.dumps({
             "mission": data["mission"]["prompt"], "your_task": task, "baseline": BASELINE,
@@ -213,6 +276,10 @@ class Engine:
             "research_source_domains": ["sec.gov", "data.sec.gov", "arxiv.org", "proceedings.mlr.press", "fred.stlouisfed.org", "www.bls.gov", "www.bea.gov"],
             "development_studio": data.get("studio"),
             "your_recent_tool_results": recent_tools,
+            "your_current_source_evidence": current_source_evidence,
+            "your_prior_source_evidence": prior_source_evidence,
+            "upstream_source_evidence": upstream_source_evidence,
+            "team_source_evidence": team_source_evidence,
             "team_tool_evidence": [] if independent else [
                 {k: r[k] for k in ("id", "agent_id", "tool", "status", "summary")} |
                 {"sources": r["result"].get("sources", []), "executed": r["result"].get("executed"),
@@ -241,6 +308,9 @@ class Engine:
                 " Use tool_requests for read_file(path,start), search_code(query), draft_file(path,content), "
                 "check_syntax(), run_tests(path), web_search(query), paper_search(query), or fetch_page(query=URL). "
                 "Read the manifest and use real paths. Inspect files before asking users to supply them. "
+                "Repository paths belong in read_file tool_requests, never source_requests or fetch_page. "
+                "A read_file result gives exact path, line range, full-file SHA-256 and commit; cite those fields. "
+                "Never say you inspected a file unless your context contains the corresponding exact read evidence. "
                 "Use up to 3 tool requests; results arrive before your next response, with at most 2 tool rounds. "
                 "Only engineering/quant can draft; any role can inspect or test. Request only necessary tools. "
                 "paper_search finds scholarly metadata without an API fee; web_search uses a billed GPT-4.1 Mini "
@@ -294,6 +364,12 @@ class Engine:
             data["tasks"].append(task)
             self.store.save(data)
         try:
+            for path in self._assigned_source_paths(mission_id, assignment.agent_id, assignment.task):
+                self.tools.execute(
+                    mission_id, assignment.agent_id,
+                    ToolRequest(tool="read_file", path=path), self.check_stop,
+                    task_id=task["id"],
+                )
             delivered_ids = []
             for tool_round in range(3):
                 result, received_ids = self._call(mission_id, assignment.agent_id,
@@ -323,7 +399,25 @@ class Engine:
 
     def _record_report(self, mission_id, agent_id, report, delivered_ids):
         self.store.message(mission_id, agent_id, "coordinator", report.summary, "finding")
-        sources = [s.model_dump() for s in report.sources if s.url.startswith("https://")]
+        with self.store.lock:
+            data = self.store.get(mission_id)
+            evidenced_urls = {
+                source.get("url") for source in data.get("sources", [])
+                if source.get("status") == "retrieved"
+            }
+            for record in data.get("tool_results", []):
+                if record.get("status") != "completed" or record.get("tool") != "fetch_page":
+                    continue
+                result = record.get("result", {})
+                if result.get("url"):
+                    evidenced_urls.add(result["url"])
+        sources = [s.model_dump() for s in report.sources if s.url in evidenced_urls]
+        if len(sources) != len(report.sources):
+            self.store.message(
+                mission_id, "system", agent_id,
+                "Unretrieved citation URLs were omitted from this artifact. Search and publication metadata are leads; use fetch_page before citing a page as evidence.",
+                "tool_result",
+            )
         self.store.artifact(mission_id, agent_id, report.artifact_title, report.artifact_body, sources)
         with self.store.lock:
             data = self.store.get(mission_id)
@@ -336,14 +430,32 @@ class Engine:
                 self.store.message(mission_id, agent_id, msg.recipient, msg.text, msg.kind)
         for url in report.source_requests:
             self.check_stop()
+            try:
+                validate_url(url, resolve=False)
+            except ValueError:
+                self.store.message(
+                    mission_id, "system", agent_id,
+                    "Invalid public source request. Use read_file for a Studio path or fetch_page for an approved HTTPS page.",
+                    "tool_result",
+                )
+                continue
             with self.store.lock:
                 data = self.store.get(mission_id)
+                sequential_shared = (
+                    data["mission"].get("specialist_execution") == "sequential"
+                    and any(
+                        item.get("agent_id") not in (agent_id, "review")
+                        and item.get("tool") in ("read_file", "search_code", "draft_file")
+                        and item.get("status") == "completed"
+                        for item in data.get("tool_results", [])
+                    )
+                )
                 source_exposed = any(
-                    item["agent_id"] == agent_id
+                    (item["agent_id"] == agent_id or agent_id == "review")
                     and item.get("tool") in ("read_file", "search_code", "draft_file")
                     and item.get("status") == "completed"
                     for item in data.get("tool_results", [])
-                )
+                ) or sequential_shared
                 if len(data["sources"]) >= 8 or any(s["url"] == url for s in data["sources"]):
                     continue
             if source_exposed:
@@ -544,8 +656,12 @@ class Engine:
             self.check_stop()
             with self.store.lock:
                 data = self.store.get(mission_id)
-                if data["mission"]["round"] >= MAX_ROUNDS:
-                    self._status(mission_id, "needs_review", "The five-round limit was reached. Existing documents are ready for your review.")
+                round_limit = min(MAX_ROUNDS, data["mission"].get("max_rounds", MAX_ROUNDS))
+                if data["mission"]["round"] >= round_limit:
+                    self._status(
+                        mission_id, "needs_review",
+                        f"The mission's {round_limit}-round limit was reached. Existing documents are ready for your review.",
+                    )
                     return
                 data["mission"]["round"] += 1
                 self.store.save(data)
@@ -562,20 +678,32 @@ class Engine:
                 self._status(mission_id, "needs_review", "A requested revision exceeded this mission's fixed specialist scope. Start a focused follow-up mission if the added role is necessary.")
                 return
             failure = None
-            with ThreadPoolExecutor(max_workers=2, thread_name_prefix="sigil-worker") as pool:
-                futures = [pool.submit(self._worker, mission_id, a) for a in batch]
-                for future in as_completed(futures):
+            with self.store.lock:
+                sequential = self.store.get(mission_id)["mission"].get("specialist_execution") == "sequential"
+            if sequential:
+                for assignment in batch:
                     try:
-                        agent_id, report, delivered_ids = future.result()
+                        agent_id, report, delivered_ids = self._worker(mission_id, assignment)
                         self._record_report(mission_id, agent_id, report, delivered_ids)
                     except Exception as exc:
-                        if failure is None or (
-                            isinstance(failure, (Stopped, CancelledError)) and not isinstance(exc, (Stopped, CancelledError))
-                        ):
-                            failure = exc
+                        failure = exc
                         self.stop_event.set()
-                        for other in futures:
-                            other.cancel()
+                        break
+            else:
+                with ThreadPoolExecutor(max_workers=2, thread_name_prefix="sigil-worker") as pool:
+                    futures = [pool.submit(self._worker, mission_id, a) for a in batch]
+                    for future in as_completed(futures):
+                        try:
+                            agent_id, report, delivered_ids = future.result()
+                            self._record_report(mission_id, agent_id, report, delivered_ids)
+                        except Exception as exc:
+                            if failure is None or (
+                                isinstance(failure, (Stopped, CancelledError)) and not isinstance(exc, (Stopped, CancelledError))
+                            ):
+                                failure = exc
+                            self.stop_event.set()
+                            for other in futures:
+                                other.cancel()
             if failure:
                 # Keep a provider/budget failure distinct from a user-requested stop.
                 if not isinstance(failure, (Stopped, CancelledError)):

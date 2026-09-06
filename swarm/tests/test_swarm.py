@@ -161,6 +161,93 @@ def test_controller_enforces_two_specialist_membership(store):
     assert any(message["kind"] == "scope" and "limited" in message["text"] for message in data["messages"])
 
 
+def test_structured_revision_limit_prevents_an_extra_batch(store):
+    class AlwaysRevise(FakeProviders):
+        def run(self, provider, system, prompt, schema):
+            result = super().run(provider, system, prompt, schema)
+            if schema is Verdict:
+                result.text = json.dumps({
+                    "message": "One more revision would help.",
+                    "outcome": "revise",
+                    "assignments": [
+                        {"agent_id": "research-events", "task": "Revise the idea."},
+                        {"agent_id": "data", "task": "Revise the data check."},
+                    ],
+                })
+            return result
+
+    providers = AlwaysRevise(peer_request=False)
+    mid = store.create("Allow exactly one revision", "live", max_revisions=1)["id"]
+    engine = Engine(store, providers)
+    engine.start(mid)
+    join(engine)
+    data = store.snapshot(mid)
+    assert data["mission"]["round"] == 2
+    assert data["mission"]["max_revisions"] == 1
+    assert data["mission"]["max_rounds"] == 2
+    assert data["mission"]["status"] == "needs_review"
+    assert not any(task["round"] == 3 for task in data["tasks"])
+
+
+def test_sequential_specialists_receive_prior_peer_handoff(store):
+    observed = []
+
+    class SequentialHandoff(FakeProviders):
+        def run(self, provider, system, prompt, schema):
+            result = super().run(provider, system, prompt, schema)
+            context = json.loads(prompt)
+            agent = next(a["id"] for a in AGENT_MAP.values() if "Your role: " + a["role"] in system)
+            if schema is Plan:
+                result.text = json.dumps({
+                    "message": "Run a source handoff.",
+                    "assignments": [
+                        {"agent_id": "engineering", "task": "Inspect the source first."},
+                        {"agent_id": "quant", "task": "Use the engineering handoff."},
+                    ],
+                })
+            elif schema is Report and agent == "engineering":
+                payload = json.loads(result.text)
+                payload["messages"] = [{
+                    "recipient": "quant", "kind": "finding", "text": "SOURCE_READY",
+                }]
+                result.text = json.dumps(payload)
+            elif schema is Report and agent == "quant" and "Use the engineering handoff" in context["your_task"]:
+                if any(message["text"] == "SOURCE_READY" for message in context["messages_addressed_to_you"]):
+                    observed.append("SOURCE_READY")
+            return result
+
+    providers = SequentialHandoff(peer_request=False)
+    mid = store.create(
+        "Run the workers in evidence order", "live", max_revisions=0,
+        specialist_execution="sequential",
+    )["id"]
+    engine = Engine(store, providers)
+    engine.start(mid)
+    join(engine)
+    mission = store.snapshot(mid)["mission"]
+    assert mission["specialist_execution"] == "sequential"
+    assert mission["status"] == "completed"
+    assert observed == ["SOURCE_READY"]
+
+
+def test_api_validates_structured_mission_controls(tmp_path):
+    app = create_app(tmp_path, providers=FakeProviders(), demo_delay=0)
+    with TestClient(app, headers={"Origin": "http://testserver"}) as client:
+        created = client.post("/api/missions", json={
+            "prompt": "One bounded pass", "mode": "live", "max_revisions": 1,
+            "specialist_execution": "sequential",
+        })
+        assert created.status_code == 200
+        assert created.json()["max_rounds"] == 2
+        assert created.json()["specialist_execution"] == "sequential"
+        assert client.post("/api/missions", json={
+            "prompt": "Invalid", "mode": "live", "max_revisions": -1,
+        }).status_code == 422
+        assert client.post("/api/missions", json={
+            "prompt": "Invalid", "mode": "live", "max_revisions": 5,
+        }).status_code == 422
+
+
 def test_out_of_scope_peer_request_forces_review_instead_of_disappearing(store):
     class OutOfScopeRequest(FakeProviders):
         def run(self, provider, system, prompt, schema):
@@ -482,7 +569,7 @@ def test_readiness_explains_connections_budget_and_agent_state(tmp_path):
     app = create_app(tmp_path, providers=providers)
     with TestClient(app, headers={"Origin": "http://testserver"}) as client:
         state = client.get("/api/state").json()
-        assert state["app"]["version"] == "0.3.0"
+        assert state["app"]["version"] == "0.3.1"
         assert state["runtime"]["status"] == "waiting_for_connections"
         assert state["runtime"]["can_start_live"] is False
         assert {agent["status"] for agent in state["agents"]} == {"offline"}

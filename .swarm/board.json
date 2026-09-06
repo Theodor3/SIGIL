@@ -138,8 +138,10 @@
       "id": "S006",
       "owner": "coordinator",
       "title": "Validate one clean supervised hourly cycle",
-      "status": "ready",
-      "assignment": "Run one narrow mission with at most two assigned specialists and automatic review. Require relevant source inspection, one reviewable artifact, no role expansion or repeated unavailable-source request, and no unsupported performance claim."
+      "status": "rejected",
+      "assignment": "Run one narrow mission with at most two assigned specialists and automatic review. Require relevant source inspection, one reviewable artifact, no role expansion or repeated unavailable-source request, and no unsupported performance claim.",
+      "missionId": "m_f543ce26e9064f7e",
+      "validationStatus": "Control gates passed (fixed engineering/quant membership, correct provider identities, source separation, settled $0.176132 estimate, no applied draft), but substantive acceptance failed. Engineering recorded no source reads, workers invented Item 1A text and acceptance timestamps absent from the pinned source, the final syntax-matched draft cd50e160f88994ce392189c9163eea52f7e565ee3a868eed9d9293a24db786b7 remained unsupported, and the prose-only one-revision limit allowed an extra round. The terminal mission was stopped and must not be replayed."
     },
     {
       "id": "S007",
@@ -148,9 +150,24 @@
       "status": "done",
       "artifact": "swarm/README.md",
       "validationStatus": "Version 0.3 adds the readiness contract, checked launcher, SQLite/WAL history, immutable paid-run records, task-scoped provenance, twenty-minute deadlines, private/public tool separation, and operator dashboard. Full offline suite: 74 passed. Live cutover preserved 3 missions, 79 calls, 316 events and the exact $0.612476 estimate; integrity and foreign-key checks passed. No provider calls were made."
+    },
+    {
+      "id": "S008",
+      "owner": "coordinator",
+      "title": "Harden source evidence, citations and mission revision controls",
+      "status": "done",
+      "artifact": "swarm/engine.py",
+      "validationStatus": "Version 0.3.1 adds structured max_revisions, optional sequential specialist execution, automatic reads for explicitly assigned Studio paths, exact reviewer source evidence across tool rounds, invalid local-source rejection, and retrieval-backed citation filtering. Full offline suite: 85 passed."
+    },
+    {
+      "id": "S009",
+      "owner": "coordinator",
+      "title": "Record a source-grounded Item 1A feasibility rejection",
+      "status": "ready",
+      "assignment": "Run one narrow mission with engineering and data plus automatic review. Each role must independently inspect api/signals/filing_red_flags.py, api/data/context.py and api/data/edgar.py through recorded reads at the current Studio commit. Deliver only a field-availability matrix with exact line ranges and hashes. Stop with a justified rejection if Item 1A text or SEC acceptance datetime is absent. Use max_revisions=1, no public tools, no experiment draft, no implementation and no performance claim."
     }
   ],
-  "nextEngineeringPriority": "Reconnect both session keys, then validate S006 with one narrow supervised mission using at most two specialists and automatic review. Do not claim a trading signal is validated from workflow completion.",
+  "nextEngineeringPriority": "Reconnect both session keys after the v0.3.1 restart, then run S009 as one bounded source-feasibility mission. Do not replay S006 or claim a signal was validated.",
   "operatingStatus": "continuous_coordinator_ready_supervised_waiting_for_connections",
-  "runtimeVersion": "0.3.0"
+  "runtimeVersion": "0.3.1"
 }
