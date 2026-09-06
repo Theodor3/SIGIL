@@ -8,7 +8,7 @@ $swarmCheckout = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $swarmPython = Join-Path $swarmCheckout '.venv-swarm/Scripts/python.exe'
 $swarmRuntime = Join-Path $swarmCheckout '.swarm/runtime'
 $swarmUrl = 'http://127.0.0.1:8765/'
-$expectedVersion = '0.3.0'
+$expectedVersion = '0.3.1'
 
 function Get-SwarmHealth {
     try { return Invoke-RestMethod ($swarmUrl + 'api/health') -TimeoutSec 2 }

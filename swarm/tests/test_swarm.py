@@ -1,16 +1,25 @@
 import json
+import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
+from swarm import __version__
 from swarm.app import create_app
 from swarm.engine import Engine, RULES
 from swarm.models import AGENT_MAP, GEMINI_MODEL, OPENAI_MODEL, Plan, Report, Verdict
 from swarm.providers import ProviderFailure, ProviderResult, Providers
 from swarm.sources import validate_url
 from swarm.store import BudgetError, Store
+
+
+def test_launcher_version_matches_application_version():
+    launcher = Path(__file__).parents[1] / "scripts" / "Start Swarm.ps1"
+    match = re.search(r"\$expectedVersion = '([^']+)'", launcher.read_text(encoding="utf-8"))
+    assert match and match.group(1) == __version__
 
 
 class FakeProviders(Providers):

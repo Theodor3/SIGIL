@@ -157,7 +157,7 @@
       "title": "Harden source evidence, citations and mission revision controls",
       "status": "done",
       "artifact": "swarm/engine.py",
-      "validationStatus": "Version 0.3.1 adds structured max_revisions, optional sequential specialist execution, automatic reads for explicitly assigned Studio paths, exact reviewer source evidence across tool rounds, invalid local-source rejection, and retrieval-backed citation filtering. Full offline suite: 85 passed."
+      "validationStatus": "Version 0.3.1 adds structured max_revisions, optional sequential specialist execution, automatic reads for explicitly assigned Studio paths, exact reviewer source evidence across tool rounds, invalid local-source rejection, retrieval-backed citation filtering, and a launcher/application version guard. Full offline suite: 86 passed."
     },
     {
       "id": "S009",
