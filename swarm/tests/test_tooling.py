@@ -36,7 +36,7 @@ def test_worker_receives_actual_tool_result_before_finishing(tmp_path):
         mid = store.create("Inspect actual code", "live")["id"]
         provider = ToolProvider(peer_request=False)
         engine = Engine(store, provider, studio=StudioFixture())
-        _, report, _ = engine._worker(mid, Assignment(agent_id="data", task="Read api/example.py"))
+        _, report, _, _ = engine._worker(mid, Assignment(agent_id="data", task="Read api/example.py"))
         assert report.artifact_body == "answer = 42\n"
         assert len(provider.calls) == 2
         assert store.snapshot(mid)["tool_results"][0]["status"] == "completed"

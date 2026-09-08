@@ -508,6 +508,12 @@ function artifactVerification(value) {
   return "Review required";
 }
 
+function artifactProvenance(value) {
+  if (value === "source_linked") return "Source linked";
+  if (value === "invalid") return "Evidence link rejected";
+  return "No Studio claim links";
+}
+
 function renderEvidence() {
   const artifacts = detail?.mission?.id === selectedMissionId ? detail.artifacts || [] : [];
   const signature = JSON.stringify([selectedMissionId, artifacts]);
@@ -537,9 +543,9 @@ function renderEvidence() {
     button.dataset.focuskey = `artifact-${artifact.id}`;
     button.addEventListener("click", () => openArtifact(artifact));
     const top = element("div", "evidence-card-top");
-    top.append(icon("file"), element("span", "pill neutral", artifactVerification(artifact.verification)));
+    top.append(icon("file"), element("span", "pill neutral", artifactVerification(artifact.verification)), element("span", "pill neutral", artifactProvenance(artifact.provenance_status)));
     const body = String(artifact.body || "");
-    button.append(top, element("h3", "", artifact.title), element("p", "", body.length > 180 ? `${body.slice(0, 180)}…` : body), element("small", "", `${agentName(artifact.author)} · ${formatDate(artifact.created_at)} · ${(artifact.sources || []).length} sources`));
+    button.append(top, element("h3", "", artifact.title), element("p", "", body.length > 180 ? `${body.slice(0, 180)}…` : body), element("small", "", `${agentName(artifact.author)} · ${formatDate(artifact.created_at)} · ${(artifact.studio_claims || []).length} linked claims · ${(artifact.sources || []).length} web sources`));
     return button;
   });
   if (!evidenceNodes.length) evidenceNodes.push(emptyCard("A place for the proof.", selectedMissionId ? "The team hasn’t published an artifact for this mission yet." : "Choose a mission to see its artifacts and sources.", "Back to workspace", () => switchView("workspace")));
@@ -870,8 +876,16 @@ function openArtifact(artifact) {
   selectedArtifact = artifact;
   $("artifact-dialog-title").textContent = artifact.title || "Untitled artifact";
   $("artifact-dialog-label").textContent = currentMission()?.mode === "demo" ? "SAMPLE ARTIFACT · SCRIPTED" : "SHARED EVIDENCE";
-  $("artifact-dialog-meta").replaceChildren(element("span", "", agentName(artifact.author)), element("span", "pill neutral", artifactVerification(artifact.verification)), element("time", "", formatDate(artifact.created_at)));
+  $("artifact-dialog-meta").replaceChildren(element("span", "", agentName(artifact.author)), element("span", "pill neutral", artifactVerification(artifact.verification)), element("span", "pill neutral", artifactProvenance(artifact.provenance_status)), element("time", "", formatDate(artifact.created_at)));
   $("artifact-dialog-body").textContent = artifact.body || "No artifact body was supplied.";
+  const studioClaims = (artifact.studio_claims || []).map((claim) => {
+    const item = element("li");
+    const evidenceText = (claim.evidence || []).map((evidence) => `${evidence.path || "Unknown file"}:${evidence.start ?? "?"}-${evidence.end ?? "?"} · SHA-256 ${evidence.sha256 || "unavailable"} · commit ${evidence.commit || "unavailable"} · record ${evidence.tool_result_id || "unavailable"}`).join("\n");
+    item.textContent = `${claim.field || "Claim"} · ${String(claim.status || "unverified").toUpperCase()}\n${evidenceText}`;
+    return item;
+  });
+  $("artifact-dialog-studio-claims").replaceChildren(...studioClaims);
+  $("artifact-studio-claims-section").hidden = !studioClaims.length;
   const sources = [];
   for (const source of artifact.sources || []) {
     let url;
@@ -894,7 +908,8 @@ function downloadArtifact() {
   if (!selectedArtifact) return;
   const artifact = selectedArtifact;
   const sourceText = (artifact.sources || []).map((source) => `${source.title || "Source"}: ${source.url || ""}`).join("\n");
-  const contents = `# ${artifact.title}\n\n${currentMission()?.mode === "demo" ? "SCRIPTED SAMPLE — not a research result.\n\n" : ""}Author: ${agentName(artifact.author)}\nStatus: ${artifactVerification(artifact.verification)}\nCreated: ${artifact.created_at || ""}\n\n${artifact.body || ""}\n\n${sourceText ? `Sources\n${sourceText}\n` : ""}`;
+  const studioClaimsText = (artifact.studio_claims || []).map((claim) => `- ${claim.field || "Claim"} · ${String(claim.status || "unverified").toUpperCase()}\n${(claim.evidence || []).map((evidence) => `  - ${evidence.path || "Unknown file"}:${evidence.start ?? "?"}-${evidence.end ?? "?"} · SHA-256 ${evidence.sha256 || "unavailable"} · commit ${evidence.commit || "unavailable"} · tool record ${evidence.tool_result_id || "unavailable"}`).join("\n")}`).join("\n");
+  const contents = `# ${artifact.title}\n\n${currentMission()?.mode === "demo" ? "SCRIPTED SAMPLE — not a research result.\n\n" : ""}Author: ${agentName(artifact.author)}\nStatus: ${artifactVerification(artifact.verification)}\nStudio provenance: ${artifactProvenance(artifact.provenance_status)}\nCreated: ${artifact.created_at || ""}\n\n${artifact.body || ""}\n\n${studioClaimsText ? `Structured Studio claim bindings\n${studioClaimsText}\n\n` : ""}${sourceText ? `Sources\n${sourceText}\n` : ""}`;
   const url = URL.createObjectURL(new Blob([contents], { type: "text/markdown;charset=utf-8" }));
   const link = element("a");
   link.href = url;

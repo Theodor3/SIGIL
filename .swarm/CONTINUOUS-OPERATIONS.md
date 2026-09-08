@@ -1,6 +1,6 @@
 # Continuous SIGIL operations
 
-Status: ready for a supervised hourly coordinator. The finite API runner remains the execution authority; this document cannot expand permissions.
+Status: ready for a supervised daily coordinator. The finite API runner remains the execution authority; this document cannot expand permissions.
 
 ## Objective
 
@@ -8,7 +8,7 @@ Advance one evidence-backed SIGIL improvement at a time on `codex/sigil-company`
 
 ## Hourly coordinator cycle
 
-1. Start or locate the local dashboard with the checked launcher, without starting a mission automatically. Confirm `/api/health` reports version 0.3.1, this checkout, the current Studio commit and the canonical store identity.
+1. Start or locate the local dashboard with the checked launcher, without starting a mission automatically. Confirm `/api/health` reports version 0.3.2, this checkout, the current Studio commit and the canonical store identity.
 2. Read `AGENTS.md`, `.swarm/company.json`, `.swarm/board.json`, recent mission status, Studio commit, tool records, drafts, reviews and the budget state.
 3. Read `/api/readiness`. If a mission is running, monitor it. Do not launch another. Treat every listed blocker as authoritative; do not work around it.
 4. If a mission needs review, verify its source/tool evidence and convert concrete defects into one bounded board item. Do not rerun the same broad audit.
@@ -25,7 +25,7 @@ A research task completes only with a precise hypothesis, point-in-time data def
 
 A development task completes only when the current Studio commit was inspected, the draft is tied to source hashes, every claimed check names the exact draft version, reviewer objections are resolved or recorded, and applicable tests actually ran. Docker-unavailable results are blockers, not passes.
 
-A source claim completes only when the retrieved record supports it. An assigned source path must have a completed read with an exact range, full-file hash and pinned commit. Studio paths use `read_file`, never public source requests. Search snippets and publication metadata identify leads; they do not verify a paper's results.
+A source claim completes only when the retrieved record supports it. An assigned source path must have a completed read with an exact range, full-file hash and pinned commit. A Studio-grounded artifact must bind every present, absent or unproven claim to visible read IDs; the controller renders the exact provenance, and absence claims require full-file reads. Studio paths use `read_file`, never public source requests. Search snippets and publication metadata identify leads; they do not verify a paper's results.
 
 ## Recovery
 
@@ -37,6 +37,8 @@ Never clear or relocate the ledger, replay an uncertain or terminal API mission,
 
 The September 4 Studio pilot verified pinned file reads, code search, one cited web-search call, draft storage and JSON syntax checking. It also exposed role expansion and repeated unavailable-source requests. Version 0.3 enforced two fixed specialists, recorded out-of-scope dependencies, separated source-reading roles from outbound research, tied detailed tool context and calls to task IDs, recorded exact draft hashes, and blocked paid work against a stale Studio snapshot.
 
-The September 5 S006 cycle kept the correct membership, verified both provider models and respected private/public separation, but failed the substantive evidence gate. Engineering recorded no reads, workers asserted Item 1A text and acceptance timestamps absent from the pinned source, and prompt prose did not stop a second revision. Version 0.3.1 adds structured revision limits, ordered specialist handoffs, assigned-path reads, exact reviewer source context and retrieval-backed citations. S006 is rejected; its terminal API mission must not be replayed. The next ready item is the narrow S009 field-availability check, which should record the source-grounded incompatibility rather than draft an experiment.
+The September 5 S006 cycle kept the correct membership and provider models but failed its source-evidence gate; version 0.3.1 added enforceable revision limits, assigned-path reads, exact reviewer context and retrieval-backed citations. S009 then recorded nine consistent full-file reads and supported a narrow feasibility rejection for the inspected EDGAR path, but its five competing matrices did not meet the document contract. The one-revision cap, citation filter and private/public boundary all held. Version 0.3.2 adds controller-rendered structured claim bindings, rejects malformed or invisible evidence references, and keeps the initial reviewer from influencing specialists before their independent inspection. S006 and S009 are terminal and must not be replayed. The next ready work returns to a new signal screen with point-in-time data feasibility checked before an experiment is drafted.
 
-The first hourly cycles should remain supervised. Promote to quieter routine operation after one narrow mission finishes within its assigned roles with reviewable evidence and no repeated tool loops. Container-backed development remains blocked until Docker Desktop and the trusted test image are available.
+The first scheduled cycles should remain supervised. Promote to quieter routine operation after one narrow mission finishes within its assigned roles with reviewable evidence and no repeated tool loops. Container-backed development remains blocked until Docker Desktop and the trusted test image are available.
+
+The September 6 administrative follow-up chain is closed. Never create new work by copying a terminal mission summary, decision or scope message. Only an explicitly ready board item may start, and each scheduled cycle stops after at most one mission.

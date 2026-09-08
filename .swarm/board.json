@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-05",
+  "updated": "2026-09-08",
   "states": [
     "ready",
     "assigned",
@@ -163,11 +163,35 @@
       "id": "S009",
       "owner": "coordinator",
       "title": "Record a source-grounded Item 1A feasibility rejection",
+      "status": "rejected",
+      "assignment": "Run one narrow mission with engineering and data plus automatic review. Each role must independently inspect api/signals/filing_red_flags.py, api/data/context.py and api/data/edgar.py through recorded reads at the current Studio commit. Deliver only a field-availability matrix with exact line ranges and hashes. Stop with a justified rejection if Item 1A text or SEC acceptance datetime is absent. Use max_revisions=1, no public tools, no experiment draft, no implementation and no performance claim.",
+      "missionId": "m_efff8ac31b9249d0",
+      "validationStatus": "All nine assigned full-file reads completed at 75699a3 with consistent hashes. The inspected path emits filing date/form, consumes item strings for 4.01/4.02 classification, and produces discrete flags; it does not expose Item 1A text, accession IDs, or an intraday public-availability timestamp. The feasibility rejection is supported for this path, but five competing matrices were saved and the final matrix still truncated hashes and omitted required evidence after one revision, so no artifact or signal was validated. Public requests were blocked."
+    },
+    {
+      "id": "S010",
+      "owner": "coordinator",
+      "title": "Enforce source-linked claims and reviewer isolation",
+      "status": "done",
+      "artifact": "swarm/engine.py",
+      "validationStatus": "Version 0.3.2 binds Studio claims to visible completed reads, verifies durable store provenance, supports complete multi-chunk absence evidence, rejects truncated context, and isolates the first reviewer's messages, sources, and tools from specialists. API exports preserve provenance. Full offline suite: 122 passed."
+    },
+    {
+      "id": "S011",
+      "owner": "coordinator",
+      "title": "Screen one novel signal against point-in-time data availability",
       "status": "ready",
-      "assignment": "Run one narrow mission with engineering and data plus automatic review. Each role must independently inspect api/signals/filing_red_flags.py, api/data/context.py and api/data/edgar.py through recorded reads at the current Studio commit. Deliver only a field-availability matrix with exact line ranges and hashes. Stop with a justified rejection if Item 1A text or SEC acceptance datetime is absent. Use max_revisions=1, no public tools, no experiment draft, no implementation and no performance claim."
+      "assignment": "Run one narrow mission with research-frontier and data plus automatic review. Research-frontier may use bounded public primary-source research but must not inspect private Studio source. Data must inspect only the current Studio data paths and must not use public tools. Independently assess one niche US-equity signal hypothesis, its exact observable timestamp, historical availability, leakage risks and cheapest falsifying test. Use structured Studio claims for code facts, retrieved pages for public citations, max_revisions=1, and one final coordinator decision. Do not draft code, claim performance, change the stable strategy or trade."
+    },
+    {
+      "id": "S012",
+      "owner": "coordinator",
+      "title": "Close the recursive administrative follow-up chain",
+      "status": "done",
+      "validationStatus": "Five terminal follow-ups (m_2a8170075c694b42, m_cadc398a56b644d0, m_4b5ddec966324258, m_625393a4938a4ca2, m_beaef99ed96c4357) spent $0.606306 rechecking a closed role-policy question. They produced no signal result or code change. The scheduled coordinator now forbids summary-derived follow-ups, runs only an explicitly ready board item, and stops after one mission. Dashboard-created missions default to one revision."
     }
   ],
-  "nextEngineeringPriority": "Reconnect both session keys after the v0.3.1 restart, then run S009 as one bounded source-feasibility mission. Do not replay S006 or claim a signal was validated.",
+  "nextEngineeringPriority": "After the v0.3.2 restart, reconnect both session keys only when ready to run S011. Do not replay S006, S009, or the closed administrative follow-up chain.",
   "operatingStatus": "continuous_coordinator_ready_supervised_waiting_for_connections",
-  "runtimeVersion": "0.3.1"
+  "runtimeVersion": "0.3.2"
 }

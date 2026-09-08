@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "created": "2026-09-04",
   "pilotReviewDate": "2026-09-11",
   "mission": "Continuously improve SIGIL through novel signal research, reliable evaluation and reviewed engineering",
@@ -8,10 +8,10 @@
   "branch": "codex/sigil-company",
   "baselineCommit": "794ee62",
   "coordinatorTaskId": "01a06aed-e74d-7061-bd25-2a2773a28566",
-  "runtime": "API dashboard v0.3.1 with structured revision limits, ordered specialist handoffs, exact source-evidence review, SQLite history and supervised hourly coordination; Docker execution unavailable",
+  "runtime": "API dashboard v0.3.2 with one-revision defaults, complete evidence validation, isolated initial review, SQLite history and supervised daily coordination; Docker execution unavailable",
   "model": "gemini-3.1-flash-lite workers; gpt-5.6-sol coordinator; gpt-4.1-mini web-search utility",
   "automationId": "sigil-company-coordinator",
-  "cadenceMinutes": 60,
+  "cadenceMinutes": 1440,
   "budget": {
     "dailyUsd": 1,
     "pilotTotalUsd": 7,
@@ -22,13 +22,13 @@
     "maxConcurrentSpecialists": 2,
     "maxRoundsPerMission": 5,
     "maxPeerRevisionRounds": 2,
-    "recordedSpendingUsd": 0.788608,
+    "recordedSpendingUsd": 1.562843,
     "reservationsBeforeDispatch": true,
-    "recordedSpendingAsOf": "2026-09-05 after S006 stopped with settled billing; runtime ledger is authoritative",
+    "recordedSpendingAsOf": "2026-09-06 after the closed administrative follow-up chain; all billing settled",
     "costKind": "estimate",
     "recordedProviderEstimates": {
-      "gemini": 0.180621,
-      "openai": 0.607987
+      "gemini": 0.314028,
+      "openai": 1.248815
     }
   },
   "boundaries": {
@@ -43,11 +43,11 @@
     "workerCodeExecution": "isolated local Docker runner only; currently unavailable",
     "recurringDispatch": true,
     "workerDrafts": true,
-    "recurringDispatchMode": "supervised_hourly_readiness_gated"
+    "recurringDispatchMode": "supervised_daily_readiness_gated"
   },
-  "status": "continuous_coordinator_ready_supervised",
-  "lastCoordinatorCycle": "2026-09-05 S006 rejected after the evidence gate failed; v0.3.1 controller hardening validated offline",
-  "modelAccessNote": "Both requested provider models returned verified identities during S006. Session keys are cleared by the v0.3.1 restart and must be re-entered for the next mission.",
+  "status": "continuous_coordinator_ready_supervised_waiting_for_connections",
+  "lastCoordinatorCycle": "Version 0.3.2 passed 122 offline checks. Five redundant administrative follow-ups were closed; their $0.606306 cost is recorded and recursive summary-derived follow-ups are now forbidden.",
+  "modelAccessNote": "Provider identities were verified in prior live runs. The v0.3.2 start uses session-only keys, so both providers must be reconnected before S011.",
   "pauseReason": null,
   "automationStatus": "ACTIVE",
   "architecturePlan": ".swarm/API-TEAM-PLAN.md",
@@ -193,13 +193,13 @@
     "paperSearch": "Crossref public metadata",
     "pageFetch": "approved public research and documentation domains",
     "sourceSeparation": "A role that reads or drafts private project source cannot invoke public search, paper search or page retrieval in that mission.",
-    "sourceEvidence": "Assigned Studio paths are preloaded with exact line ranges, full-file SHA-256 and commit; independent review retains its own reads and sees bounded team evidence."
+    "sourceEvidence": "Studio claims reference visible completed read IDs. The controller and store verify paths, ranges, lowercase SHA-256, the pinned commit and truthful truncation flags. Absence claims require continuous, untruncated coverage, including multiple chunks when needed."
   },
   "continuousOperations": ".swarm/CONTINUOUS-OPERATIONS.md",
-  "runtimeVersion": "0.3.1",
+  "runtimeVersion": "0.3.2",
   "readinessEndpoint": "http://127.0.0.1:8765/api/readiness",
   "currentReadiness": "waiting_for_connections",
-  "currentBlocker": "The safe v0.3.1 restart clears session-only provider keys. Reconnect both providers before S009.",
+  "currentBlocker": "Reconnect both session-only provider keys when ready for S011.",
   "storage": {
     "engine": "SQLite",
     "schemaVersion": 1,
@@ -226,6 +226,15 @@
     "orderedSpecialistExecution": true,
     "assignedSourcePreload": true,
     "exactReviewerSourceEvidence": true,
-    "retrievedCitationAllowlist": true
+    "retrievedCitationAllowlist": true,
+    "structuredStudioClaims": true,
+    "controllerRenderedProvenance": true,
+    "initialReviewerIsolation": true,
+    "invalidClaimBodyWithholding": true,
+    "defaultRevisionAllowance": 1,
+    "completeReadMetadata": true,
+    "durableProvenanceInvariant": true,
+    "independentReviewerToolIsolation": true,
+    "recursiveFollowupGuard": true
   }
 }

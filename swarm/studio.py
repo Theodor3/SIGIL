@@ -16,6 +16,8 @@ from .store import now, uid
 
 MAX_FILE_BYTES = 120_000
 MAX_SNAPSHOT_BYTES = 3_000_000
+MAX_READ_LINES = 120
+MAX_READ_CHARS = 8_000
 MAX_DRAFTS = 24
 MAX_DIFF_BYTES = 24_000
 MAX_OUTPUT_BYTES = 32_000
@@ -219,10 +221,17 @@ class GitStudio:
         lines = text.splitlines(keepends=True)
         if start > max(1, len(lines)):
             raise ValueError("The first line is beyond this file.")
-        selected = "".join(lines[start - 1:start + 119])[:8000]
+        selected_lines = lines[start - 1:start - 1 + MAX_READ_LINES]
+        line_truncated = start - 1 + len(selected_lines) < len(lines)
+        selected_text = "".join(selected_lines)
+        text_truncated = len(selected_text) > MAX_READ_CHARS
+        selected = selected_text[:MAX_READ_CHARS]
         count = len(selected.splitlines())
         return {"path": path, "start": start, "end": start + count - 1,
-                "total_lines": len(lines), "text": selected, "sha256": _sha(text), "commit": self.commit}
+                "total_lines": len(lines), "text": selected,
+                "line_truncated": line_truncated, "text_truncated": text_truncated,
+                "complete_file": start == 1 and not line_truncated and not text_truncated,
+                "sha256": _sha(text), "commit": self.commit}
 
     def search(self, query):
         if not isinstance(query, str) or not query.strip() or len(query) > 200:

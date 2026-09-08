@@ -482,13 +482,147 @@ class Store:
                 self._upsert_mission(data)
             return copy.deepcopy(msg)
 
-    def artifact(self, mission_id, author, title, body, sources=None):
+    @staticmethod
+    def _validate_source_linked_claims(data, claims):
+        if type(claims) is not list or not claims or len(claims) > 12:
+            raise ValueError("Source-linked Studio claims must be a nonempty bounded list.")
+
+        studio = data.get("studio")
+        if not isinstance(studio, dict):
+            raise ValueError("Source-linked artifacts require a pinned Studio snapshot.")
+        expected_commit = studio.get("commit")
+        available_paths = studio.get("files")
+        if (
+            not isinstance(expected_commit, str)
+            or re.fullmatch(r"[0-9a-f]{40,64}", expected_commit) is None
+        ):
+            raise ValueError("Source-linked artifacts require a pinned Studio commit.")
+        if type(available_paths) is not list or not all(isinstance(path, str) for path in available_paths):
+            raise ValueError("Source-linked artifacts require a valid Studio file manifest.")
+        available_paths = set(available_paths)
+
+        records = {
+            record.get("id"): record
+            for record in data.get("tool_results", [])
+            if isinstance(record, dict) and isinstance(record.get("id"), str)
+        }
+        claim_keys = {"field", "status", "observation", "consequence", "evidence"}
+        evidence_keys = {
+            "tool_result_id", "task_id", "agent_id", "path", "start", "end",
+            "total_lines", "line_truncated", "text_truncated", "complete_file",
+            "sha256", "commit",
+        }
+        for claim in claims:
+            if type(claim) is not dict or set(claim) != claim_keys:
+                raise ValueError("A source-linked Studio claim is not fully materialized.")
+            if claim["status"] not in ("present", "absent", "unproven"):
+                raise ValueError("A source-linked Studio claim has an invalid status.")
+            for key in ("field", "observation", "consequence"):
+                if not isinstance(claim[key], str) or not claim[key].strip():
+                    raise ValueError("A source-linked Studio claim has an empty required field.")
+            evidence_items = claim["evidence"]
+            if type(evidence_items) is not list or not evidence_items or len(evidence_items) > 9:
+                raise ValueError("Every source-linked Studio claim requires recorded evidence.")
+
+            seen_ids = set()
+            coverage_by_path = {}
+            for evidence in evidence_items:
+                if type(evidence) is not dict or set(evidence) != evidence_keys:
+                    raise ValueError("Source-linked Studio evidence is not fully materialized.")
+                record_id = evidence["tool_result_id"]
+                if not isinstance(record_id, str) or not record_id or record_id in seen_ids:
+                    raise ValueError("Source-linked Studio evidence has an invalid record ID.")
+                seen_ids.add(record_id)
+                record = records.get(record_id)
+                if (
+                    record is None
+                    or record.get("tool") != "read_file"
+                    or record.get("status") != "completed"
+                    or not isinstance(record.get("result"), dict)
+                ):
+                    raise ValueError("Source-linked Studio evidence does not match a completed read.")
+
+                raw = record["result"]
+                path = raw.get("path")
+                start, end, total_lines = raw.get("start"), raw.get("end"), raw.get("total_lines")
+                line_truncated = raw.get("line_truncated")
+                text_truncated = raw.get("text_truncated")
+                complete_file = raw.get("complete_file")
+                sha256, commit = raw.get("sha256"), raw.get("commit")
+                if (
+                    not isinstance(path, str)
+                    or not path
+                    or path not in available_paths
+                    or type(start) is not int
+                    or type(end) is not int
+                    or type(total_lines) is not int
+                    or not (1 <= start <= end <= total_lines)
+                    or not isinstance(raw.get("text"), str)
+                    or not raw["text"]
+                    or type(line_truncated) is not bool
+                    or type(text_truncated) is not bool
+                    or type(complete_file) is not bool
+                    or complete_file != (
+                        start == 1 and end == total_lines
+                        and not line_truncated and not text_truncated
+                    )
+                    or not isinstance(sha256, str)
+                    or re.fullmatch(r"[0-9a-f]{64}", sha256) is None
+                    or commit != expected_commit
+                ):
+                    raise ValueError("A recorded Studio read has invalid pinned provenance.")
+                expected = {
+                    "tool_result_id": record_id,
+                    "task_id": record.get("task_id"),
+                    "agent_id": record.get("agent_id"),
+                    "path": path,
+                    "start": start,
+                    "end": end,
+                    "total_lines": total_lines,
+                    "line_truncated": line_truncated,
+                    "text_truncated": text_truncated,
+                    "complete_file": complete_file,
+                    "sha256": sha256,
+                    "commit": commit,
+                }
+                if evidence != expected:
+                    raise ValueError("Source-linked Studio evidence differs from its recorded read.")
+                coverage_by_path.setdefault(path, []).append(expected)
+
+            if claim["status"] in ("absent", "unproven"):
+                for path_evidence in coverage_by_path.values():
+                    if any(item["text_truncated"] for item in path_evidence):
+                        raise ValueError("Absence claims require untruncated Studio text.")
+                    totals = {item["total_lines"] for item in path_evidence}
+                    hashes = {item["sha256"] for item in path_evidence}
+                    if len(totals) != 1 or len(hashes) != 1:
+                        raise ValueError("Absence claims require one consistent pinned file version.")
+                    total_lines = next(iter(totals))
+                    covered_through = 0
+                    for item in sorted(path_evidence, key=lambda value: (value["start"], value["end"])):
+                        if item["start"] > covered_through + 1:
+                            raise ValueError("Absence claims require continuous full-file coverage.")
+                        covered_through = max(covered_through, item["end"])
+                    if covered_through != total_lines:
+                        raise ValueError("Absence claims require continuous full-file coverage.")
+
+    def artifact(self, mission_id, author, title, body, sources=None, *,
+                 provenance_status="none", studio_claims=None):
         with self.lock:
             data = self.get(mission_id)
+            materialized_claims = copy.deepcopy([] if studio_claims is None else studio_claims)
+            if provenance_status not in ("none", "invalid", "source_linked"):
+                raise ValueError("Unknown artifact provenance status.")
+            if provenance_status == "source_linked":
+                self._validate_source_linked_claims(data, materialized_claims)
+            elif materialized_claims:
+                raise ValueError("Only source-linked artifacts may contain Studio claims.")
             artifact = dict(
                 id=uid("art"), title=title, body=body, author=author,
                 created_at=now(), verification="sample" if data["mission"]["mode"] == "demo" else "unverified",
-                sources=sources or [], round=data["mission"]["round"],
+                sources=sources or [], provenance_status=provenance_status,
+                studio_claims=materialized_claims,
+                round=data["mission"]["round"],
             )
             data["artifacts"].append(artifact)
             with self._db:

@@ -56,6 +56,14 @@ class Source(StrictModel):
     url: str = Field(max_length=1000)
 
 
+class StudioClaim(StrictModel):
+    field: str = Field(min_length=1, max_length=180)
+    status: Literal["present", "absent", "unproven"]
+    observation: str = Field(min_length=1, max_length=1200)
+    consequence: str = Field(min_length=1, max_length=1200)
+    tool_result_ids: list[str] = Field(min_length=1, max_length=9)
+
+
 class ToolRequest(StrictModel):
     tool: Literal["read_file", "search_code", "draft_file", "check_syntax", "run_tests", "web_search", "paper_search", "fetch_page"]
     path: str = Field(default="", max_length=240)
@@ -72,6 +80,7 @@ class Report(StrictModel):
     sources: list[Source] = Field(max_length=6)
     source_requests: list[str] = Field(max_length=2)
     tool_requests: list[ToolRequest] = Field(default_factory=list, max_length=3)
+    studio_claims: list[StudioClaim] = Field(default_factory=list, max_length=12)
 
 
 class Verdict(StrictModel):
@@ -83,7 +92,7 @@ class Verdict(StrictModel):
 class NewMission(StrictModel):
     prompt: str = Field(min_length=1, max_length=6000)
     mode: Literal["demo", "live"] = "demo"
-    max_revisions: int = Field(default=MAX_ROUNDS - 1, ge=0, le=MAX_ROUNDS - 1)
+    max_revisions: int = Field(default=1, ge=0, le=MAX_ROUNDS - 1)
     specialist_execution: Literal["parallel", "sequential"] = "parallel"
 
 

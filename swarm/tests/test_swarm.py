@@ -249,6 +249,11 @@ def test_api_validates_structured_mission_controls(tmp_path):
         assert created.status_code == 200
         assert created.json()["max_rounds"] == 2
         assert created.json()["specialist_execution"] == "sequential"
+        defaulted = client.post("/api/missions", json={
+            "prompt": "Default bounded pass", "mode": "live",
+        })
+        assert defaulted.status_code == 200
+        assert defaulted.json()["max_rounds"] == 2
         assert client.post("/api/missions", json={
             "prompt": "Invalid", "mode": "live", "max_revisions": -1,
         }).status_code == 422
@@ -291,6 +296,292 @@ def test_full_document_tail_and_all_authors_reach_reviewer(store):
     context = json.loads(prompt)
     assert len(context["relevant_artifacts"]) == 6
     assert all("CRITICAL_TAIL_" in a["body"] for a in context["relevant_artifacts"])
+
+
+def test_structured_studio_claims_render_exact_controller_provenance(store):
+    mid = store.create("Preserve exact source evidence", "live")["id"]
+    store.get(mid)["studio"] = {"commit": "b" * 40, "files": ["api/data/edgar.py"]}
+    store.get(mid)["tool_results"] = [{
+        "id": "tool_exact", "task_id": "task_exact", "agent_id": "engineering",
+        "tool": "read_file", "status": "completed", "summary": "read",
+        "result": {
+            "path": "api/data/edgar.py", "start": 1, "end": 113, "total_lines": 113,
+            "text": "dates = recent.get('filingDate', [])", "sha256": "a" * 64,
+            "commit": "b" * 40, "line_truncated": False,
+            "text_truncated": False, "complete_file": True,
+        },
+    }]
+    engine = Engine(store, FakeProviders())
+    report = Report(
+        summary="Filing date is present.", artifact_title="Field matrix",
+        artifact_body="Model copy: SHA aaaaa... and absent evidence N/A.", messages=[], sources=[],
+        source_requests=[], tool_requests=[], studio_claims=[
+            {"field": "Filing date", "status": "present", "observation": "A filingDate list is read.",
+             "consequence": "Daily event ordering is possible.", "tool_result_ids": ["tool_exact"]},
+            {"field": "Acceptance datetime", "status": "absent", "observation": "No such field is read.",
+             "consequence": "Intraday point-in-time ordering is unavailable.", "tool_result_ids": ["tool_exact"]},
+        ],
+    )
+    engine._record_report(mid, "engineering", report, [], task_id="task_exact")
+    artifact = store.snapshot(mid)["artifacts"][-1]
+    evidence = artifact["studio_claims"][0]["evidence"]
+    assert artifact["provenance_status"] == "source_linked"
+    assert "aaaaa..." not in artifact["body"]
+    assert "N/A" not in artifact["body"]
+    assert "a" * 64 in artifact["body"]
+    assert evidence == [{
+        "tool_result_id": "tool_exact", "task_id": "task_exact", "agent_id": "engineering",
+        "path": "api/data/edgar.py", "start": 1, "end": 113, "total_lines": 113,
+        "sha256": "a" * 64, "commit": "b" * 40,
+        "complete_file": True, "line_truncated": False, "text_truncated": False,
+    }]
+    prompt, _ = engine._context(mid, "review", "Review the artifact")
+    assert json.loads(prompt)["relevant_artifacts"][-1]["studio_claims"] == artifact["studio_claims"]
+
+
+@pytest.mark.parametrize("case", [
+    "unknown_id", "failed", "wrong_tool", "nonhex_hash", "wrong_commit",
+    "invalid_range", "parallel_cross_agent", "partial_absence",
+])
+def test_invalid_studio_claim_links_never_become_source_linked(store, case):
+    mid = store.create("Reject bad source links", "live")["id"]
+    store.get(mid)["studio"] = {"commit": "b" * 40, "files": ["api/data/edgar.py"]}
+    record = {
+        "id": "tool_exact", "task_id": "task_exact", "agent_id": "engineering",
+        "tool": "read_file", "status": "completed", "summary": "read",
+        "result": {"path": "api/data/edgar.py", "start": 1, "end": 10, "total_lines": 10,
+                   "text": "source", "sha256": "a" * 64, "commit": "b" * 40,
+                   "line_truncated": False, "text_truncated": False, "complete_file": True},
+    }
+    claim_id = "tool_exact"
+    if case == "unknown_id":
+        claim_id = "missing"
+    elif case == "failed":
+        record["status"] = "failed"
+    elif case == "wrong_tool":
+        record["tool"] = "search_code"
+    elif case == "nonhex_hash":
+        record["result"]["sha256"] = "z" * 64
+    elif case == "wrong_commit":
+        record["result"]["commit"] = "c" * 40
+    elif case == "invalid_range":
+        record["result"].update(start=9, end=1)
+    elif case == "parallel_cross_agent":
+        record["agent_id"] = "data"
+    elif case == "partial_absence":
+        record["result"]["start"] = 2
+    store.get(mid)["tool_results"] = [record]
+    report = Report(
+        summary="Claim", artifact_title="Claim", artifact_body="This must be withheld.",
+        messages=[], sources=[], source_requests=[], tool_requests=[], studio_claims=[{
+            "field": "Acceptance datetime", "status": "absent", "observation": "Not found.",
+            "consequence": "Cannot order intraday.", "tool_result_ids": [claim_id],
+        }],
+    )
+    Engine(store, FakeProviders())._record_report(
+        mid, "engineering", report, [], task_id="task_exact",
+    )
+    artifact = store.snapshot(mid)["artifacts"][-1]
+    assert artifact["provenance_status"] == "invalid"
+    assert artifact["studio_claims"] == []
+    assert "This must be withheld" not in artifact["body"]
+
+
+@pytest.mark.parametrize("claim_status,target_index", [
+    ("present", 3),
+    ("absent", 2),
+])
+def test_claims_cannot_link_empty_or_context_truncated_evidence(store, claim_status, target_index):
+    mid = store.create("Reject evidence the model could not fully see", "live")["id"]
+    path = "api/data/edgar.py"
+    store.get(mid)["studio"] = {"commit": "b" * 40, "files": [path]}
+    records = []
+    for index in range(4):
+        records.append({
+            "id": f"tool_{index}", "task_id": "task_exact", "agent_id": "engineering",
+            "tool": "read_file", "status": "completed", "summary": "read",
+            "result": {
+                "path": path, "start": 1, "end": 1, "total_lines": 1,
+                "text": str(index) * 8_000, "sha256": f"{index + 1:064x}",
+                "commit": "b" * 40, "line_truncated": False,
+                "text_truncated": False, "complete_file": True,
+            },
+        })
+    store.get(mid)["tool_results"] = records
+    report = Report(
+        summary="Claim", artifact_title="Claim", artifact_body="Must be withheld.",
+        messages=[], sources=[], source_requests=[], tool_requests=[], studio_claims=[{
+            "field": "Field", "status": claim_status, "observation": "Claimed observation.",
+            "consequence": "Claimed consequence.", "tool_result_ids": [f"tool_{target_index}"],
+        }],
+    )
+    Engine(store, FakeProviders())._record_report(
+        mid, "engineering", report, [], task_id="task_exact",
+    )
+    artifact = store.snapshot(mid)["artifacts"][-1]
+    assert artifact["provenance_status"] == "invalid"
+    assert artifact["studio_claims"] == []
+
+
+def test_absence_claim_accepts_complete_untruncated_multi_chunk_coverage(store):
+    mid = store.create("Allow complete chunked coverage", "live")["id"]
+    path = "api/data/edgar.py"
+    store.get(mid)["studio"] = {"commit": "b" * 40, "files": [path]}
+    store.get(mid)["tool_results"] = [
+        {
+            "id": "tool_first", "task_id": "task_exact", "agent_id": "engineering",
+            "tool": "read_file", "status": "completed", "summary": "read",
+            "result": {
+                "path": path, "start": 1, "end": 120, "total_lines": 121,
+                "text": "first chunk\n", "sha256": "a" * 64, "commit": "b" * 40,
+                "line_truncated": True, "text_truncated": False, "complete_file": False,
+            },
+        },
+        {
+            "id": "tool_last", "task_id": "task_exact", "agent_id": "engineering",
+            "tool": "read_file", "status": "completed", "summary": "read",
+            "result": {
+                "path": path, "start": 121, "end": 121, "total_lines": 121,
+                "text": "last chunk\n", "sha256": "a" * 64, "commit": "b" * 40,
+                "line_truncated": False, "text_truncated": False, "complete_file": False,
+            },
+        },
+    ]
+    report = Report(
+        summary="Claim", artifact_title="Claim", artifact_body="Model prose.",
+        messages=[], sources=[], source_requests=[], tool_requests=[], studio_claims=[{
+            "field": "Acceptance datetime", "status": "absent", "observation": "Not present.",
+            "consequence": "Intraday ordering is unsupported.",
+            "tool_result_ids": ["tool_first", "tool_last"],
+        }],
+    )
+    Engine(store, FakeProviders())._record_report(
+        mid, "engineering", report, [], task_id="task_exact",
+    )
+    artifact = store.snapshot(mid)["artifacts"][-1]
+    assert artifact["provenance_status"] == "source_linked"
+    assert len(artifact["studio_claims"][0]["evidence"]) == 2
+
+
+def test_plain_report_does_not_receive_bulk_source_evidence(store):
+    mid = store.create("Keep unlinked prose visibly unlinked", "live")["id"]
+    store.get(mid)["studio"] = {"commit": "b" * 40, "files": ["api/data/edgar.py"]}
+    store.get(mid)["tool_results"] = [{
+        "id": "tool_exact", "task_id": "task_exact", "agent_id": "engineering",
+        "tool": "read_file", "status": "completed", "summary": "read",
+        "result": {"path": "api/data/edgar.py", "start": 1, "end": 1, "total_lines": 1,
+                   "text": "source", "sha256": "a" * 64, "commit": "b" * 40},
+    }]
+    report = Report(
+        summary="Unlinked", artifact_title="Unlinked", artifact_body="Unlinked prose.",
+        messages=[], sources=[], source_requests=[], tool_requests=[],
+    )
+    Engine(store, FakeProviders())._record_report(
+        mid, "engineering", report, [], task_id="task_exact",
+    )
+    artifact = store.snapshot(mid)["artifacts"][-1]
+    assert artifact["provenance_status"] == "none"
+    assert artifact["studio_claims"] == []
+    assert artifact["body"] == "Unlinked prose."
+
+
+def test_final_reviewer_can_link_team_reads_but_independent_reviewer_cannot(store):
+    def run(independent):
+        mid = store.create("Review visibility", "live")["id"]
+        store.get(mid)["studio"] = {"commit": "b" * 40, "files": ["api/data/edgar.py"]}
+        store.get(mid)["tool_results"] = [{
+            "id": "team_read", "task_id": "engineering_task", "agent_id": "engineering",
+            "tool": "read_file", "status": "completed", "summary": "read",
+            "result": {"path": "api/data/edgar.py", "start": 1, "end": 1, "total_lines": 1,
+                       "text": "source", "sha256": "a" * 64, "commit": "b" * 40,
+                       "line_truncated": False, "text_truncated": False, "complete_file": True},
+        }]
+        report = Report(
+            summary="Review", artifact_title="Review", artifact_body="Claim.", messages=[], sources=[],
+            source_requests=[], tool_requests=[], studio_claims=[{
+                "field": "Filing date", "status": "present", "observation": "Observed.",
+                "consequence": "Usable daily.", "tool_result_ids": ["team_read"],
+            }],
+        )
+        Engine(store, FakeProviders())._record_report(
+            mid, "review", report, [], task_id="review_task", independent=independent,
+        )
+        return store.snapshot(mid)["artifacts"][-1]["provenance_status"]
+
+    assert run(False) == "source_linked"
+    assert run(True) == "invalid"
+
+
+def test_initial_reviewer_does_not_preload_specialist_conclusions(store):
+    leaked = []
+
+    class ReviewerIsolation(FakeProviders):
+        def run(self, provider, system, prompt, schema):
+            result = super().run(provider, system, prompt, schema)
+            context = json.loads(prompt)
+            agent = next(a["id"] for a in AGENT_MAP.values() if "Your role: " + a["role"] in system)
+            if schema is Report and agent == "review" and not context["relevant_artifacts"]:
+                payload = json.loads(result.text)
+                payload["messages"] = [{
+                    "recipient": "data", "kind": "finding", "text": "PRELOADED_CONCLUSION",
+                }]
+                result.text = json.dumps(payload)
+            elif schema is Report and agent == "data":
+                if any(message["text"] == "PRELOADED_CONCLUSION" for message in context["messages_addressed_to_you"]):
+                    leaked.append(True)
+            return result
+
+    engine = Engine(store, ReviewerIsolation(peer_request=False))
+    mid = store.create("Keep specialist inspection independent", "live", max_revisions=0)["id"]
+    engine.start(mid)
+    join(engine)
+    assert leaked == []
+
+
+def test_independent_reviewer_sources_and_tool_activity_do_not_reach_specialists(store, monkeypatch):
+    mid = store.create("Keep the initial critique isolated", "live")["id"]
+    data = store.get(mid)
+    data["tasks"] = [
+        {"id": "review_task", "agent_id": "review", "status": "completed", "independent": True},
+        {"id": "data_task", "agent_id": "data", "status": "running", "independent": False},
+    ]
+    data["tool_results"] = [{
+        "id": "review_search", "task_id": "review_task", "agent_id": "review",
+        "tool": "web_search", "status": "completed", "summary": "PRIVATE_REVIEW_QUERY",
+        "result": {"status": "retrieved", "sources": [{
+            "title": "Reviewer lead", "url": "https://www.sec.gov/reviewer-only",
+        }]},
+    }]
+    data["sources"] = [{
+        "title": "Reviewer page", "url": "https://www.sec.gov/reviewer-only",
+        "text": "PRIVATE_REVIEW_SOURCE", "status": "retrieved", "fetched_at": "fixture",
+        "task_id": "review_task", "independent": True,
+    }]
+    store.save(data)
+    monkeypatch.setattr(
+        "swarm.engine.fetch_source",
+        lambda *args: pytest.fail("An independent source request was dispatched"),
+    )
+    report = Report(
+        summary="Independent critique", artifact_title="Critique", artifact_body="Review only.",
+        messages=[], sources=[], source_requests=["https://www.sec.gov/new-reviewer-page"],
+        tool_requests=[],
+    )
+    engine = Engine(store, FakeProviders())
+    engine._record_report(
+        mid, "review", report, [], task_id="review_task", independent=True,
+        allow_peer_messages=False,
+    )
+    context = json.loads(engine._context(mid, "data", "Inspect independently", task_id="data_task")[0])
+    serialized = json.dumps(context)
+    assert context["retrieved_sources"] == []
+    assert context["team_tool_evidence"] == []
+    assert "PRIVATE_REVIEW_QUERY" not in serialized
+    assert "PRIVATE_REVIEW_SOURCE" not in serialized
+    assert any(
+        "isolated first critique" in message["text"]
+        for message in store.snapshot(mid)["messages"] if message["sender"] == "system"
+    )
 
 
 def test_detailed_tool_context_is_current_task_only_and_independent_review_is_clean(store):
@@ -578,7 +869,7 @@ def test_readiness_explains_connections_budget_and_agent_state(tmp_path):
     app = create_app(tmp_path, providers=providers)
     with TestClient(app, headers={"Origin": "http://testserver"}) as client:
         state = client.get("/api/state").json()
-        assert state["app"]["version"] == "0.3.1"
+        assert state["app"]["version"] == "0.3.2"
         assert state["runtime"]["status"] == "waiting_for_connections"
         assert state["runtime"]["can_start_live"] is False
         assert {agent["status"] for agent in state["agents"]} == {"offline"}
@@ -598,24 +889,53 @@ def test_readiness_explains_connections_budget_and_agent_state(tmp_path):
 
 
 def test_export_contains_draft_hashes_checks_and_call_ledger(tmp_path):
-    app = create_app(tmp_path, providers=FakeProviders())
-    with TestClient(app, headers={"Origin": "http://testserver"}) as client:
+    first_app = create_app(tmp_path, providers=FakeProviders())
+    with TestClient(first_app, headers={"Origin": "http://testserver"}) as client:
         mid = client.post("/api/missions", json={"prompt": "Export provenance", "mode": "live"}).json()["id"]
-        data = app.state.store.get(mid)
+        data = first_app.state.store.get(mid)
         data["participants"] = ["engineering", "review"]
-        data["studio"] = {"commit": "a" * 40, "branch": "codex/sigil-company"}
+        data["studio"] = {
+            "commit": "a" * 40, "branch": "codex/sigil-company",
+            "files": ["api/data/edgar.py"],
+        }
         data["drafts"] = [{"id": "draft_one", "path": "api/example.py", "author": "engineering",
                            "content": "x = 1\n", "diff": "+x = 1\n", "before_sha256": "b" * 64,
                            "commit": "a" * 40, "status": "draft"}]
-        data["tool_results"] = [{"id": "tool_one", "task_id": "task_one", "agent_id": "engineering",
-                                 "tool": "check_syntax", "status": "completed", "summary": "parsed",
-                                 "result": {"checked_drafts": [{"id": "draft_one", "path": "api/example.py", "sha256": "c" * 64}]}}]
-        call_id = app.state.store.reserve(mid, "engineering", "gemini", GEMINI_MODEL, 0.1, task_id="task_one")
-        app.state.store.settle(call_id, cost=0.01, usage={"input_tokens": 1, "output_tokens": 1}, returned_model=GEMINI_MODEL)
+        data["tool_results"] = [
+            {"id": "tool_one", "task_id": "task_one", "agent_id": "engineering",
+             "tool": "check_syntax", "status": "completed", "summary": "parsed",
+             "result": {"checked_drafts": [{"id": "draft_one", "path": "api/example.py", "sha256": "c" * 64}]}},
+            {"id": "tool_source", "task_id": "task_source", "agent_id": "data",
+             "tool": "read_file", "status": "completed", "summary": "read",
+             "result": {
+                 "path": "api/data/edgar.py", "start": 1, "end": 1, "total_lines": 1,
+                 "text": "filingDate\n", "line_truncated": False, "text_truncated": False,
+                 "complete_file": True, "sha256": "d" * 64, "commit": "a" * 40,
+             }},
+        ]
+        first_app.state.store.save(data)
+        report = Report(
+            summary="Filing date is present.", artifact_title="Evidence", artifact_body="Model copy.",
+            messages=[], sources=[], source_requests=[], tool_requests=[], studio_claims=[{
+                "field": "Filing date", "status": "present", "observation": "Observed.",
+                "consequence": "Daily ordering.", "tool_result_ids": ["tool_source"],
+            }],
+        )
+        first_app.state.engine._record_report(
+            mid, "data", report, [], task_id="task_source",
+        )
+        call_id = first_app.state.store.reserve(mid, "engineering", "gemini", GEMINI_MODEL, 0.1, task_id="task_one")
+        first_app.state.store.settle(call_id, cost=0.01, usage={"input_tokens": 1, "output_tokens": 1}, returned_model=GEMINI_MODEL)
+
+    reopened_app = create_app(tmp_path, providers=FakeProviders())
+    with TestClient(reopened_app, headers={"Origin": "http://testserver"}) as client:
         exported = client.get(f"/api/missions/{mid}/export").text
         assert "Draft SHA-256:" in exported
         assert "Checked draft: draft_one" in exported
         assert "Provider call ledger" in exported
+        assert "Structured Studio claim bindings:" in exported
+        assert "Studio provenance: source_linked" in exported
+        assert "SHA-256 " + "d" * 64 in exported
         assert GEMINI_MODEL in exported
 
 

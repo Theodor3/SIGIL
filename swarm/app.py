@@ -134,8 +134,8 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
         return {
             "status": status, "label": label, "can_start_live": not blockers,
             "blockers": blockers, "warnings": warnings,
-            "scheduler_enabled": True, "scheduler_mode": "supervised_hourly",
-            "cadence_minutes": 60, "max_mission_minutes": 20, "credentials_persist": False,
+            "scheduler_enabled": True, "scheduler_mode": "supervised_daily",
+            "cadence_minutes": 1440, "max_mission_minutes": 20, "credentials_persist": False,
             "attention_count": attention_count, "review_count": review_count,
             "last_mission_at": summaries[0]["updated_at"] if summaries else None,
             "studio_current": manifest.get("is_current", True),
@@ -296,7 +296,23 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
         for msg in data["messages"]:
             lines += ["", f"### {msg['sender']} → {msg['recipient']} · {msg['kind']}", msg["text"]]
         for a in data["artifacts"]:
-            lines += ["", "## " + a["title"], "Evidence status: " + a["verification"], "", a["body"]]
+            lines += [
+                "", "## " + a["title"],
+                "Evidence status: " + a["verification"],
+                "Studio provenance: " + a.get("provenance_status", "none"),
+                "", a["body"],
+            ]
+            if a.get("studio_claims"):
+                lines += ["", "Structured Studio claim bindings:"]
+                for claim in a["studio_claims"]:
+                    lines.append(f"- {claim.get('field', 'Claim')} · {claim.get('status', 'unverified')}")
+                    for evidence in claim.get("evidence", []):
+                        lines.append(
+                            f"  - {evidence.get('path', 'unknown')}:{evidence.get('start', '?')}-{evidence.get('end', '?')} "
+                            f"· SHA-256 {evidence.get('sha256', 'unavailable')} "
+                            f"· commit {evidence.get('commit', 'unavailable')} "
+                            f"· tool record {evidence.get('tool_result_id', 'unavailable')}"
+                        )
             for s in a["sources"]:
                 parsed = urlsplit(s.get("url", ""))
                 if parsed.scheme == "https":

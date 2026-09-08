@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import threading
 import time
 from concurrent.futures import CancelledError, ThreadPoolExecutor, as_completed
@@ -132,8 +133,11 @@ class Engine:
         for record in selected:
             raw = record.get("result", {})
             full_text = raw.get("text", "")
+            if not isinstance(full_text, str):
+                full_text = ""
             excerpt = full_text[:remaining]
             remaining = max(0, remaining - len(excerpt))
+            projection_truncated = len(excerpt) < len(full_text)
             evidence.append({
                 "id": record.get("id"),
                 "task_id": record.get("task_id"),
@@ -143,11 +147,182 @@ class Engine:
                 "end": raw.get("end"),
                 "total_lines": raw.get("total_lines"),
                 "text": excerpt,
-                "text_truncated": len(excerpt) < len(full_text),
+                "text_truncated": bool(raw.get("text_truncated")) or projection_truncated,
+                "source_text_truncated": raw.get("text_truncated"),
+                "line_truncated": raw.get("line_truncated"),
+                "complete_file": raw.get("complete_file"),
                 "sha256": raw.get("sha256"),
                 "commit": raw.get("commit"),
             })
         return evidence
+
+    def _source_context_evidence(self, data, agent_id, *, independent=False, task_id=None):
+        """Build the exact read sets visible to one model call."""
+        tool_records = data.get("tool_results", [])
+        current_task_tools = [
+            record for record in tool_records
+            if record.get("agent_id") == agent_id
+            and task_id is not None
+            and record.get("task_id") == task_id
+        ]
+        current = self._source_evidence(current_task_tools)
+        prior = [] if independent else self._source_evidence([
+            record for record in tool_records
+            if record.get("agent_id") == agent_id and record.get("task_id") != task_id
+        ])
+        team = [] if independent or agent_id not in ("coordinator", "review") else self._source_evidence(
+            tool_records, limit=8, text_budget=24000,
+        )
+        upstream = []
+        if (
+            not independent
+            and agent_id not in ("coordinator", "review")
+            and data["mission"].get("specialist_execution") == "sequential"
+        ):
+            upstream = self._source_evidence([
+                record for record in tool_records
+                if record.get("agent_id") not in (agent_id, "review")
+            ])
+        return current, prior, upstream, team
+
+    @staticmethod
+    def _claims_cover_full_files(evidence):
+        """Require continuous, untruncated coverage for every cited source file."""
+        by_path = {}
+        for item in evidence:
+            if item.get("context_text_truncated") or item.get("text_truncated"):
+                return False
+            by_path.setdefault(item["path"], []).append(item)
+        if not by_path:
+            return False
+        for items in by_path.values():
+            totals = {item["total_lines"] for item in items}
+            if len(totals) != 1:
+                return False
+            total = totals.pop()
+            cursor = 1
+            for item in sorted(items, key=lambda value: (value["start"], value["end"])):
+                if item["start"] > cursor:
+                    return False
+                cursor = max(cursor, item["end"] + 1)
+            if cursor <= total:
+                return False
+        return True
+
+    @staticmethod
+    def _render_studio_claims(claims):
+        lines = ["Source-linked Studio claims", ""]
+        for index, claim in enumerate(claims, 1):
+            lines += [
+                f"{index}. {claim['field']} — {claim['status'].upper()}",
+                "Observation: " + claim["observation"],
+                "Consequence: " + claim["consequence"],
+                "Recorded evidence:",
+            ]
+            for evidence in claim["evidence"]:
+                lines.append(
+                    f"- {evidence['path']}:{evidence['start']}-{evidence['end']} "
+                    f"· SHA-256 {evidence['sha256']} · commit {evidence['commit']} "
+                    f"· tool record {evidence['tool_result_id']}"
+                )
+            lines.append("")
+        return "\n".join(lines).rstrip()
+
+    def _materialize_studio_claims(self, data, report, *, agent_id, task_id, independent):
+        current, prior, upstream, team = self._source_context_evidence(
+            data, agent_id, independent=independent, task_id=task_id,
+        )
+        visible = {}
+        for group in (current, prior, upstream, team):
+            for item in group:
+                if item.get("id") and item["id"] not in visible:
+                    visible[item["id"]] = item
+        visible_ids = set(visible)
+        if not report.studio_claims:
+            note = None
+            if visible_ids:
+                note = (
+                    "Studio reads were available, but this artifact supplied no structured claim-to-read links. "
+                    "Its prose remains unverified and is not presented as source-linked."
+                )
+            return report.artifact_body, "none", [], note
+
+        records = {record.get("id"): record for record in data.get("tool_results", [])}
+        expected_commit = (data.get("studio") or {}).get("commit")
+        available_paths = set((data.get("studio") or {}).get("files", []))
+        materialized = []
+        for claim in report.studio_claims:
+            evidence = []
+            for record_id in dict.fromkeys(claim.tool_result_ids):
+                record = records.get(record_id)
+                raw = (record or {}).get("result", {})
+                start, end, total = raw.get("start"), raw.get("end"), raw.get("total_lines")
+                path, sha256, commit = raw.get("path"), raw.get("sha256"), raw.get("commit")
+                projected = visible.get(record_id, {})
+                projected_text = projected.get("text")
+                complete_file = raw.get("complete_file")
+                line_truncated = raw.get("line_truncated")
+                text_truncated = raw.get("text_truncated")
+                valid = (
+                    record_id in visible_ids
+                    and record is not None
+                    and record.get("tool") == "read_file"
+                    and record.get("status") == "completed"
+                    and isinstance(path, str) and bool(path) and path in available_paths
+                    and type(start) is int and type(end) is int and type(total) is int
+                    and 1 <= start <= end <= total
+                    and isinstance(projected_text, str) and bool(projected_text.strip())
+                    and type(complete_file) is bool
+                    and type(line_truncated) is bool
+                    and type(text_truncated) is bool
+                    and (
+                        not complete_file
+                        or (start == 1 and end == total and not line_truncated and not text_truncated)
+                    )
+                    and isinstance(sha256, str) and re.fullmatch(r"[0-9a-f]{64}", sha256) is not None
+                    and isinstance(expected_commit, str) and commit == expected_commit
+                )
+                if not valid:
+                    return (
+                        "The model-authored artifact was withheld because its structured Studio evidence "
+                        "references were invalid. Exact tool records remain available for review.",
+                        "invalid", [],
+                        "A structured Studio claim referenced unavailable, malformed, out-of-scope, or incomplete evidence. "
+                        "The claimed artifact body was withheld.",
+                    )
+                evidence.append({
+                    "tool_result_id": record_id,
+                    "task_id": record.get("task_id"),
+                    "agent_id": record.get("agent_id"),
+                    "path": path,
+                    "start": start,
+                    "end": end,
+                    "total_lines": total,
+                    "sha256": sha256,
+                    "commit": commit,
+                    "complete_file": complete_file,
+                    "line_truncated": line_truncated,
+                    "text_truncated": text_truncated,
+                    "context_text_truncated": projected.get("text_truncated"),
+                })
+            if claim.status in ("absent", "unproven") and not self._claims_cover_full_files(evidence):
+                return (
+                    "The model-authored artifact was withheld because its structured Studio evidence "
+                    "references were invalid. Exact tool records remain available for review.",
+                    "invalid", [],
+                    "An absence or unproven claim did not cite complete, untruncated source coverage. "
+                    "The claimed artifact body was withheld.",
+                )
+            for item in evidence:
+                item.pop("context_text_truncated", None)
+            materialized.append({
+                "field": claim.field,
+                "status": claim.status,
+                "observation": claim.observation,
+                "consequence": claim.consequence,
+                "evidence": evidence,
+            })
+        return self._render_studio_claims(materialized), "source_linked", materialized, None
 
     def _assigned_source_paths(self, mission_id, agent_id, task):
         """Find explicitly assigned Studio paths that this worker has not read."""
@@ -211,6 +386,9 @@ class Engine:
 
     def _context(self, mission_id, agent_id, task, *, independent=False, task_id=None):
         data = self.store.snapshot(mission_id)
+        independent_task_ids = {
+            item.get("id") for item in data.get("tasks", []) if item.get("independent")
+        }
         messages = [
             {k: m[k] for k in ("id", "sender", "recipient", "kind", "text")}
             for m in data["messages"]
@@ -229,10 +407,18 @@ class Engine:
                 latest[artifact["author"]] = artifact
         artifacts = [] if independent else [
             {"id": a["id"], "author": a["author"], "title": a["title"], "body": a["body"],
-             "verification": a["verification"], "sources": a["sources"]}
+             "verification": a["verification"], "sources": a["sources"],
+             "provenance_status": a.get("provenance_status", "none"),
+             "studio_claims": a.get("studio_claims", [])}
             for a in latest.values()
         ]
         tool_records = data.get("tool_results", [])
+        shared_tool_records = (
+            tool_records if agent_id in ("coordinator", "review") else [
+                record for record in tool_records
+                if record.get("task_id") not in independent_task_ids
+            ]
+        )
         # Keep every result from the two allowed rounds of three tools. Draft
         # text is already represented by its diff below; avoid duplicating it.
         recent_tools = []
@@ -247,31 +433,22 @@ class Engine:
                 result.pop("diff", None)
                 result["note"] = "The draft diff is included in draft_changes."
             recent_tools.append({k: record[k] for k in ("id", "tool", "status", "summary")} | {"result": result})
-        current_source_evidence = self._source_evidence(current_task_tools)
-        prior_source_evidence = self._source_evidence([
-            record for record in tool_records
-            if record.get("agent_id") == agent_id and record.get("task_id") != task_id
-        ])
-        team_source_evidence = [] if independent or agent_id not in ("coordinator", "review") else self._source_evidence(
-            tool_records, limit=8, text_budget=24000,
+        (
+            current_source_evidence, prior_source_evidence,
+            upstream_source_evidence, team_source_evidence,
+        ) = self._source_context_evidence(
+            data, agent_id, independent=independent, task_id=task_id,
         )
-        upstream_source_evidence = []
-        if (
-            not independent
-            and agent_id not in ("coordinator", "review")
-            and data["mission"].get("specialist_execution") == "sequential"
-        ):
-            upstream_source_evidence = self._source_evidence([
-                record for record in tool_records
-                if record.get("agent_id") not in (agent_id, "review")
-            ])
         latest_drafts = {d["path"]: d for d in data.get("drafts", [])}
         prompt = json.dumps({
             "mission": data["mission"]["prompt"], "your_task": task, "baseline": BASELINE,
             "messages_addressed_to_you": messages, "relevant_artifacts": artifacts,
-            "retrieved_sources": [
+            "retrieved_sources": [] if independent else [
                 {k: s[k] for k in ("url", "title", "text", "status", "fetched_at") if k in s}
-                for s in data["sources"][-3:]
+                for s in [
+                    source for source in data["sources"]
+                    if agent_id in ("coordinator", "review") or not source.get("independent")
+                ][-3:]
             ],
             "research_source_domains": ["sec.gov", "data.sec.gov", "arxiv.org", "proceedings.mlr.press", "fred.stlouisfed.org", "www.bls.gov", "www.bea.gov"],
             "development_studio": data.get("studio"),
@@ -285,7 +462,7 @@ class Engine:
                 {"sources": r["result"].get("sources", []), "executed": r["result"].get("executed"),
                  "result_status": r["result"].get("status"), "commit": r["result"].get("commit"),
                  "checked_drafts": r["result"].get("checked_drafts", [])}
-                for r in tool_records
+                for r in shared_tool_records
             ],
             "draft_changes": [] if independent or agent_id not in ("coordinator", "review", "engineering", "quant") else [
                 {k: d[k] for k in ("id", "path", "author", "diff", "status")}
@@ -311,12 +488,22 @@ class Engine:
                 "Repository paths belong in read_file tool_requests, never source_requests or fetch_page. "
                 "A read_file result gives exact path, line range, full-file SHA-256 and commit; cite those fields. "
                 "Never say you inspected a file unless your context contains the corresponding exact read evidence. "
+                "For each claim based on Studio reads, fill studio_claims and reference only visible read-file result IDs. "
+                "Do not copy paths, line ranges, hashes or commits into the claim; the controller renders them. "
+                "Every present, absent or unproven claim needs at least one read ID. Absence and unproven claims "
+                "must reference complete, untruncated file coverage; cite multiple read chunks when needed. "
+                "The prose artifact is withheld if any structured link is invalid. "
                 "Use up to 3 tool requests; results arrive before your next response, with at most 2 tool rounds. "
                 "Only engineering/quant can draft; any role can inspect or test. Request only necessary tools. "
                 "paper_search finds scholarly metadata without an API fee; web_search uses a billed GPT-4.1 Mini "
                 "search utility with citations. Search only public concepts, never repository text, keys or local paths. "
                 "Leave tool_requests empty when you can finish. Missing entitlements cannot be inferred from code."
             )
+            if independent:
+                system += (
+                    " This is an isolated first critique. Do not send peer messages or use source_requests. "
+                    "Your own bounded tool requests may be used, but their output is withheld from specialists."
+                )
         prompt, delivered_ids = self._context(
             mission_id, agent_id, task, independent=independent, task_id=task_id,
         )
@@ -360,7 +547,8 @@ class Engine:
         with self.store.lock:
             data = self.store.get(mission_id)
             task = dict(id=uid("task"), agent_id=assignment.agent_id, title=assignment.task,
-                        status="running", round=data["mission"]["round"])
+                        status="running", round=data["mission"]["round"],
+                        independent=bool(independent))
             data["tasks"].append(task)
             self.store.save(data)
         try:
@@ -390,17 +578,23 @@ class Engine:
             with self.store.lock:
                 task["status"] = "completed"
                 self.store.save(self.store.get(mission_id))
-            return assignment.agent_id, result, delivered_ids
+            return assignment.agent_id, result, delivered_ids, task["id"]
         except Exception:
             with self.store.lock:
                 task["status"] = "blocked"
                 self.store.save(self.store.get(mission_id))
             raise
 
-    def _record_report(self, mission_id, agent_id, report, delivered_ids):
+    def _record_report(self, mission_id, agent_id, report, delivered_ids, *,
+                       task_id=None, independent=False, allow_peer_messages=True):
         self.store.message(mission_id, agent_id, "coordinator", report.summary, "finding")
         with self.store.lock:
             data = self.store.get(mission_id)
+            (
+                artifact_body, provenance_status, studio_claims, provenance_note,
+            ) = self._materialize_studio_claims(
+                data, report, agent_id=agent_id, task_id=task_id, independent=independent,
+            )
             evidenced_urls = {
                 source.get("url") for source in data.get("sources", [])
                 if source.get("status") == "retrieved"
@@ -418,16 +612,31 @@ class Engine:
                 "Unretrieved citation URLs were omitted from this artifact. Search and publication metadata are leads; use fetch_page before citing a page as evidence.",
                 "tool_result",
             )
-        self.store.artifact(mission_id, agent_id, report.artifact_title, report.artifact_body, sources)
+        if provenance_note:
+            self.store.message(
+                mission_id, "system", agent_id, provenance_note, "tool_result",
+            )
+        self.store.artifact(
+            mission_id, agent_id, report.artifact_title, artifact_body, sources,
+            provenance_status=provenance_status, studio_claims=studio_claims,
+        )
         with self.store.lock:
             data = self.store.get(mission_id)
             for message in data["messages"]:
                 if message["id"] in delivered_ids and message["recipient"] == agent_id:
                     message["handled"] = True
             self.store.save(data)
-        for msg in report.messages:
-            if msg.recipient != agent_id:
-                self.store.message(mission_id, agent_id, msg.recipient, msg.text, msg.kind)
+        if allow_peer_messages:
+            for msg in report.messages:
+                if msg.recipient != agent_id:
+                    self.store.message(mission_id, agent_id, msg.recipient, msg.text, msg.kind)
+        if independent and report.source_requests:
+            self.store.message(
+                mission_id, "system", agent_id,
+                "Public page requests from the isolated first critique were not sent. Use a separately assigned public-research specialist after the independent critique.",
+                "tool_result",
+            )
+            return
         for url in report.source_requests:
             self.check_stop()
             try:
@@ -470,6 +679,8 @@ class Engine:
                 source = fetch_source(url)
                 # Bound source content sent back into future model prompts.
                 source["text"] = source["text"][:3500]
+                source["task_id"] = task_id
+                source["independent"] = bool(independent)
                 with self.store.lock:
                     data["sources"].append(source)
                     self.store.save(data)
@@ -486,6 +697,7 @@ class Engine:
                     data = self.store.get(mission_id)
                     data["sources"].append({"url": url, "title": "Unavailable source", "text": "",
                                              "fetched_at": now(), "status": "unavailable",
+                                             "task_id": task_id, "independent": bool(independent),
                                              "note": "Retrieval failed within the pilot's limits."})
                     self.store.save(data)
                 self.store.message(mission_id, "system", agent_id,
@@ -650,8 +862,13 @@ class Engine:
         # Independent first critique is made before the reviewer sees author artifacts.
         self.check_stop()
         reviewer_task = Assignment(agent_id="review", task="Independently critique the original mission. Identify assumptions and evidence required before reading the authors' conclusions.")
-        agent_id, report, delivered_ids = self._worker(mission_id, reviewer_task, independent=True)
-        self._record_report(mission_id, agent_id, report, delivered_ids)
+        agent_id, report, delivered_ids, task_id = self._worker(
+            mission_id, reviewer_task, independent=True,
+        )
+        self._record_report(
+            mission_id, agent_id, report, delivered_ids, task_id=task_id,
+            independent=True, allow_peer_messages=False,
+        )
         while True:
             self.check_stop()
             with self.store.lock:
@@ -683,8 +900,10 @@ class Engine:
             if sequential:
                 for assignment in batch:
                     try:
-                        agent_id, report, delivered_ids = self._worker(mission_id, assignment)
-                        self._record_report(mission_id, agent_id, report, delivered_ids)
+                        agent_id, report, delivered_ids, task_id = self._worker(mission_id, assignment)
+                        self._record_report(
+                            mission_id, agent_id, report, delivered_ids, task_id=task_id,
+                        )
                     except Exception as exc:
                         failure = exc
                         self.stop_event.set()
@@ -694,8 +913,10 @@ class Engine:
                     futures = [pool.submit(self._worker, mission_id, a) for a in batch]
                     for future in as_completed(futures):
                         try:
-                            agent_id, report, delivered_ids = future.result()
-                            self._record_report(mission_id, agent_id, report, delivered_ids)
+                            agent_id, report, delivered_ids, task_id = future.result()
+                            self._record_report(
+                                mission_id, agent_id, report, delivered_ids, task_id=task_id,
+                            )
                         except Exception as exc:
                             if failure is None or (
                                 isinstance(failure, (Stopped, CancelledError)) and not isinstance(exc, (Stopped, CancelledError))
@@ -713,12 +934,14 @@ class Engine:
                 raise failure
             self.check_stop()
             # An actual artifact review always precedes the coordinator's verdict.
-            agent_id, report, delivered_ids = self._worker(mission_id, Assignment(
+            agent_id, report, delivered_ids, task_id = self._worker(mission_id, Assignment(
                 agent_id="review", task="Review the latest artifacts against the original mission. "
                 "Distinguish retrieved evidence, unverified claims and observed results. "
                 "State concrete objections and send a challenge if a revision is needed."
             ))
-            self._record_report(mission_id, agent_id, report, delivered_ids)
+            self._record_report(
+                mission_id, agent_id, report, delivered_ids, task_id=task_id,
+            )
             self.check_stop()
             verdict, delivered_ids = self._call(
                 mission_id, "coordinator",
@@ -730,7 +953,9 @@ class Engine:
             )
             self._mark_user_messages_handled(mission_id, delivered_ids)
             self.store.message(mission_id, "coordinator", "user", verdict.message, "decision")
-            self.store.artifact(mission_id, "coordinator", "Coordinator's review", verdict.message)
+            self.store.artifact(
+                mission_id, "coordinator", "Coordinator's review", verdict.message,
+            )
             peers = self._pending(mission_id)
             peers.extend(self._pending_general_followup(mission_id))
             scope_requests = self._unresolved_scope_requests(mission_id)

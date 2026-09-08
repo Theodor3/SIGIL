@@ -45,7 +45,11 @@ def test_snapshot_is_pinned_and_ignores_untracked_and_sensitive_files(repository
     (repository / "api/untracked.py").write_text('secret = "untracked-fixture"')
     git(repository, "add", "api/example.py")
     git(repository, "commit", "-m", "Later revision")
-    assert studio.read("api/example.py")["text"] == "value = 1\n"
+    complete = studio.read("api/example.py")
+    assert complete["text"] == "value = 1\n"
+    assert complete["complete_file"] is True
+    assert complete["line_truncated"] is False
+    assert complete["text_truncated"] is False
     assert studio.read("api/example.py")["commit"] == pinned
     restarted = GitStudio(repository, commit=pinned)
     assert restarted.read("api/example.py")["text"] == "value = 1\n"
@@ -113,6 +117,38 @@ def test_read_and_search_are_bounded(repository):
     matches = studio.search("match")
     assert len(matches["matches"]) == 80 and matches["truncated"]
     assert all(len(m["text"]) <= 400 for m in matches["matches"])
+
+
+def test_read_marks_started_and_line_limited_chunks_incomplete(repository):
+    started = GitStudio(repository).read("tests/test_example.py", start=2)
+    assert started["text"] == "    assert 1 == 1\n"
+    assert started["complete_file"] is False
+    assert started["line_truncated"] is False
+    assert started["text_truncated"] is False
+
+    content = "".join(f"line {number}\n" for number in range(1, 122))
+    (repository / "docs/many-lines.md").write_text(content, encoding="utf-8")
+    git(repository, "add", "docs/many-lines.md")
+    git(repository, "commit", "-m", "Many-line fixture")
+    limited = GitStudio(repository).read("docs/many-lines.md")
+    assert limited["end"] == 120
+    assert limited["total_lines"] == 121
+    assert limited["complete_file"] is False
+    assert limited["line_truncated"] is True
+    assert limited["text_truncated"] is False
+
+
+def test_read_marks_single_huge_final_line_incomplete(repository):
+    content = "x" * 8_001
+    (repository / "docs/huge-line.md").write_text(content, encoding="utf-8")
+    git(repository, "add", "docs/huge-line.md")
+    git(repository, "commit", "-m", "Huge-line fixture")
+    result = GitStudio(repository).read("docs/huge-line.md")
+    assert result["text"] == "x" * 8_000
+    assert result["start"] == result["end"] == result["total_lines"] == 1
+    assert result["complete_file"] is False
+    assert result["line_truncated"] is False
+    assert result["text_truncated"] is True
 
 
 def test_execution_is_blocked_without_local_image(repository, monkeypatch):
