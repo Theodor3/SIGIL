@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-08",
+  "updated": "2026-09-14",
   "states": [
     "ready",
     "assigned",
@@ -180,8 +180,9 @@
       "id": "S011",
       "owner": "coordinator",
       "title": "Screen one novel signal against point-in-time data availability",
-      "status": "ready",
-      "assignment": "Run one narrow mission with research-frontier and data plus automatic review. Research-frontier may use bounded public primary-source research but must not inspect private Studio source. Data must inspect only the current Studio data paths and must not use public tools. Independently assess one niche US-equity signal hypothesis, its exact observable timestamp, historical availability, leakage risks and cheapest falsifying test. Use structured Studio claims for code facts, retrieved pages for public citations, max_revisions=1, and one final coordinator decision. Do not draft code, claim performance, change the stable strategy or trade."
+      "status": "blocked",
+      "assignment": "Run one narrow mission with research-frontier and data plus automatic review. Research-frontier may use bounded public primary-source research but must not inspect private Studio source. Data must inspect only the current Studio data paths and must not use public tools. Independently assess one niche US-equity signal hypothesis, its exact observable timestamp, historical availability, leakage risks and cheapest falsifying test. Use structured Studio claims for code facts, retrieved pages for public citations, max_revisions=1, and one final coordinator decision. Do not draft code, claim performance, change the stable strategy or trade.",
+      "validationStatus": "Not run. The authorized pilot expired on 2026-09-11 before both session keys were reconnected."
     },
     {
       "id": "S012",
@@ -191,7 +192,7 @@
       "validationStatus": "Five terminal follow-ups (m_2a8170075c694b42, m_cadc398a56b644d0, m_4b5ddec966324258, m_625393a4938a4ca2, m_beaef99ed96c4357) spent $0.606306 rechecking a closed role-policy question. They produced no signal result or code change. The scheduled coordinator now forbids summary-derived follow-ups, runs only an explicitly ready board item, and stops after one mission. Dashboard-created missions default to one revision."
     }
   ],
-  "nextEngineeringPriority": "After the v0.3.2 restart, reconnect both session keys only when ready to run S011. Do not replay S006, S009, or the closed administrative follow-up chain.",
-  "operatingStatus": "continuous_coordinator_ready_supervised_waiting_for_connections",
+  "nextEngineeringPriority": "Review the completed pilot with the user before authorizing any new paid mission or schedule.",
+  "operatingStatus": "pilot_complete",
   "runtimeVersion": "0.3.2"
 }
