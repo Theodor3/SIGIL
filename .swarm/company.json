@@ -8,7 +8,7 @@
   "branch": "codex/sigil-company",
   "baselineCommit": "794ee62",
   "coordinatorTaskId": "01a06aed-e74d-7061-bd25-2a2773a28566",
-  "runtime": "API dashboard v0.3.2 with one-revision defaults, complete evidence validation, isolated initial review, SQLite history and supervised daily coordination; Docker execution unavailable",
+  "runtime": "Local worker missions through LM Studio; paid pilot remains expired. Separate local critique and external coordinator review.",
   "model": "gemini-3.1-flash-lite workers; gpt-5.6-sol coordinator; gpt-4.1-mini web-search utility",
   "automationId": "sigil-company-coordinator",
   "cadenceMinutes": 1440,
@@ -196,9 +196,9 @@
     "sourceEvidence": "Studio claims reference visible completed read IDs. The controller and store verify paths, ranges, lowercase SHA-256, the pinned commit and truthful truncation flags. Absence claims require continuous, untruncated coverage, including multiple chunks when needed."
   },
   "continuousOperations": ".swarm/CONTINUOUS-OPERATIONS.md",
-  "runtimeVersion": "0.3.2",
+  "runtimeVersion": "0.4.0",
   "readinessEndpoint": "http://127.0.0.1:8765/api/readiness",
-  "currentReadiness": "pilot_expired",
+  "currentReadiness": "local_available_paid_pilot_expired",
   "currentBlocker": "The authorized seven-day pilot expired on 2026-09-11. Review results with the user before any new paid work.",
   "storage": {
     "engine": "SQLite",
@@ -236,5 +236,17 @@
     "durableProvenanceInvariant": true,
     "independentReviewerToolIsolation": true,
     "recursiveFollowupGuard": true
+  },
+  "localOperations": {
+    "authorized": "User approved local offloading on September 27, 2026",
+    "queue": ".swarm/local-queue.json",
+    "cadenceMinutes": 60,
+    "maxMissionsPerCycle": 1,
+    "automaticRefill": false,
+    "trialMissionId": "m_d88d36436b434540",
+    "trialReport": ".swarm/reports/2026-09-27-local-worker-trial.md",
+    "mode": "local",
+    "model": "google/gemma-4-26b-a4b-qat",
+    "loadedIdentifier": "sigil-local"
   }
 }

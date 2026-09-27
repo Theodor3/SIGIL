@@ -85,6 +85,20 @@ def test_local_tools_block_outbound_requests(tmp_path, monkeypatch):
     store.close()
 
 
+def test_interrupted_local_call_does_not_create_uncertain_paid_billing(tmp_path):
+    store = Store(tmp_path)
+    mid = store.create("Local", "local")["id"]
+    store.reserve(mid, "data", "local", LOCAL_MODEL, 0)
+    store.get(mid)["mission"]["status"] = "running"
+    store.save(store.get(mid))
+    store.close()
+    store = Store(tmp_path)
+    assert store.snapshot(mid)["calls"][0]["status"] == "failed"
+    assert store.snapshot(mid)["mission"]["status"] == "blocked"
+    assert not store.budget()["uncertain"]
+    store.close()
+
+
 @pytest.mark.parametrize("fault", [None, "model", "length", "schema", "usage", "redirect"])
 def test_local_http_contract_and_fail_closed(monkeypatch, fault):
     real_client = httpx.Client
@@ -136,3 +150,19 @@ def test_local_api_mode_and_immutable_followups(tmp_path):
         app.state.store.get(mission["id"])["mission"]["status"] = "blocked"
         response = client.post(f'/api/missions/{mission["id"]}/messages', headers=headers, json={"text": "Replay"})
         assert response.status_code == 400
+
+
+def test_external_review_is_local_only_and_once(tmp_path):
+    app = create_app(tmp_path, providers=LocalFixture())
+    with TestClient(app, headers={"origin": "http://testserver"}) as client:
+        for mode in ("local", "live"):
+            mid = client.post("/api/missions", json={"prompt": "Inspect source", "mode": mode}).json()["id"]
+            record = app.state.store.get(mid)
+            record["mission"]["status"] = "needs_review"
+            app.state.store.save(record)
+            payload = {"accepted": True, "reviewer": "codex", "note": "Checked against the exact pinned source; scope is limited to this path."}
+            response = client.post(f"/api/missions/{mid}/review", json=payload)
+            assert response.status_code == (200 if mode == "local" else 400)
+            if mode == "local":
+                assert response.json()["status"] == "completed"
+                assert client.post(f"/api/missions/{mid}/review", json=payload).status_code == 400

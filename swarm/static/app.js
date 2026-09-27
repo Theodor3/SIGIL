@@ -383,14 +383,14 @@ function renderMissions() {
 function renderMissionHeader() {
   const mission = currentMission();
   const hasMission = Boolean(mission);
-  const roundLimit = hasMission && Number(mission.round || 0) >= Number(mission.max_rounds || 5);
+  const roundLimit = hasMission && !isRunning(mission) && Number(mission.round || 0) >= Number(mission.max_rounds || 5);
   $("conversation-heading").textContent = mission?.title || "Give good ideas a place to grow.";
   $("mission-eyebrow").textContent = hasMission ? "THE SHARED CONVERSATION" : "YOUR NEXT QUESTION STARTS HERE";
   $("mission-mode").textContent = mission?.mode === "local" ? "Local worker" : mission?.mode === "live" ? "API research" : "Sample mode";
   $("mission-mode").className = `pill ${mission?.mode === "live" ? "live" : "sample"}`;
   $("sample-banner").hidden = mission?.mode !== "demo";
   $("mission-toolbar").hidden = !hasMission;
-  const canCompose = hasMission && !busy && !roundLimit;
+  const canCompose = hasMission && mission.mode !== "local" && !busy && !roundLimit;
   $("message-input").disabled = !canCompose;
   $("recipient-select").disabled = !canCompose;
   $("send-message").disabled = !canCompose || !$("message-input").value.trim();
@@ -428,7 +428,11 @@ function renderMissionGuidance(mission, roundLimit = false) {
   let button = "";
   missionActionIntent = "none";
 
-  if (roundLimit || /new.?mission|follow.?up/.test(combined)) {
+  if (isRunning(mission)) {
+    panel.hidden = true;
+    return;
+  }
+  if (mission.status !== "needs_review" && mission.status !== "blocked" && (roundLimit || /new.?mission|follow.?up/.test(combined))) {
     label = "RESEARCH CYCLE COMPLETE";
     text = mission.status_reason || "This mission reached its round limit. Carry the strongest unresolved question into a focused follow-up.";
     button = "Start focused follow-up";

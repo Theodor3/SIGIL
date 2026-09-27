@@ -13,7 +13,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from . import __version__
 from .engine import Engine
-from .models import AGENTS, Disconnect, NewMission, ProviderKeys, UserMessage
+from .models import AGENTS, Disconnect, LocalReview, NewMission, ProviderKeys, UserMessage
 from .providers import Providers
 from .store import Store, now
 from .studio import GitStudio
@@ -149,16 +149,16 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
         status = result.get("status")
         result["status_reason"] = result.get("summary") or ""
         result["retryable"] = False
-        if result.get("round", 0) >= result.get("max_rounds", 5):
-            result["required_action"] = "start_focused_followup"
-        elif status == "needs_review":
+        if status == "needs_review":
             result["required_action"] = "review_evidence"
         elif status in ("running", "stopping"):
             result["required_action"] = "wait_for_mission"
         elif status == "completed":
             result["required_action"] = "review_evidence"
         elif status == "blocked":
-            if result.get("mode") in ("live", "local"):
+            if result.get("mode") == "local":
+                result["required_action"] = "review_evidence"
+            elif result.get("mode") == "live":
                 result["required_action"] = (runtime["blockers"][0]["action"] if runtime["blockers"] else "start_focused_followup")
             else:
                 result["required_action"] = "start_mission"
@@ -202,8 +202,15 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
         agents = []
         for original in AGENTS:
             agent = dict(original)
-            if active_id and active["mission"]["mode"] == "local" and agent["id"] in active.get("participants", []):
+            use_local = (
+                active_id and active["mission"]["mode"] == "local" and agent["id"] in active.get("participants", [])
+            ) or (
+                not active_id and local_status["configured"] and agent["id"] in ("data", "engineering", "quant", "product-ops", "review")
+            )
+            if use_local:
                 agent.update(provider="LM Studio (local)", model=local_status["model"])
+                if agent["id"] == "review":
+                    agent.update(name="Local critic", role="Checks the local draft; final coordinator review is still required")
                 agent["status"] = "working" if agent["id"] in busy else "ready"
             else:
                 connection = providers_status["openai" if agent["id"] == "coordinator" else "gemini"]
@@ -272,6 +279,21 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
     @app.post("/api/missions/{mission_id}/stop")
     def stop(mission_id: str):
         return engine.stop(mission_id)
+
+    @app.post("/api/missions/{mission_id}/review")
+    def review_local(mission_id: str, payload: LocalReview):
+        with engine.lock, store.lock:
+            data = store.get(mission_id)
+            if engine.active_id == mission_id or data["mission"]["mode"] != "local" or data["mission"]["status"] != "needs_review":
+                raise ValueError("Only a finished local mission awaiting review can receive a coordinator decision.")
+            if data["mission"].get("coordinator_review"):
+                raise ValueError("The coordinator decision is already recorded.")
+            data["mission"]["coordinator_review"] = {**payload.model_dump(), "at": now()}
+            data["mission"]["status"] = "completed" if payload.accepted else "blocked"
+            data["mission"]["summary"] = payload.note
+            store.save(data)
+            store.message(mission_id, "coordinator", "user", payload.note, "decision")
+            return store.snapshot(mission_id)["mission"]
 
     @app.post("/api/missions/{mission_id}/messages")
     def message(mission_id: str, payload: UserMessage):

@@ -102,6 +102,12 @@ class UserMessage(StrictModel):
     recipient: Recipient = "coordinator"
 
 
+class LocalReview(StrictModel):
+    accepted: bool
+    reviewer: Literal["user", "codex"]
+    note: str = Field(min_length=10, max_length=4000)
+
+
 class ProviderKeys(StrictModel):
     gemini_api_key: str | None = Field(default=None, max_length=512)
     openai_api_key: str | None = Field(default=None, max_length=512)

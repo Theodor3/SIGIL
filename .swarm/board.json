@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-14",
+  "updated": "2026-09-27",
   "states": [
     "ready",
     "assigned",
@@ -190,9 +190,18 @@
       "title": "Close the recursive administrative follow-up chain",
       "status": "done",
       "validationStatus": "Five terminal follow-ups (m_2a8170075c694b42, m_cadc398a56b644d0, m_4b5ddec966324258, m_625393a4938a4ca2, m_beaef99ed96c4357) spent $0.606306 rechecking a closed role-policy question. They produced no signal result or code change. The scheduled coordinator now forbids summary-derived follow-ups, runs only an explicitly ready board item, and stops after one mission. Dashboard-created missions default to one revision."
+    },
+    {
+      "id": "L001",
+      "owner": "data",
+      "title": "Validate local worker offloading",
+      "status": "done",
+      "missionId": "m_d88d36436b434540",
+      "artifact": ".swarm/reports/2026-09-27-local-worker-trial.md",
+      "validationStatus": "Real local worker and same-model critique finished; coordinator accepted the source-scoped inventory with documented qualifications. No paid API calls."
     }
   ],
-  "nextEngineeringPriority": "Review the completed pilot with the user before authorizing any new paid mission or schedule.",
+  "nextEngineeringPriority": "Process explicit local-only tasks in .swarm/local-queue.json; the paid pilot remains closed.",
   "operatingStatus": "pilot_complete",
-  "runtimeVersion": "0.3.2"
+  "runtimeVersion": "0.4.0"
 }
