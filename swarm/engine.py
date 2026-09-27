@@ -71,6 +71,13 @@ class Engine:
             round_limit = min(MAX_ROUNDS, data["mission"].get("max_rounds", MAX_ROUNDS))
             if data["mission"]["round"] >= round_limit:
                 raise ValueError("This mission has reached its round limit. Start a new, focused mission.")
+            if data["mission"]["mode"] == "local":
+                if data["mission"]["status"] != "ready":
+                    raise ValueError("Local missions are immutable after dispatch. Start a focused follow-up.")
+                if not self.studio or not self.studio.manifest().get("is_current", True):
+                    raise ValueError("Restart the dashboard with the current source snapshot first.")
+                if not self.providers.local.status()["configured"]:
+                    raise ValueError("Load sigil-local in LM Studio and start its localhost server on port 1234.")
             if data["mission"]["mode"] == "live":
                 if data["mission"]["status"] != "ready":
                     raise ValueError("API missions are not replayed after they stop. Start a focused follow-up mission so prior calls are not duplicated.")
@@ -350,6 +357,8 @@ class Engine:
             mode = self.store.snapshot(mission_id)["mission"]["mode"]
             if mode == "demo":
                 self._demo(mission_id)
+            elif mode == "local":
+                self._local(mission_id)
             else:
                 self._live(mission_id)
         except Stopped:
@@ -475,6 +484,10 @@ class Engine:
         self.check_stop()
         provider = "openai" if agent_id == "coordinator" else "gemini"
         model = OPENAI_MODEL if provider == "openai" else GEMINI_MODEL
+        local = self.store.snapshot(mission_id)["mission"]["mode"] == "local"
+        if local:
+            from .local import LOCAL_MODEL
+            provider, model = "local", LOCAL_MODEL
         system = RULES + "\nYour role: " + AGENT_MAP[agent_id]["role"]
         if schema is Report:
             system += (
@@ -507,6 +520,8 @@ class Engine:
         prompt, delivered_ids = self._context(
             mission_id, agent_id, task, independent=independent, task_id=task_id,
         )
+        if local:
+            system += " Local-only assignment: no public tools, source_requests, paid calls, or automatic application of drafts. Keep the report concise; use recorded read IDs for every code claim. A separate coordinator will review your output."
         amount = self.providers.reservation(provider, system, prompt, schema)
         self.check_stop()
         call_id = self.store.reserve(mission_id, agent_id, provider, model, amount, task_id=task_id)
@@ -522,12 +537,12 @@ class Engine:
         except Stopped:
             raise
         except Exception:
-            self.store.settle(call_id, error="Unexpected provider failure; billing uncertain.")
+            self.store.settle(call_id, cost=0 if local else None, error="Unexpected provider failure.")
             raise ProviderFailure("The call failed unexpectedly. Its budget reservation is retained.") from None
         expected = result.returned_model.removeprefix("models/")
-        if expected != model and not expected.startswith(model + "-"):
+        if expected != model and (local or not expected.startswith(model + "-")):
             self.store.settle(
-                call_id, error="Model provenance is missing or unexpected; billing needs reconciliation.",
+                call_id, cost=0 if local else None, error="Model provenance is missing or unexpected.",
                 usage={"input_tokens": result.input_tokens, "output_tokens": result.output_tokens},
                 returned_model=result.returned_model, response_id=result.response_id,
             )
@@ -630,7 +645,7 @@ class Engine:
             for msg in report.messages:
                 if msg.recipient != agent_id:
                     self.store.message(mission_id, agent_id, msg.recipient, msg.text, msg.kind)
-        if independent and report.source_requests:
+        if (independent or self.store.snapshot(mission_id)["mission"]["mode"] == "local") and report.source_requests:
             self.store.message(
                 mission_id, "system", agent_id,
                 "Public page requests from the isolated first critique were not sent. Use a separately assigned public-research specialist after the independent critique.",
@@ -809,6 +824,40 @@ class Engine:
                 if m["sender"] == "user" and m["recipient"] == "coordinator" and m["id"] in delivered_ids:
                     m["handled"] = True
             self.store.save(data)
+
+    def _local(self, mission_id):
+        """One assigned worker followed by a separate-context local critique.
+
+        Coordination is deterministic. A human/Codex coordinator must assess
+        the result; the local model can never approve or apply its own work.
+        """
+        from .local import LOCAL_MODEL
+        manifest = self.studio.manifest()
+        with self.store.lock:
+            data = self.store.get(mission_id)
+            if data.get("studio") and data["studio"]["commit"] != manifest["commit"]:
+                raise ValueError("Start a new mission for the current source snapshot.")
+            role = data["mission"]["local_role"]
+            prompt = data["mission"]["prompt"]
+            data["studio"] = {"commit": manifest["commit"], "branch": manifest["branch"],
+                              "file_count": manifest["file_count"], "files": [f["path"] for f in manifest["files"]],
+                              "capabilities": manifest["capabilities"], "execution_note": manifest["execution_note"]}
+            data["mission"].update(round=1, provider_routes={role: "local", "review": "local", "coordinator": "external_review"},
+                                   local_model=LOCAL_MODEL)
+            data["participants"] = [role, "review"]
+            self.store.save(data)
+        self.store.message(mission_id, "system", "user",
+                           "Local mission: one worker at a time, then a separate-context critique using the same local model. Final coordinator review is required. No paid provider or public research calls.", "status")
+        assignment = Assignment(agent_id=role, task=prompt)
+        result = self._worker(mission_id, assignment)
+        self._record_report(mission_id, *result[:3], task_id=result[3], allow_peer_messages=False)
+        self.check_stop()
+        result = self._worker(mission_id, Assignment(agent_id="review", task=
+            "Review the worker's latest artifact against the original mission and exact source evidence. "
+            "Identify unsupported or missing claims, and factual errors. Do not approve implementation or trading. "
+            "This is a local critique with the same model, not independent model validation."))
+        self._record_report(mission_id, *result[:3], task_id=result[3], allow_peer_messages=False)
+        self._status(mission_id, "needs_review", "Local worker and critique finished. Coordinator review is required; no changes were applied.")
 
     def _live(self, mission_id):
         data = self.store.snapshot(mission_id)

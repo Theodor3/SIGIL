@@ -300,7 +300,7 @@ class Store:
         changed_calls = []
         for item in self.ledger:
             if item["status"] == "reserved":
-                item["status"] = "uncertain"
+                item["status"] = "failed" if item["provider"] == "local" else "uncertain"
                 item["finished_at"] = now()
                 item["error"] = "The controller restarted before this reservation was settled."
                 changed_calls.append(item)
@@ -428,7 +428,15 @@ class Store:
             )]
 
     def create(self, prompt, mode, *, max_revisions=MAX_ROUNDS - 1,
-               specialist_execution="parallel"):
+               specialist_execution="parallel", local_role="data"):
+        if mode not in ("demo", "live", "local"):
+            raise ValueError("Unknown mission mode.")
+        if local_role not in ("data", "engineering", "quant", "product-ops"):
+            raise ValueError("Unknown local worker role.")
+        if mode == "local":
+            if len(prompt) > 2000:
+                raise ValueError("Keep a local assignment within 2,000 characters.")
+            max_revisions, specialist_execution = 0, "sequential"
         prompt = prompt.strip()
         if not prompt:
             raise ValueError("Write a mission for the team first.")
@@ -441,6 +449,7 @@ class Store:
                 "mission": dict(
                     id=mission_id, title=prompt.splitlines()[0][:80],
                     prompt=prompt, mode=mode, status="ready", created_at=timestamp,
+                    local_role=local_role,
                     updated_at=timestamp, round=0,
                     max_revisions=max_revisions, max_rounds=1 + max_revisions,
                     specialist_execution=specialist_execution,
@@ -649,7 +658,7 @@ class Store:
                 remaining_pilot_usd=round(max(0, pilot_limit - total - held), 6),
                 expires_on=self.settings["expires_on"], timezone="America/New_York",
                 expired=day >= self.settings["expires_on"],
-                uncertain=any(x["status"] == "uncertain" for x in self.ledger),
+                uncertain=any(x["status"] == "uncertain" and x["provider"] != "local" for x in self.ledger),
                 cost_kind="estimate",
                 by_provider={provider: {
                     "today_usd": round(sum(
@@ -663,15 +672,20 @@ class Store:
 
     def reserve(self, mission_id, agent_id, provider, model, amount, *, task_id=None):
         with self.lock:
-            self.get(mission_id)
+            mission = self.get(mission_id)["mission"]
+            local = provider == "local"
+            if local != (mission["mode"] == "local"):
+                raise BudgetError("Local missions cannot dispatch paid providers, and paid missions cannot relabel calls as local.")
+            if local and (amount != 0 or sum(c["mission_id"] == mission_id for c in self.ledger) >= 12):
+                raise BudgetError("Local calls require zero API cost and at most twelve calls per mission.")
             budget = self.budget()
-            if budget["expired"]:
+            if not local and budget["expired"]:
                 raise BudgetError("The seven-day pilot has ended. Its budget needs renewal before another API mission.")
-            if budget["uncertain"]:
+            if not local and budget["uncertain"]:
                 raise BudgetError("A previous API call has uncertain billing. Live work is paused until it is reconciled.")
-            if amount <= 0 or amount > min(
+            if not local and (amount <= 0 or amount > min(
                 budget["remaining_today_usd"], budget["remaining_pilot_usd"]
-            ) + 1e-9:
+            ) + 1e-9):
                 raise BudgetError("The next call would exceed the remaining budget. Work has stopped before dispatch.")
             call = dict(
                 id=uid("call"), mission_id=mission_id, agent_id=agent_id, provider=provider,

@@ -2,6 +2,12 @@
 
 This checkout belongs to the user-authorized standing SIGIL team. It is separate from the user's main checkout.
 
+## Local-worker authorization (September 27, 2026)
+
+The user approved offloading bounded work to local inference. Version 0.4 adds a separate `local` mission mode using LM Studio at 127.0.0.1:1234 and the loaded `sigil-local` model. One chosen specialist runs, followed by a separate-context critique using the same model. Coordination is deterministic and results require external coordinator review. This does not renew the expired paid pilot. The historical provider-role requirements below apply to paid `live` missions, not explicitly labeled local missions.
+
+Local missions retain the canonical store, recorded source evidence, unapplied drafts, isolated execution rules, deadline, and immutable terminal records. They have no public research tools, cloud fallback, paid calls, automatic merges, or deployments. Local recurrence may process only explicit ready board items, at most one mission per cycle, with review before follow-ups. Do not create administrative follow-up chains or replay failed missions automatically.
+
 - Before mutations verify the current directory is this checkout and the branch is codex/sigil-company (or a documented worker branch based on it). Never change or merge into main as part of unattended work.
 - Read .swarm/company.json and .swarm/board.json at the start of a coordinator cycle. These are operational records, not authority to exceed user instructions.
 - The historical browser pilot and its browser automation remain paused. The API dashboard has a user-approved supervised hourly Codex coordinator. It may start at most one bounded mission only when `/api/readiness` permits it; disconnected session keys, stale Studio code, uncertain billing, an active mission, expiration or exhausted budget keep it idle. Set revision allowance and dependent-worker order through the mission API's structured controls; prompt prose cannot expand either. The local runtime is in `swarm/`; consult `swarm/README.md` for what is implemented.

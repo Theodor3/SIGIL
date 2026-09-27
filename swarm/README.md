@@ -1,5 +1,17 @@
 # SIGIL swarm workspace
 
+## Local workers (v0.4)
+
+Local worker mode runs one selected data, engineering, quant, or operations role on this PC, followed by a separate-context critique using the same model. It ends in `needs_review`; a human or Codex coordinator must assess the evidence. Drafts are never applied automatically. This is a separate mode from the expired paid pilot documented below.
+
+Start the existing runtime with `lms server start --bind 127.0.0.1 --port 1234`, then load the downloaded model with `lms load google/gemma-4-26b-a4b-qat --context-length 32768 --parallel 1 --identifier sigil-local --yes`. Start the dashboard with the checked launcher. Choose **Local worker**, select a role, and submit an assignment of at most 2,000 characters. State the exact source files and acceptance criteria.
+
+Only the localhost endpoint is used; proxy inheritance, redirects, cloud fallback and automatic retries are disabled. Each mission is limited to one specialist plus critique, two tool rounds per role, twelve recorded calls, and twenty minutes. Public search/page retrieval is disabled in local missions. The paid budget, expiration and ledger remain intact. Zero API cost excludes electricity. Model identity, usage, tool records and report provenance are retained in the same store.
+
+The dashboard itself does not schedule work. A separate coordinator may process explicit ready board items after a successful real local test. Closing the server or sleeping the computer stops availability; interrupted missions are preserved and never automatically replayed. Bionic can use local models interactively, but this integration dispatches through LM Studio's API rather than automating Bionic chats.
+
+Historical pilot notes below describe the earlier cloud run, including its old scheduler and spending snapshot; `.swarm/company.json` and the runtime ledger contain the later pilot closure.
+
 Seven Gemini specialist roles and one OpenAI coordinator work through a local dashboard. Missions produce research, directed peer messages, source records and proposed changes. Studio shows what the team inspected, drafted and checked.
 
 ## Start

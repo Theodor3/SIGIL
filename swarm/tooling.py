@@ -36,6 +36,8 @@ class MissionTools:
             records.append(record)
             self.store.save(data)
         try:
+            if self.store.snapshot(mission_id)["mission"]["mode"] == "local" and request.tool in ("web_search", "paper_search", "fetch_page"):
+                raise ValueError("Local missions use repository tools only. Public and paid research are disabled.")
             if query_error:
                 raise ValueError(query_error)
             if request.tool in ("web_search", "paper_search", "fetch_page"):

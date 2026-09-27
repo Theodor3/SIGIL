@@ -133,8 +133,9 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
             status, label = "ready", "Ready for a mission"
         return {
             "status": status, "label": label, "can_start_live": not blockers,
+            "can_start_local": not active_id and manifest.get("is_current", True) and provider_manager.local.status()["configured"],
             "blockers": blockers, "warnings": warnings,
-            "scheduler_enabled": True, "scheduler_mode": "supervised_daily",
+            "scheduler_enabled": False, "scheduler_mode": "manual",
             "cadence_minutes": 1440, "max_mission_minutes": 20, "credentials_persist": False,
             "attention_count": attention_count, "review_count": review_count,
             "last_mission_at": summaries[0]["updated_at"] if summaries else None,
@@ -157,16 +158,18 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
         elif status == "completed":
             result["required_action"] = "review_evidence"
         elif status == "blocked":
-            if result.get("mode") == "live":
+            if result.get("mode") in ("live", "local"):
                 result["required_action"] = (runtime["blockers"][0]["action"] if runtime["blockers"] else "start_focused_followup")
             else:
                 result["required_action"] = "start_mission"
                 result["retryable"] = True
-        elif status == "stopped" and result.get("mode") == "live":
+        elif status == "stopped" and result.get("mode") in ("live", "local"):
             result["required_action"] = "start_focused_followup"
         else:
             result["required_action"] = "start_mission"
             result["retryable"] = runtime["can_start_live"] or result.get("mode") == "demo"
+            if result.get("mode") == "local":
+                result["retryable"] = status == "ready" and runtime["can_start_local"]
         result["evidence_status"] = "workflow_complete_unvalidated" if status == "completed" and result.get("mode") == "live" else "not_validated"
         return result
 
@@ -195,13 +198,22 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
             busy = {t["agent_id"] for t in active["tasks"] if t["status"] == "running"}
             busy.update(c["agent_id"] for c in active["calls"] if c["status"] == "reserved")
         summaries = [mission_view(mission, runtime) for mission in store.summaries()]
+        local_status = provider_manager.local.status()
+        agents = []
+        for original in AGENTS:
+            agent = dict(original)
+            if active_id and active["mission"]["mode"] == "local" and agent["id"] in active.get("participants", []):
+                agent.update(provider="LM Studio (local)", model=local_status["model"])
+                agent["status"] = "working" if agent["id"] in busy else "ready"
+            else:
+                connection = providers_status["openai" if agent["id"] == "coordinator" else "gemini"]
+                agent["status"] = "working" if agent["id"] in busy else "offline" if not connection["configured"] else "ready" if connection["verified"] else "unverified"
+            agents.append(agent)
         return {
             "app": {"name": "SIGIL Swarm", "version": __version__},
             "providers": providers_status, "budget": store.budget(),
-            "agents": [{**a, "status": "working" if a["id"] in busy else
-                        "offline" if not providers_status["openai" if a["id"] == "coordinator" else "gemini"]["configured"] else
-                        "unverified" if not providers_status["openai" if a["id"] == "coordinator" else "gemini"]["verified"] else "ready"}
-                       for a in AGENTS],
+            "local_provider": local_status,
+            "agents": agents,
             "missions": summaries, "active_mission_id": active_id, "runtime": runtime,
             "backend": {"live_available": runtime["can_start_live"],
                          "worker_execution": "development_studio", "search": "web_and_papers",
@@ -239,6 +251,7 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
         return store.create(
             payload.prompt, payload.mode, max_revisions=payload.max_revisions,
             specialist_execution=payload.specialist_execution,
+            local_role=payload.local_role,
         )
 
     @app.get("/api/missions/{mission_id}")
@@ -268,7 +281,7 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
             data = store.get(mission_id)
             if data["mission"]["round"] >= data["mission"]["max_rounds"]:
                 raise ValueError("This mission reached its round limit. Start a new mission with your follow-up.")
-            if data["mission"]["mode"] == "live" and data["mission"]["status"] not in ("ready", "running", "stopping"):
+            if data["mission"]["mode"] in ("live", "local") and data["mission"]["status"] not in ("ready", "running", "stopping"):
                 raise ValueError("Keep this run as an immutable record. Start a focused follow-up mission so prior API calls are not replayed.")
             result = store.message(mission_id, "user", payload.recipient, payload.text.strip(), "question")
             if data["mission"]["status"] not in ("running", "stopping"):
@@ -282,7 +295,7 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
         data = store.snapshot(mission_id)
         m = mission_view(data["mission"], runtime_status())
         lines = [
-            "# " + m["title"], "", "Mode: " + ("SCRIPTED SAMPLE" if m["mode"] == "demo" else "API research"),
+            "# " + m["title"], "", "Mode: " + ({"demo": "SCRIPTED SAMPLE", "local": "Local model; coordinator review required", "live": "API research"}[m["mode"]]),
             "Status: " + m["status"], "Estimated model/tool cost: $" + format(m["spent_usd"], ".6f"),
             "Evidence status: no trading signal was validated by this workflow.",
             "Research documents are unverified unless their evidence is independently checked.", "",

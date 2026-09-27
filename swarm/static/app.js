@@ -163,6 +163,8 @@ function isRunning(mission = currentMission()) {
   return mission && ["running", "stopping"].includes(mission.status);
 }
 
+function localAvailable() { return Boolean(state?.runtime?.can_start_local); }
+
 function liveAvailable() {
   if (typeof state?.runtime?.can_start_live === "boolean") return state.runtime.can_start_live;
   return Boolean(state?.backend?.live_available && state?.providers?.gemini?.configured && state?.providers?.openai?.configured);
@@ -253,11 +255,11 @@ function renderCompanyStatus() {
   else if (rawStatus === "ready" || (!issue && liveAvailable())) tone = "ready";
   else if (/offline|connect|credential/.test(rawStatus) || configured < 2) tone = "offline";
   else if (/block|pause|expired|budget|pilot|restart/.test(rawStatus)) tone = "blocked";
-  const title = runtime.label || (running ? "Your company is working" : liveAvailable() ? "Your company is ready" : configured < 2 ? "Reconnect to start API research" : "Your company needs attention");
+  const title = (localAvailable() && !running ? "Local workers ready · paid pilot closed" : null) || runtime.label || (running ? "Your company is working" : liveAvailable() ? "Your company is ready" : configured < 2 ? "Reconnect to start API research" : "Your company needs attention");
   let description = issue?.message || warning?.message || "The team is ready for a focused research mission. A first provider call may verify access before work continues.";
   if (running && !issue) description = "The coordinator is supervising the active mission and will surface evidence or a decision when it needs you.";
   $("company-status-title").textContent = title;
-  $("company-status-detail").textContent = description;
+  $("company-status-detail").textContent = localAvailable() && !running ? "Assign one focused local task. Results wait for coordinator review; the expired paid pilot stays closed." : description;
   const statusCard = $("company-status");
   statusCard.className = `company-status ${tone}`;
   $("company-status-kicker").textContent = attention ? `COMPANY STATUS · ${attention} NEED${attention === 1 ? "" : "S"} ATTENTION` : "COMPANY STATUS";
@@ -266,7 +268,8 @@ function renderCompanyStatus() {
   $("company-last-run").textContent = runtime.last_mission_at ? `Last mission ${formatDate(runtime.last_mission_at)}` : "No mission activity yet";
   $("company-key-policy").textContent = runtime.credentials_persist ? "Provider keys available" : "Keys reset with the local server";
 
-  if (issue) companyActionIntent = intentForRuntimeAction(issue.action, issue.code);
+  if (localAvailable()) companyActionIntent = "mission";
+  else if (issue) companyActionIntent = intentForRuntimeAction(issue.action, issue.code);
   else if (reviewCount || attention) companyActionIntent = "review";
   else if (running) companyActionIntent = "active";
   else companyActionIntent = liveAvailable() ? "mission" : configured < 2 ? "connections" : "status";
@@ -278,6 +281,13 @@ function renderCompanyStatus() {
 }
 
 function renderModeNote() {
+  const local = $("local-mode-input").checked;
+  $("local-role").disabled = !local;
+  $("new-mission-input").maxLength = local ? 2000 : 6000;
+  if (local) {
+    $("mission-mode-note").textContent = localAvailable() ? "One local worker, then a separate-context critique with the same model. Results wait for coordinator review. No paid calls or automatic edits." : "Local worker unavailable: load sigil-local and start the LM Studio server on localhost port 1234. Finish any active mission first.";
+    return;
+  }
   const live = $("live-mode-input").checked;
   $("mission-mode-note").textContent = live ? "Real provider calls count toward the $1 daily and $7 pilot limits. Research, draft edits, and available studio checks; no trading or automatic merging." : "Sample mode shows the workflow with clearly labeled example responses. It does not research your prompt or call a model.";
 }
@@ -362,7 +372,7 @@ function renderMissions() {
     const content = element("div", "mission-list-content");
     content.append(element("h3", "", mission.title || "Untitled mission"), element("p", "", `${formatDate(mission.updated_at)} · Round ${mission.round || 0} of ${mission.max_rounds || 5} · ${mission.mode === "demo" ? "No API spending" : `${estimatedMoney(mission.spent_usd)} estimated model cost`}`));
     const meta = element("div", "mission-list-meta");
-    meta.append(element("span", `pill ${mission.mode === "demo" ? "sample" : "live"}`, mission.mode === "demo" ? "Sample" : "API"), statusPill(mission.status), icon("arrow"));
+    meta.append(element("span", `pill ${mission.mode === "demo" ? "sample" : "live"}`, mission.mode === "demo" ? "Sample" : mission.mode === "local" ? "Local" : "API"), statusPill(mission.status), icon("arrow"));
     button.append(graphic, content, meta);
     return button;
   });
@@ -376,9 +386,9 @@ function renderMissionHeader() {
   const roundLimit = hasMission && Number(mission.round || 0) >= Number(mission.max_rounds || 5);
   $("conversation-heading").textContent = mission?.title || "Give good ideas a place to grow.";
   $("mission-eyebrow").textContent = hasMission ? "THE SHARED CONVERSATION" : "YOUR NEXT QUESTION STARTS HERE";
-  $("mission-mode").textContent = mission?.mode === "live" ? "API research" : "Sample mode";
+  $("mission-mode").textContent = mission?.mode === "local" ? "Local worker" : mission?.mode === "live" ? "API research" : "Sample mode";
   $("mission-mode").className = `pill ${mission?.mode === "live" ? "live" : "sample"}`;
-  $("sample-banner").hidden = mission?.mode === "live";
+  $("sample-banner").hidden = mission?.mode !== "demo";
   $("mission-toolbar").hidden = !hasMission;
   const canCompose = hasMission && !busy && !roundLimit;
   $("message-input").disabled = !canCompose;
@@ -740,6 +750,8 @@ async function chooseMission(id, nextView = "workspace") {
 function openMissionDialog(prefill = "") {
   $("new-mission-error").hidden = true;
   renderProviders();
+  if (localAvailable()) $("local-mode-input").checked = true;
+  renderModeNote();
   if (prefill) $("new-mission-input").value = prefill;
   $("mission-dialog").showModal();
   $("new-mission-input").focus();
@@ -774,7 +786,7 @@ function startFocusedFollowup() {
   const mission = currentMission();
   if (!mission) return;
   openMissionDialog(focusedFollowupPrompt(mission));
-  const preferred = mission.mode === "live" && liveAvailable() ? "live" : "demo";
+  const preferred = mission.mode === "local" ? "local" : mission.mode === "live" && liveAvailable() ? "live" : "demo";
   document.querySelector(`input[name="mission-mode"][value="${preferred}"]`).checked = true;
   renderModeNote();
   if (mission.mode === "live" && !liveAvailable()) {
@@ -836,7 +848,7 @@ function performMissionAction() {
 }
 
 async function createAndRun(prompt, mode) {
-  const mission = await post("/api/missions", { prompt, mode });
+  const mission = await post("/api/missions", { prompt, mode, local_role: $("local-role").value });
   selectedMissionId = mission.id;
   detail = { mission, messages: [], tasks: [], artifacts: [], calls: [] };
   selectedDetailSignature = "";
@@ -960,6 +972,7 @@ $("new-mission-form").addEventListener("submit", async (event) => {
   const prompt = $("new-mission-input").value.trim();
   if (!prompt) return;
   const mode = document.querySelector('input[name="mission-mode"]:checked').value;
+  if (mode === "local" && !localAvailable()) { showError("Local worker is unavailable. Check the model server and current mission.", "new-mission-error"); return; }
   if (mode === "live" && !liveAvailable()) { showError(firstRuntimeIssue()?.message || "Resolve the company status before starting API research.", "new-mission-error"); return; }
   busy = true;
   $("create-mission").disabled = true;

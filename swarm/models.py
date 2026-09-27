@@ -91,7 +91,8 @@ class Verdict(StrictModel):
 
 class NewMission(StrictModel):
     prompt: str = Field(min_length=1, max_length=6000)
-    mode: Literal["demo", "live"] = "demo"
+    mode: Literal["demo", "live", "local"] = "demo"
+    local_role: Literal["data", "engineering", "quant", "product-ops"] = "data"
     max_revisions: int = Field(default=1, ge=0, le=MAX_ROUNDS - 1)
     specialist_execution: Literal["parallel", "sequential"] = "parallel"
 

@@ -869,7 +869,7 @@ def test_readiness_explains_connections_budget_and_agent_state(tmp_path):
     app = create_app(tmp_path, providers=providers)
     with TestClient(app, headers={"Origin": "http://testserver"}) as client:
         state = client.get("/api/state").json()
-        assert state["app"]["version"] == "0.3.2"
+        assert state["app"]["version"] == __version__
         assert state["runtime"]["status"] == "waiting_for_connections"
         assert state["runtime"]["can_start_live"] is False
         assert {agent["status"] for agent in state["agents"]} == {"offline"}

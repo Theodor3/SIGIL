@@ -22,6 +22,8 @@ class ProviderResult:
     response_id: str | None = None
 
     def cost(self, provider):
+        if provider == "local":
+            return 0.0
         inp, out = RATES[provider]
         return (self.input_tokens * inp + self.output_tokens * out) / 1_000_000
 
@@ -63,6 +65,8 @@ def provider_failure(provider, exc, *, metadata_only=False):
 
 class Providers:
     def __init__(self):
+        from .local import LocalProvider
+        self.local = LocalProvider()
         self.lock = threading.RLock()
         allow_environment = os.environ.get("SIGIL_SWARM_ALLOW_ENV_KEYS") == "1"
         openai_key = os.environ.get("OPENAI_API_KEY", "") if allow_environment else ""
@@ -134,6 +138,8 @@ class Providers:
             raise provider_failure("gemini", exc, metadata_only=True) from None
 
     def reservation(self, provider, system, prompt, schema):
+        if provider == "local":
+            return 0.0
         # One byte per input token is deliberately conservative for text-only
         # prompts; include the complete schema and substantial framing overhead.
         input_bound = len((system + prompt + json.dumps(schema.model_json_schema())).encode("utf-8")) + 8192
@@ -144,6 +150,8 @@ class Providers:
         return round((input_bound * inp + output_bound * out) / 1_000_000 + 0.002, 6)
 
     def run(self, provider, system, prompt, schema):
+        if provider == "local":
+            return self.local.run(system, prompt, schema)
         with self.lock:
             key = self.keys.get(provider)
         if not key:
