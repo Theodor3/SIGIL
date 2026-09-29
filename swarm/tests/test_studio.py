@@ -57,6 +57,25 @@ def test_snapshot_is_pinned_and_ignores_untracked_and_sensitive_files(repository
     assert studio.search("value")["matches"][0]["text"] == "value = 1"
 
 
+def test_exact_edit_preserves_full_source_and_uses_latest_draft(repository):
+    studio = GitStudio(repository)
+    first = studio.draft_edit('api/example.py', 'value = 1', 'value = 2', 'engineering', [])
+    second = studio.draft_edit('api/example.py', 'value = 2', 'value = 3', 'engineering', [first])
+    assert first['content'] == 'value = 2\n'
+    assert second['content'] == 'value = 3\n'
+    assert second['before_sha256'] == first['before_sha256']
+    assert studio.files['api/example.py'] == 'value = 1\n'
+    with pytest.raises(ValueError, match='unique'):
+        studio.draft_edit('api/example.py', 'missing', 'bad', 'engineering', [])
+    with pytest.raises(ValueError, match='unique'):
+        studio.draft_edit('api/example.py', '', 'bad', 'engineering', [])
+    repeated = studio.draft('api/example.py', 'x\nx\n', 'engineering')
+    with pytest.raises(ValueError, match='unique'):
+        studio.draft_edit('api/example.py', 'x', 'y', 'engineering', [repeated])
+    with pytest.raises(ValueError):
+        studio.draft_edit('api/example.py', 'value = 1', 'api_key = "synthetic-credential-fixture"', 'engineering', [])
+
+
 @pytest.mark.parametrize("path", ["../escape.py", "/tmp/escape.py", "C:/escape.py", "api/../escape.py", "api\\escape.py", "api//escape.py", "api/.private.py", ".env", "api/secrets.py"])
 def test_paths_cannot_escape_or_access_private_files(repository, path):
     studio = GitStudio(repository)

@@ -65,7 +65,7 @@ class StudioClaim(StrictModel):
 
 
 class ToolRequest(StrictModel):
-    tool: Literal["read_file", "search_code", "draft_file", "check_syntax", "run_tests", "web_search", "paper_search", "fetch_page"]
+    tool: Literal["read_file", "search_code", "draft_file", "draft_edit", "check_syntax", "run_tests", "web_search", "paper_search", "fetch_page"]
     path: str = Field(default="", max_length=240)
     query: str = Field(default="", max_length=400)
     start: int = Field(default=1, ge=1, le=100000)

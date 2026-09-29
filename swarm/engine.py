@@ -225,7 +225,7 @@ class Engine:
         lines = ["Source-linked Studio claims", ""]
         for index, claim in enumerate(claims, 1):
             lines += [
-                f"{index}. {claim['field']} — {claim['status'].upper()}",
+                f"{index}. {claim['field']} â€” {claim['status'].upper()}",
                 "Observation: " + claim["observation"],
                 "Consequence: " + claim["consequence"],
                 "Recorded evidence:",
@@ -233,8 +233,8 @@ class Engine:
             for evidence in claim["evidence"]:
                 lines.append(
                     f"- {evidence['path']}:{evidence['start']}-{evidence['end']} "
-                    f"· SHA-256 {evidence['sha256']} · commit {evidence['commit']} "
-                    f"· tool record {evidence['tool_result_id']}"
+                    f"Â· SHA-256 {evidence['sha256']} Â· commit {evidence['commit']} "
+                    f"Â· tool record {evidence['tool_result_id']}"
                 )
             lines.append("")
         return "\n".join(lines).rstrip()
@@ -460,7 +460,7 @@ class Engine:
         ]
         for record in current_task_tools[-6:]:
             result = dict(record["result"])
-            if record["tool"] == "draft_file":
+            if record["tool"] in ("draft_file", "draft_edit"):
                 result.pop("content", None)
                 result.pop("diff", None)
                 result["note"] = "The draft diff is included in draft_changes."
@@ -476,7 +476,7 @@ class Engine:
         if not independent:
             allowed_tools += ['check_syntax', 'run_tests']
             if agent_id in ('engineering', 'quant'):
-                allowed_tools.append('draft_file')
+                allowed_tools += ['draft_file', 'draft_edit']
             if data['mission']['mode'] != 'local' and not any((
                 current_source_evidence, prior_source_evidence, upstream_source_evidence, team_source_evidence,
             )):
@@ -531,6 +531,7 @@ class Engine:
                 "Use source_requests for up to two specific public HTML/text URLs to retrieve "
                 "from approved domains. Retrieval is a later tool step, so do not pretend you have read them yet."
                 " Use tool_requests for read_file(path,start), search_code(query), draft_file(path,content), "
+                "draft_edit(path,query=unique exact old text,content=replacement text), "
                 "check_syntax(), run_tests(path), web_search(query), paper_search(query), or fetch_page(query=URL). "
                 "Read the manifest and use real paths. Inspect files before asking users to supply them. "
                 "Repository paths belong in read_file tool_requests, never source_requests or fetch_page. "
@@ -548,6 +549,7 @@ class Engine:
                 "Leave tool_requests empty when you can finish. Missing entitlements cannot be inferred from code."
                 " Keep summary under 600 characters and artifact_body under 1200 characters. "
                 "Full file contents belong only in draft_file content, never in narrative fields. "
+                "Prefer draft_edit for a small existing-file change; it constructs a full draft without copying the file. "
                 "Use only allowed_tools and allowed_recipients. Do not request peer replies unless essential. "
                 "For evidence IDs, copy the exact id from a visible source-evidence record; never invent an ID. "
                 "If a file is incomplete, request read_file at end + 1 before making absence claims. "
@@ -590,9 +592,12 @@ class Engine:
             raise ProviderFailure("The provider returned a missing or different model identity. Its reservation is retained; no fallback is allowed.")
         self.store.settle(
             call_id, cost=result.cost(provider),
-            usage={"input_tokens": result.input_tokens, "output_tokens": result.output_tokens},
+            usage={"input_tokens": result.input_tokens, "output_tokens": result.output_tokens,
+                   "finish_reason": result.finish_reason if result.finish_reason in ('STOP', 'MAX_TOKENS', 'SAFETY', 'RECITATION', None) else 'other'},
             returned_model=result.returned_model, response_id=result.response_id,
         )
+        if result.finish_reason == 'MAX_TOKENS':
+            raise ValueError('The response hit its output limit. Usage was recorded; use a smaller edit or report. No automatic retry was made.')
         try:
             return schema.model_validate_json(result.text), delivered_ids
         except ValidationError as exc:
@@ -710,14 +715,14 @@ class Engine:
                     data["mission"].get("specialist_execution") == "sequential"
                     and any(
                         item.get("agent_id") not in (agent_id, "review")
-                        and item.get("tool") in ("read_file", "search_code", "draft_file")
+                        and item.get("tool") in ("read_file", "search_code", "draft_file", "draft_edit")
                         and item.get("status") == "completed"
                         for item in data.get("tool_results", [])
                     )
                 )
                 source_exposed = any(
                     (item["agent_id"] == agent_id or agent_id == "review")
-                    and item.get("tool") in ("read_file", "search_code", "draft_file")
+                    and item.get("tool") in ("read_file", "search_code", "draft_file", "draft_edit")
                     and item.get("status") == "completed"
                     for item in data.get("tool_results", [])
                 ) or sequential_shared
@@ -1084,7 +1089,7 @@ class Engine:
             self.store.save(data)
             user_messages = [m for m in data["messages"] if m["sender"] == "user"]
         self.store.message(mission_id, "system", "user",
-                           "SAMPLE RUN · These are scripted example messages. No AI model is running, no sources are fetched and the cost is $0.", "status")
+                           "SAMPLE RUN Â· These are scripted example messages. No AI model is running, no sources are fetched and the cost is $0.", "status")
         if len(user_messages) > 1:
             latest = user_messages[-1]
             recipient = latest["recipient"] if latest["recipient"] != "coordinator" else "coordinator"
@@ -1120,7 +1125,7 @@ class Engine:
                 self.store.save(data)
         self.store.artifact(
             mission_id, "quant", "Sample experiment brief",
-            "SCRIPTED SAMPLE — no model calls or market analysis were performed.\n\n"
+            "SCRIPTED SAMPLE â€” no model calls or market analysis were performed.\n\n"
             "Your mission\n" + data["mission"]["prompt"] + "\n\n"
             "Example hypothesis\nChanges in earnings-announcement timing may contain information.\n\n"
             "Evidence needed\nArchived calendar versions, public availability timestamps, revision history, "

@@ -719,6 +719,17 @@ def test_invalid_json_still_records_provider_usage(store):
     assert not store.budget()["uncertain"]
 
 
+def test_output_limit_is_reported_after_usage_is_settled(store):
+    providers = FakeProviders()
+    providers.run = lambda *args: ProviderResult('{', 100, 2400, GEMINI_MODEL, finish_reason='MAX_TOKENS')
+    mid = store.create('Synthetic output limit', 'live')['id']
+    with pytest.raises(ValueError, match='output limit'):
+        Engine(store, providers)._call(mid, 'engineering', 'Draft', Report)
+    assert store.ledger[-1]['status'] == 'completed'
+    assert store.ledger[-1]['usage']['finish_reason'] == 'MAX_TOKENS'
+    assert not store.budget()['uncertain']
+
+
 def test_provider_failure_stops_without_retry(store):
     providers = FakeProviders()
     attempts = []

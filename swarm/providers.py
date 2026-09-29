@@ -21,6 +21,7 @@ class ProviderResult:
     output_tokens: int
     returned_model: str
     response_id: str | None = None
+    finish_reason: str | None = None
 
     def cost(self, provider):
         if provider == "local":
@@ -216,6 +217,7 @@ class Providers:
                         usage.candidates_token_count + (usage.thoughts_token_count or 0),
                         response.model_version or "",
                         getattr(response, "response_id", None),
+                        str(getattr(response.candidates[0].finish_reason, 'value', response.candidates[0].finish_reason)) if response.candidates else 'missing',
                     )
                 finally:
                     client.close()

@@ -272,6 +272,14 @@ class GitStudio:
                 "diff": diff, "status": "draft", "created_at": now(),
                 "commit": self.commit}
 
+    def draft_edit(self, path, old, new, author, drafts):
+        _path(path)
+        files = self._draft_files(drafts)
+        before = files.get(path, self.files.get(path))
+        if before is None or not isinstance(old, str) or not old or before.count(old) != 1:
+            raise ValueError('An exact edit needs one unique nonempty match in the current draft or source.')
+        return self.draft(path, before.replace(old, new, 1), author)
+
     def _draft_files(self, drafts):
         if not isinstance(drafts, list) or len(drafts) > MAX_DRAFTS:
             raise ValueError("A studio check accepts at most 24 draft files.")

@@ -42,6 +42,17 @@
       "max_revisions": 1,
       "specialist_execution": "sequential",
       "review": "Worker code draft is minimal and syntax passed. Quant draft covers only five cases, omitting required boundaries. Docker image unavailable at run_tests, so no code execution occurred. Final reviewer request rejected HTTP 400. Not accepted; no replay. Cost $0.038608."
+    },
+    {
+      "id": "DEV005",
+      "status": "blocked",
+      "mission_id": "m_aa84f890008d4e2e",
+      "prompt": "DEV005: Acceptance run after test-image restoration and response-contract fixes. Assign engineering then quant, sequentially, with built-in reviewer. Inspect api/data/edgar.py. Engineering: draft full api/data/edgar.py with only a two-line `if age_days < 0:` / `continue` guard after age_days calculation; preserve newline. Run check_syntax. Quant: create tests/test_edgar_future_dates.py using normal EdgarProvider import and fixed TODAY=date(2026,9,28). Required matrix: four tuples (NT 10-K, empty items, nt_filings,120), (NT 10-Q,empty items,nt_filings,120), (8-K,4.01,auditor_changes,180), (8-K,4.02,restatements,180), crossed with ages -1,0,window,window+1: 16 cases. Assert exact complete flag dictionaries, not any(result.values()). Add three invalid dates (None, not-a-date, 2026-02-30) and one both-items 4.02-priority case: at least 20 tests total. Use two pytest parametrizations for the matrix. Run run_tests on tests/test_edgar_future_dates.py with final drafts. The isolated image has pytest and httpx and is verified available. Reviewer must check all 20 cases and matching checked draft hashes; reject fewer cases or missing run output. No date.today, network, live services, public tools, peer messages, or role expansion. Keep report fields concise; all file content goes only in draft_file content. Keep drafts unapplied. One targeted revision allowed solely for a concrete defect. Stop after review; no further missions.",
+      "mode": "live",
+      "max_revisions": 1,
+      "specialist_execution": "sequential",
+      "requires_tests": true,
+      "review": "Engineering returned invalid JSON before any draft was saved. Usage settled at $0.029092. Prior provider adapter did not record finish reason, so truncation cannot be established retrospectively. Exact-edit tool and finish-reason recording added for the next diagnostic."
     }
   ]
 }

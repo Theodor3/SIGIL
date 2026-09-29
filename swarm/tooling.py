@@ -32,7 +32,7 @@ class MissionTools:
             record = dict(id=uid("tool"), task_id=task_id, agent_id=agent_id, tool=request.tool, status="running",
                           path=request.path, query="[withheld: invalid public search query]" if query_error else request.query,
                           created_at=now(), summary="Tool is running.", result={})
-            prior_count = sum(r["tool"] == request.tool for r in records)
+            prior_count = sum(r['tool'] in ('draft_file', 'draft_edit') for r in records) if request.tool in ('draft_file', 'draft_edit') else sum(r["tool"] == request.tool for r in records)
             records.append(record)
             self.store.save(data)
         try:
@@ -47,14 +47,14 @@ class MissionTools:
                         data["mission"].get("specialist_execution") == "sequential"
                         and any(
                             item.get("agent_id") not in (agent_id, "review")
-                            and item.get("tool") in ("read_file", "search_code", "draft_file")
+                            and item.get("tool") in ("read_file", "search_code", "draft_file", "draft_edit")
                             and item.get("status") == "completed"
                             for item in data.get("tool_results", [])
                         )
                     )
                     source_exposed = any(
                         (item["agent_id"] == agent_id or agent_id == "review")
-                        and item.get("tool") in ("read_file", "search_code", "draft_file")
+                        and item.get("tool") in ("read_file", "search_code", "draft_file", "draft_edit")
                         and item.get("status") == "completed"
                         for item in data.get("tool_results", [])
                     ) or sequential_shared
@@ -67,12 +67,16 @@ class MissionTools:
                 result = self.studio.read(request.path, start=request.start)
             elif request.tool == "search_code":
                 result = self.studio.search(request.query)
-            elif request.tool == "draft_file":
+            elif request.tool in ("draft_file", "draft_edit"):
                 if agent_id not in ("engineering", "quant"):
                     raise ValueError("Ask the engineer or quant to draft a change; this role can inspect and review it.")
                 if prior_count >= 8:
                     raise ValueError("This mission reached its eight-draft limit.")
-                result = self.studio.draft(request.path, request.content, agent_id)
+                if request.tool == 'draft_edit':
+                    result = self.studio.draft_edit(request.path, request.query, request.content,
+                        agent_id, self.store.snapshot(mission_id).get('drafts', []))
+                else:
+                    result = self.studio.draft(request.path, request.content, agent_id)
                 with self.store.lock:
                     self.store.get(mission_id).setdefault("drafts", []).append(result)
                     self.store.save(self.store.get(mission_id))
