@@ -1,0 +1,12 @@
+{
+  "status": "passed",
+  "executed": true,
+  "target": "tests/test_swarm_isolation_probe.py",
+  "exit_code": 0,
+  "output": ".                                                                        [100%]\n1 passed in 0.01s\n",
+  "truncated": false,
+  "commit": "916f7daac9747f33de258d739224d38e61e233db",
+  "image": "sha256:e8fc68718f718b782865256c375406871e4f4c7ba5e8f2a396032c61e9585db7",
+  "note": "Isolated pytest run only. This does not validate live services, market performance or a production deployment.",
+  "checked_draft_sha256": "caa483c7a1fffb822afc9c671c2dbd6aa69cc80851dab3a43999b8afd557f377"
+}

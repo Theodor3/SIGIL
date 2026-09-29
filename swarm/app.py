@@ -102,7 +102,7 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
         if budget["uncertain"]:
             blockers.append({"code": "billing_uncertain", "message": "An API call has uncertain billing and must be reviewed before another paid call.", "action": "review_api_calls"})
         if budget["expired"]:
-            blockers.append({"code": "pilot_expired", "message": "The seven-day pilot has ended.", "action": "review_pilot"})
+            blockers.append({"code": "pilot_expired", "message": "The current API authorization has expired.", "action": "review_pilot"})
         elif min(budget["remaining_today_usd"], budget["remaining_pilot_usd"]) <= 0:
             blockers.append({"code": "budget_exhausted", "message": "The current API allowance is exhausted.", "action": "review_budget"})
 
@@ -122,7 +122,7 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
         elif budget["uncertain"]:
             status, label = "budget_review", "API call review needed"
         elif budget["expired"]:
-            status, label = "pilot_ended", "Pilot ended"
+            status, label = "pilot_ended", "API authorization expired"
         elif missing:
             status, label = "waiting_for_connections", "Reconnect APIs"
         elif blockers:
@@ -238,6 +238,13 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
     @app.get("/api/studio/search")
     def studio_search(q: str = Query(min_length=1, max_length=400)):
         return studio.search(q)
+
+    @app.post("/api/budget/authorize-development")
+    def authorize_development():
+        with engine.lock:
+            if engine.active_id:
+                raise ValueError("Wait for the current mission before changing the budget.")
+            return store.renew_development_budget()
 
     @app.post("/api/providers")
     def configure(payload: ProviderKeys):

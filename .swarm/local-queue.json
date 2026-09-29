@@ -17,15 +17,19 @@
       "id": "L002",
       "title": "Draft future-dated SEC filing regression fix",
       "role": "engineering",
-      "status": "ready",
-      "prompt": "L002: Inspect api/data/edgar.py, especially _scan_filings. Determine whether negative age_days currently admits future-dated NT or 8-K filings. Link every code claim to recorded source reads. If confirmed, draft a minimal full-file change that excludes future dates without changing the existing 120/180-day inclusive windows or 4.02 priority. Draft focused regression tests for tomorrow, today, each exact boundary and one day beyond, plus malformed dates. Use synthetic fixtures only, no network or live SIGIL startup. Check Python syntax and request isolated tests only if available. Keep drafts unapplied. Report actual checks and blockers; do not claim tests ran without tool evidence. Stop after this patch proposal."
+      "status": "blocked",
+      "prompt": "L002: Inspect api/data/edgar.py, especially _scan_filings. Determine whether negative age_days currently admits future-dated NT or 8-K filings. Link every code claim to recorded source reads. If confirmed, draft a minimal full-file change that excludes future dates without changing the existing 120/180-day inclusive windows or 4.02 priority. Draft focused regression tests for tomorrow, today, each exact boundary and one day beyond, plus malformed dates. Use synthetic fixtures only, no network or live SIGIL startup. Check Python syntax and request isolated tests only if available. Keep drafts unapplied. Report actual checks and blockers; do not claim tests ran without tool evidence. Stop after this patch proposal.",
+      "mission_id": "m_0ec982f4f8ff4d7b",
+      "review": "Recorded read of api/data/edgar.py only. Local generation failed before any artifact, draft or check was produced. No automatic replay."
     },
     {
       "id": "L003",
       "title": "Audit backtest timestamp assumptions",
       "role": "quant",
-      "status": "ready",
-      "prompt": "L003: Read api/research/backtester.py and any additional source chunks needed for complete coverage. Produce a concise evidence-linked audit of entry/exit date selection, calendar versus trading horizons, missing prices, directional SPY-relative return semantics and cost treatment. Separate confirmed behavior from possible bias. Propose at most three synthetic regression cases with explicit expected outcomes. Do not change code, fetch public sources, run market-data jobs, invent performance or infer account results. Every code claim must reference recorded read IDs; absence claims need complete coverage. Stop after this audit."
+      "status": "blocked",
+      "prompt": "L003: Read api/research/backtester.py and any additional source chunks needed for complete coverage. Produce a concise evidence-linked audit of entry/exit date selection, calendar versus trading horizons, missing prices, directional SPY-relative return semantics and cost treatment. Separate confirmed behavior from possible bias. Propose at most three synthetic regression cases with explicit expected outcomes. Do not change code, fetch public sources, run market-data jobs, invent performance or infer account results. Every code claim must reference recorded read IDs; absence claims need complete coverage. Stop after this audit.",
+      "mission_id": "m_70913a8ed8b34899",
+      "review": "Local generation failed after three source reads, with no saved audit, draft or test result. Not accepted and not replayed."
     }
   ]
 }

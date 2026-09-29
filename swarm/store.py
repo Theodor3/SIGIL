@@ -15,6 +15,10 @@ from .models import DAILY_LIMIT, MAX_ROUNDS, MAX_SPECIALISTS, PILOT_LIMIT
 
 
 SCHEMA_VERSION = 1
+RENEWAL_ID = "2026-09-28-development"
+RENEWAL_TOTAL = 100.0
+RENEWAL_DAILY = 20.0
+RENEWAL_EXPIRY = "2026-10-28"
 
 
 def now():
@@ -281,12 +285,17 @@ class Store:
                 "daily_limit_usd": DAILY_LIMIT,
                 "pilot_limit_usd": PILOT_LIMIT,
             }
-        # A mutable data file can narrow the compiled authorization, never expand it.
+        # Only the explicit, recorded renewal selects the new compiled ceiling.
+        renewed = settings.get("authorization_id") == RENEWAL_ID
+        daily_ceiling = RENEWAL_DAILY if renewed else DAILY_LIMIT
+        total_ceiling = RENEWAL_TOTAL if renewed else PILOT_LIMIT
+        if renewed:
+            settings["expires_on"] = min(settings["expires_on"], RENEWAL_EXPIRY)
         settings["daily_limit_usd"] = min(
-            DAILY_LIMIT, max(0, float(settings.get("daily_limit_usd", DAILY_LIMIT)))
+            daily_ceiling, max(0, float(settings.get("daily_limit_usd", DAILY_LIMIT)))
         )
         settings["pilot_limit_usd"] = min(
-            PILOT_LIMIT, max(0, float(settings.get("pilot_limit_usd", PILOT_LIMIT)))
+            total_ceiling, max(0, float(settings.get("pilot_limit_usd", PILOT_LIMIT)))
         )
         with self._db:
             self._db.execute(
@@ -642,6 +651,30 @@ class Store:
                 self._upsert_mission(data)
             return copy.deepcopy(artifact)
 
+    def renew_development_budget(self):
+        """Apply the owner's September 28 authorization once; never reset usage."""
+        with self.lock:
+            if self.settings.get("authorization_id") == RENEWAL_ID:
+                return self.budget()
+            if local_day() >= RENEWAL_EXPIRY:
+                raise BudgetError("This development authorization has expired.")
+            if any(c["status"] in ("reserved", "uncertain") for c in self.ledger):
+                raise BudgetError("Settle outstanding calls before renewing the budget.")
+            previous = copy.deepcopy(self.settings)
+            updated = {**previous, "authorization_id": RENEWAL_ID,
+                       "daily_limit_usd": RENEWAL_DAILY,
+                       "pilot_limit_usd": RENEWAL_TOTAL,
+                       "expires_on": RENEWAL_EXPIRY}
+            with self._db:
+                self._insert_event({"id": uid("evt"), "at": now(),
+                    "type": "budget_authorization", "authorization_id": RENEWAL_ID,
+                    "previous": previous, "updated": updated,
+                    "note": "User authorized up to $100 total; prior usage remains counted. No automatic renewal."})
+                self._db.execute("UPDATE metadata SET value = ? WHERE key = 'pilot_settings'",
+                                 (self._json(updated),))
+            self.settings = updated
+            return self.budget()
+
     def budget(self):
         with self.lock:
             day = local_day()
@@ -680,7 +713,7 @@ class Store:
                 raise BudgetError("Local calls require zero API cost and at most twelve calls per mission.")
             budget = self.budget()
             if not local and budget["expired"]:
-                raise BudgetError("The seven-day pilot has ended. Its budget needs renewal before another API mission.")
+                raise BudgetError("The API authorization has expired. Its budget needs renewal before another API mission.")
             if not local and budget["uncertain"]:
                 raise BudgetError("A previous API call has uncertain billing. Live work is paused until it is reconciled.")
             if not local and (amount <= 0 or amount > min(

@@ -4,6 +4,10 @@ This checkout belongs to the user-authorized standing SIGIL team. It is separate
 
 ## Local-worker authorization (September 27, 2026)
 
+## Development authorization (September 28, 2026)
+
+The user explicitly renewed paid coding and review work with a $100 total ceiling and instructed the coordinator to proceed. This supersedes the expired pilot spending restriction below for this development round only. The controller conservatively counts historical spending against $100, uses a $20 daily throttle, and expires on October 28, 2026 without automatic renewal. Preserve the canonical ledger and store identity. Local workers remain preferred when effective. Bounded coordinator delegation, synthetic Docker tests and reviewed development work are authorized; no push, deployment or trading is authorized. Docker execution was enabled and a real restricted-container probe passed on September 28. Historical notes below describe the earlier pilot.
+
 The user approved offloading bounded work to local inference. Version 0.4 adds a separate `local` mission mode using LM Studio at 127.0.0.1:1234 and the loaded `sigil-local` model. One chosen specialist runs, followed by a separate-context critique using the same model. Coordination is deterministic and results require external coordinator review. This does not renew the expired paid pilot. The historical provider-role requirements below apply to paid `live` missions, not explicitly labeled local missions.
 
 Local missions retain the canonical store, recorded source evidence, unapplied drafts, isolated execution rules, deadline, and immutable terminal records. They have no public research tools, cloud fallback, paid calls, automatic merges, or deployments. Local recurrence may process only explicit ready board items, at most one mission per cycle, with review before follow-ups. Do not create administrative follow-up chains or replay failed missions automatically.

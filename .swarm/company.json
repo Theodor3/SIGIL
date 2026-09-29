@@ -8,17 +8,17 @@
   "branch": "codex/sigil-company",
   "baselineCommit": "794ee62",
   "coordinatorTaskId": "01a06aed-e74d-7061-bd25-2a2773a28566",
-  "runtime": "Local worker missions through LM Studio; paid pilot remains expired. Separate local critique and external coordinator review.",
+  "runtime": "Bounded local and paid development missions with source evidence, isolated Docker tests and reviewed drafts.",
   "model": "gemini-3.1-flash-lite workers; gpt-5.6-sol coordinator; gpt-4.1-mini web-search utility",
   "automationId": "sigil-company-coordinator",
   "cadenceMinutes": 1440,
   "budget": {
-    "dailyUsd": 1,
-    "pilotTotalUsd": 7,
+    "dailyUsd": 20,
+    "pilotTotalUsd": 100,
     "timezone": "America/New_York",
-    "expiresOn": "2026-09-11",
+    "expiresOn": "2026-10-28",
     "authorized": true,
-    "authorization": "User accepted the proposed pilot and dashboard on September 4, 2026.",
+    "authorization": "User renewed paid development September 28, 2026, up to $100 total. Historical spending remains counted; no automatic renewal.",
     "maxConcurrentSpecialists": 2,
     "maxRoundsPerMission": 5,
     "maxPeerRevisionRounds": 2,
@@ -29,25 +29,26 @@
     "recordedProviderEstimates": {
       "gemini": 0.314028,
       "openai": 1.248815
-    }
+    },
+    "authorizationId": "2026-09-28-development"
   },
   "boundaries": {
     "production": false,
     "liveTrading": false,
-    "newSpending": "model and bounded web-search API calls within the accepted pilot allowance",
+    "newSpending": "Model API coding and review within $100 cumulative controller estimate and $20 daily throttle; expires October 28.",
     "mainEdits": false,
     "developmentChanges": true,
     "tests": true,
     "localCommits": true,
     "remotePush": false,
-    "workerCodeExecution": "isolated local Docker runner only; currently unavailable",
+    "workerCodeExecution": "isolated Docker runner; actual isolation probe passed September 28",
     "recurringDispatch": true,
     "workerDrafts": true,
     "recurringDispatchMode": "supervised_daily_readiness_gated"
   },
-  "status": "pilot_complete",
+  "status": "development_authorized",
   "lastCoordinatorCycle": "The pilot expired with .562843 recorded, no reservation, and no uncertain billing. S011 was not run.",
-  "modelAccessNote": "Provider identities were verified in prior live runs. The v0.3.2 start uses session-only keys, so both providers must be reconnected before S011.",
+  "modelAccessNote": "Keys stored by user in main .env; reconnect only to loopback session, without copying credential files. Provider validity remains to be checked.",
   "pauseReason": null,
   "automationStatus": "DELETED_AFTER_PILOT",
   "architecturePlan": ".swarm/API-TEAM-PLAN.md",
@@ -188,7 +189,7 @@
     "source": "sanitized pinned Git snapshot",
     "drafts": "unapplied proposals with diffs and hashes",
     "syntax": "Python/JSON parsing without execution",
-    "tests": "isolated Docker pytest; currently blocked",
+    "tests": "isolated Docker pytest available; Python, pytest and httpx",
     "webSearch": "gpt-4.1-mini with citations, at most one search tool call per request",
     "paperSearch": "Crossref public metadata",
     "pageFetch": "approved public research and documentation domains",
@@ -198,8 +199,8 @@
   "continuousOperations": ".swarm/CONTINUOUS-OPERATIONS.md",
   "runtimeVersion": "0.4.0",
   "readinessEndpoint": "http://127.0.0.1:8765/api/readiness",
-  "currentReadiness": "local_available_paid_pilot_expired",
-  "currentBlocker": "The authorized seven-day pilot expired on 2026-09-11. Review results with the user before any new paid work.",
+  "currentReadiness": "pending_runtime_restart_and_session_connections",
+  "currentBlocker": null,
   "storage": {
     "engine": "SQLite",
     "schemaVersion": 1,
@@ -247,6 +248,26 @@
     "trialReport": ".swarm/reports/2026-09-27-local-worker-trial.md",
     "mode": "local",
     "model": "google/gemma-4-26b-a4b-qat",
-    "loadedIdentifier": "sigil-local"
+    "loadedIdentifier": "sigil-local",
+    "automationStatus": "PAUSED"
+  },
+  "historicalPilotBudget": {
+    "dailyUsd": 1,
+    "pilotTotalUsd": 7,
+    "timezone": "America/New_York",
+    "expiresOn": "2026-09-11",
+    "authorized": true,
+    "authorization": "User accepted the proposed pilot and dashboard on September 4, 2026.",
+    "maxConcurrentSpecialists": 2,
+    "maxRoundsPerMission": 5,
+    "maxPeerRevisionRounds": 2,
+    "recordedSpendingUsd": 1.562843,
+    "reservationsBeforeDispatch": true,
+    "recordedSpendingAsOf": "2026-09-06 after the closed administrative follow-up chain; all billing settled",
+    "costKind": "estimate",
+    "recordedProviderEstimates": {
+      "gemini": 0.314028,
+      "openai": 1.248815
+    }
   }
 }
