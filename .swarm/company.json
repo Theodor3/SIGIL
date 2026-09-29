@@ -48,7 +48,7 @@
   },
   "status": "development_authorized",
   "lastCoordinatorCycle": "The pilot expired with .562843 recorded, no reservation, and no uncertain billing. S011 was not run.",
-  "modelAccessNote": "Keys stored by user in main .env; reconnect only to loopback session, without copying credential files. Provider validity remains to be checked.",
+  "modelAccessNote": "Both session API keys verified by successful model responses September 28. Keys remain session-only; no credential file copied.",
   "pauseReason": null,
   "automationStatus": "DELETED_AFTER_PILOT",
   "architecturePlan": ".swarm/API-TEAM-PLAN.md",
@@ -199,7 +199,7 @@
   "continuousOperations": ".swarm/CONTINUOUS-OPERATIONS.md",
   "runtimeVersion": "0.4.0",
   "readinessEndpoint": "http://127.0.0.1:8765/api/readiness",
-  "currentReadiness": "pending_runtime_restart_and_session_connections",
+  "currentReadiness": "paid_and_local_ready_docker_verified",
   "currentBlocker": null,
   "storage": {
     "engine": "SQLite",
@@ -269,5 +269,12 @@
       "gemini": 0.314028,
       "openai": 1.248815
     }
+  },
+  "developmentOperations": {
+    "queue": ".swarm/development-queue.json",
+    "automaticRefill": false,
+    "codingTrial": "m_2886707acce34bf3",
+    "codingTrialStatus": "blocked_schema_output",
+    "testedCoordinatorDraft": ".swarm/reports/2026-09-28-edgar-tested-draft.json"
   }
 }

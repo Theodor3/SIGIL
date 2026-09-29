@@ -5,6 +5,7 @@ import threading
 import time
 from concurrent.futures import CancelledError, ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
+from pydantic import ValidationError
 
 from .models import (
     AGENT_MAP, GEMINI_MODEL, MAX_ROUNDS, MAX_SPECIALISTS, OPENAI_MODEL,
@@ -554,6 +555,11 @@ class Engine:
         )
         try:
             return schema.model_validate_json(result.text), delivered_ids
+        except ValidationError as exc:
+            # Error messages and inputs can contain source or secrets; expose types only.
+            codes = sorted({e['type'] for e in exc.errors(include_input=False, include_context=False, include_url=False)})
+            raise ValueError("The model response was incomplete or did not match the required format (" +
+                             ", ".join(codes) + "). Usage was recorded; no automatic retry was made.") from None
         except Exception:
             raise ValueError("The model response was incomplete or did not match the required format. Usage was recorded; no automatic retry was made.") from None
 

@@ -3,6 +3,7 @@ import json
 import threading
 
 import httpx
+from pydantic import ValidationError
 
 from .providers import ProviderFailure, ProviderResult
 
@@ -55,6 +56,13 @@ class LocalProvider:
                     raise ValueError("Invalid usage")
                 self.verified = True
                 return ProviderResult(content, *counts, data["model"], data.get("id"))
+            except ValidationError as exc:
+                self.verified = False
+                codes = sorted({e['type'] for e in exc.errors(include_input=False, include_context=False, include_url=False)})
+                raise ProviderFailure("Local output failed schema validation (" + ", ".join(codes) + "). No automatic retry was used.", True) from None
+            except httpx.TimeoutException:
+                self.verified = False
+                raise ProviderFailure("Local generation timed out. No cloud fallback or automatic retry was used.", True) from None
             except Exception:
                 self.verified = False
                 raise ProviderFailure("Local generation failed, timed out, or returned invalid output. No cloud fallback or automatic retry was used.", True) from None

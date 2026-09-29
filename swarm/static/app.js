@@ -206,8 +206,8 @@ function renderBudget() {
   $("budget-detail").textContent = `${money(budget.remaining_today_usd)} available · ${money(reserved)} reserved`;
   $("pilot-budget").textContent = `${money(budget.pilot_usd)} / ${money(budget.pilot_limit_usd || 7)}`;
   const expiration = formatDateOnly(budget.expires_on);
-  $("pilot-expiration").textContent = expiration ? `Pilot estimate / limit · closes ${expiration}` : "Pilot estimate / limit";
-  const budgetConcern = budget.expired ? "The pilot window has closed. API research is paused." : budget.uncertain ? "A provider call has an uncertain final cost. Review the call ledger before more API research." : "";
+  $("pilot-expiration").textContent = expiration ? `Total estimate / limit · closes ${expiration}` : "Total estimate / limit";
+  const budgetConcern = budget.expired ? "The API authorization has expired. Paid work is paused." : budget.uncertain ? "A provider call has an uncertain final cost. Review the call ledger before more API research." : "";
   $("budget-alert").textContent = budgetConcern;
   $("budget-alert").hidden = !budgetConcern;
   $("mobile-budget").textContent = `Est. ${money(used)} / ${money(limit)} today`;
@@ -255,11 +255,11 @@ function renderCompanyStatus() {
   else if (rawStatus === "ready" || (!issue && liveAvailable())) tone = "ready";
   else if (/offline|connect|credential/.test(rawStatus) || configured < 2) tone = "offline";
   else if (/block|pause|expired|budget|pilot|restart/.test(rawStatus)) tone = "blocked";
-  const title = (localAvailable() && !running ? "Local workers ready · paid pilot closed" : null) || runtime.label || (running ? "Your company is working" : liveAvailable() ? "Your company is ready" : configured < 2 ? "Reconnect to start API research" : "Your company needs attention");
+  const title = (localAvailable() && !running && !liveAvailable() ? "Local workers ready" : null) || runtime.label || (running ? "Your company is working" : liveAvailable() ? "Your company is ready" : configured < 2 ? "Reconnect to start API research" : "Your company needs attention");
   let description = issue?.message || warning?.message || "The team is ready for a focused research mission. A first provider call may verify access before work continues.";
   if (running && !issue) description = "The coordinator is supervising the active mission and will surface evidence or a decision when it needs you.";
   $("company-status-title").textContent = title;
-  $("company-status-detail").textContent = localAvailable() && !running ? "Assign one focused local task. Results wait for coordinator review; the expired paid pilot stays closed." : description;
+  $("company-status-detail").textContent = localAvailable() && !running && !liveAvailable() ? "Assign one focused local task. Results wait for coordinator review." : description;
   const statusCard = $("company-status");
   statusCard.className = `company-status ${tone}`;
   $("company-status-kicker").textContent = attention ? `COMPANY STATUS · ${attention} NEED${attention === 1 ? "" : "S"} ATTENTION` : "COMPANY STATUS";
@@ -289,7 +289,7 @@ function renderModeNote() {
     return;
   }
   const live = $("live-mode-input").checked;
-  $("mission-mode-note").textContent = live ? "Real provider calls count toward the $1 daily and $7 pilot limits. Research, draft edits, and available studio checks; no trading or automatic merging." : "Sample mode shows the workflow with clearly labeled example responses. It does not research your prompt or call a model.";
+  $("mission-mode-note").textContent = live ? `Paid calls count toward ${money(state?.budget?.daily_limit_usd)} daily and ${money(state?.budget?.pilot_limit_usd)} total. Drafts and isolated tests; changes wait for review.` : "Sample mode shows the workflow with clearly labeled example responses. It does not research your prompt or call a model.";
 }
 
 function selectAgent(id) {
@@ -649,8 +649,8 @@ function renderCallLedger() {
   updateGroup("call-ledger-list", signature, ledgerNodes);
   $("call-ledger-total").textContent = `Estimated total: ${estimatedMoney(total)}${reserved ? ` · ${estimatedMoney(reserved)} reserved` : ""}`;
   const expiration = formatDateOnly(budget.expires_on);
-  $("call-ledger-description").textContent = expiration ? `Provider amounts are estimates. The $7 pilot window closes ${expiration} (${budget.timezone || "America/New_York"}).` : "Provider amounts are estimates and may change when usage is reconciled.";
-  const warning = budget.expired ? "The pilot window has closed. API research is paused." : budget.uncertain ? "At least one provider call has an uncertain final cost. Review its status before continuing paid work." : "";
+  $("call-ledger-description").textContent = expiration ? `Provider amounts are estimates. The ${money(budget.pilot_limit_usd)} total authorization closes ${expiration} (${budget.timezone || "America/New_York"}).` : "Provider amounts are estimates and may change when usage is reconciled.";
+  const warning = budget.expired ? "The API authorization has expired. Paid work is paused." : budget.uncertain ? "At least one provider call has an uncertain final cost. Review its status before continuing paid work." : "";
   $("call-ledger-warning").textContent = warning;
   $("call-ledger-warning").hidden = !warning;
 }

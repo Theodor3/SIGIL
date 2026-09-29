@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "budget_authorization": "2026-09-28-development",
+  "refill_automatically": false,
+  "tasks": [
+    {
+      "id": "DEV001",
+      "status": "blocked",
+      "prompt": "DEV001: Demonstrate the newly enabled isolated coding workflow with a small source-grounded fix. Assign engineering and quant only, in sequence, plus the built-in reviewer. Inspect api/data/edgar.py. Negative age_days currently passes the upper-bound-only NT and 8-K windows: verify this from recorded reads. Engineering: draft a minimal full-file replacement adding a guard to skip future dates, preserving 120/180 inclusive boundaries and Item 4.02 priority. Keep drafts unapplied. Quant: inspect the engineer draft and create tests/test_edgar_future_dates.py using normal imports of EdgarProvider and synthetic fixtures only. Cover tomorrow, today, exact 120/180 boundaries, one day beyond, malformed dates, and 4.02 priority. The isolated image now has pytest and httpx. Request run_tests on that exact test file against the final drafts; report actual output and hashes. No AST-extraction substitute, network, live app startup, public tools or performance claims. Reviewer: independently inspect source and final draft diffs, claim bindings and actual test output. Accept only if the intended boundary behavior is tested and no unrelated changes occur. All code claims require recorded read IDs. At most one targeted revision for a concrete defect. Finish with a concise decision distinguishing tested draft from applied code. No follow-up mission creation.",
+      "mode": "live",
+      "max_revisions": 1,
+      "specialist_execution": "sequential",
+      "mission_id": "m_2886707acce34bf3",
+      "review": "Coordinator and Gemini access verified. Engineering response failed strict schema; $0.027201 recorded; no worker draft produced. No replay. Codex separately prepared an unapplied draft with 20 passing isolated tests; see reports/2026-09-28-edgar-tested-draft.json."
+    },
+    {
+      "id": "DEV002",
+      "status": "ready",
+      "prompt": "DEV002: Read api/research/backtester.py and any additional source chunks needed for complete coverage. Produce a concise evidence-linked audit of entry/exit date selection, calendar versus trading horizons, missing prices, directional SPY-relative return semantics and cost treatment. Separate confirmed behavior from possible bias. Propose at most three synthetic regression cases with explicit expected outcomes. Do not change code, fetch public sources, run market-data jobs, invent performance or infer account results. Every code claim must reference recorded read IDs; absence claims need complete coverage. Stop after this audit. Assign quant only plus built-in reviewer. Keep each JSON artifact body under 2500 characters and each summary under 1000. No drafts or tests in this read-only audit. Stop after the audit; no follow-ups.",
+      "mode": "live",
+      "max_revisions": 0,
+      "specialist_execution": "sequential"
+    }
+  ]
+}
