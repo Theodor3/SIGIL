@@ -437,7 +437,7 @@ class Store:
             )]
 
     def create(self, prompt, mode, *, max_revisions=MAX_ROUNDS - 1,
-               specialist_execution="parallel", local_role="data"):
+               specialist_execution="parallel", local_role="data", requires_tests=False):
         if mode not in ("demo", "live", "local"):
             raise ValueError("Unknown mission mode.")
         if local_role not in ("data", "engineering", "quant", "product-ops"):
@@ -459,6 +459,7 @@ class Store:
                     id=mission_id, title=prompt.splitlines()[0][:80],
                     prompt=prompt, mode=mode, status="ready", created_at=timestamp,
                     local_role=local_role,
+                    requires_tests=requires_tests,
                     updated_at=timestamp, round=0,
                     max_revisions=max_revisions, max_rounds=1 + max_revisions,
                     specialist_execution=specialist_execution,

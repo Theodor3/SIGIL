@@ -95,6 +95,7 @@ class NewMission(StrictModel):
     local_role: Literal["data", "engineering", "quant", "product-ops"] = "data"
     max_revisions: int = Field(default=1, ge=0, le=MAX_ROUNDS - 1)
     specialist_execution: Literal["parallel", "sequential"] = "parallel"
+    requires_tests: bool = False
 
 
 class UserMessage(StrictModel):

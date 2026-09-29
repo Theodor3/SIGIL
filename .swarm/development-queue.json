@@ -32,6 +32,16 @@
       "max_revisions": 0,
       "specialist_execution": "sequential",
       "review": "Externally inspected both source reads and final draft diff. Minimal future-date guard is present; only additional difference is missing final newline. Exact final draft syntax passed. Diagnostic accepted only as source/draft/syntax workflow, not behavior validation. Reviewer guessed an incorrect line number in prose; recorded full-file evidence is authoritative. Cost $0.071170."
+    },
+    {
+      "id": "DEV004",
+      "status": "blocked",
+      "mission_id": "m_75722f7d59704f6a",
+      "prompt": "DEV004: End-to-end coding acceptance run on the current Studio. Assign engineering first, then quant, plus built-in review. Read api/data/edgar.py. Engineering: draft a minimal full-file replacement that skips negative age_days immediately after the age calculation, preserving all other behavior and the final newline. Run check_syntax; do not write tests. Quant: use the engineering draft, create tests/test_edgar_future_dates.py with normal `from api.data.edgar import EdgarProvider`, date/timedelta and pytest. Synthetic fixtures only. Parameterize NT 10-K, NT 10-Q, 8-K 4.01, 8-K 4.02 across tomorrow/today/exact window/one day beyond, using 120 days for NT and 180 for 8-K. Add malformed-date cases and a both-items 4.02-priority case. Run run_tests on this exact test file against the final drafts. Docker includes pytest and httpx; no network or live services. Keep drafts unapplied. Keep summaries under 600 chars and artifact_body under 1000; full file text only in draft_file content. Use exact supplied read IDs for code claims. No peer messages, public tools, role expansion or automatic follow-ups. Reviewer: inspect both final diffs and actual test output with matching draft hashes; reject missing coverage or unsupported claims. At most one targeted revision for a concrete failure. Finish only when tests pass, or report a precise blocker. Distinguish tested draft from applied code.",
+      "mode": "live",
+      "max_revisions": 1,
+      "specialist_execution": "sequential",
+      "review": "Worker code draft is minimal and syntax passed. Quant draft covers only five cases, omitting required boundaries. Docker image unavailable at run_tests, so no code execution occurred. Final reviewer request rejected HTTP 400. Not accepted; no replay. Cost $0.038608."
     }
   ]
 }

@@ -1,5 +1,7 @@
 import json
 import subprocess
+from types import SimpleNamespace
+import pytest
 
 from swarm.engine import Engine
 from swarm.models import Assignment, Report
@@ -20,10 +22,25 @@ def test_generation_contract_excludes_unknown_evidence_and_role_tools():
     result = response_schema(Report, json.dumps(context))
     defs = result['$defs']
     assert defs['StudioClaim']['properties']['tool_result_ids']['items']['enum'] == [visible]
+    assert defs['StudioClaim']['properties']['tool_result_ids']['maxItems'] == 1
     assert 'draft_file' not in defs['ToolRequest']['properties']['tool']['enum']
     assert result['properties']['messages']['maxItems'] == 0
     assert result['properties']['source_requests']['maxItems'] == 0
     assert Report.model_json_schema() == original  # no cross-mission mutation
+
+
+def test_coding_job_cannot_dispatch_without_test_runner(tmp_path):
+    store = Store(tmp_path)
+    try:
+        mid = store.create('Write a tested change', 'live', requires_tests=True)['id']
+        studio = SimpleNamespace(manifest=lambda: {'capabilities': {'run_pytest': False}})
+        engine = Engine(store, Providers(), studio=studio)
+        with pytest.raises(ValueError, match='isolated test image'):
+            engine.start(mid)
+        assert store.snapshot(mid)['mission']['status'] == 'ready'
+        assert not store.ledger
+    finally:
+        store.close()
 
 
 def test_no_source_read_does_not_offer_claims():

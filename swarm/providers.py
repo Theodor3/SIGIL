@@ -54,7 +54,9 @@ def provider_failure(provider, exc, *, metadata_only=False):
         if code == 400:
             if "api key not valid" in detail or "api_key_invalid" in detail or "api key expired" in detail:
                 description = descriptions[401]
-            elif any(term in detail for term in ("response_schema", "responseschema", "responsejsonschema", "additional_properties")):
+            elif any(term in detail for term in ("too many states", "too complex", "complexity")):
+                description = "The response schema exceeded the provider's complexity limit. Simplify the generation contract."
+            elif any(term in detail for term in ("response_schema", "responseschema", "responsejsonschema", "additional_properties", "schema")):
                 description = "The structured-output schema was rejected. Check the Gemini request format."
             elif "thinking" in detail:
                 description = "The thinking setting was rejected for this model."

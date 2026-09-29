@@ -80,12 +80,12 @@ if ($swarmHealth) {
     Assert-SwarmIdentity $swarmHealth
     if ($Status) {
         if ($swarmHealth.version -ne $expectedVersion -or -not $swarmHealth.workspace) {
-            Write-Output ("SIGIL Swarm {0} Â· safe upgrade restart needed" -f $swarmHealth.version)
+            Write-Output ("SIGIL Swarm {0} - safe upgrade restart needed" -f $swarmHealth.version)
             return
         }
         $readiness = Invoke-RestMethod ($swarmUrl + 'api/readiness') -TimeoutSec 3
-        Write-Output ("SIGIL Swarm {0} Â· {1}" -f $swarmHealth.version, $readiness.label)
-        Write-Output ("Studio commit {0} Â· PID {1}" -f ([string]$swarmHealth.studio_commit).Substring(0, 10), $swarmHealth.pid)
+        Write-Output ("SIGIL Swarm {0} - {1}" -f $swarmHealth.version, $readiness.label)
+        Write-Output ("Studio commit {0} - PID {1}" -f ([string]$swarmHealth.studio_commit).Substring(0, 10), $swarmHealth.pid)
         return
     }
     if ($Restart) {
@@ -105,7 +105,7 @@ if ($swarmHealth) {
             throw 'The dashboard is running an older snapshot. Run this launcher with -Restart after confirming no mission is active.'
         }
         Write-Output "SIGIL Swarm is ready at $swarmUrl"
-        Write-Output ("Version {0} Â· Studio commit {1}" -f $swarmHealth.version, ([string]$swarmHealth.studio_commit).Substring(0, 10))
+        Write-Output ("Version {0} - Studio commit {1}" -f $swarmHealth.version, ([string]$swarmHealth.studio_commit).Substring(0, 10))
         return
     }
 }
@@ -147,5 +147,5 @@ if (-not $swarmHealth) {
 }
 
 Write-Output "SIGIL Swarm is ready at $swarmUrl"
-Write-Output ("Version {0} Â· Studio commit {1}" -f $swarmHealth.version, ([string]$swarmHealth.studio_commit).Substring(0, 10))
+Write-Output ("Version {0} - Studio commit {1}" -f $swarmHealth.version, ([string]$swarmHealth.studio_commit).Substring(0, 10))
 Write-Output 'Pasted API keys stay in this server session. Starting or restarting never starts a paid mission.'

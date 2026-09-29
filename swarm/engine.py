@@ -69,6 +69,9 @@ class Engine:
                     return self.store.snapshot(mission_id)["mission"]
                 raise ValueError("A mission is already running. Stop it or wait for it to finish.")
             data = self.store.get(mission_id)
+            if data['mission'].get('requires_tests') and data['mission']['mode'] != 'demo':
+                if not self.studio or not self.studio.manifest().get('capabilities', {}).get('run_pytest'):
+                    raise ValueError('This coding mission requires the isolated test image. Restore it before dispatch.')
             round_limit = min(MAX_ROUNDS, data["mission"].get("max_rounds", MAX_ROUNDS))
             if data["mission"]["round"] >= round_limit:
                 raise ValueError("This mission has reached its round limit. Start a new, focused mission.")

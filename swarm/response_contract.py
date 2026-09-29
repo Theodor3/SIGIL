@@ -25,7 +25,9 @@ def response_schema(schema, prompt):
         if isinstance(r, dict) and re.fullmatch(r'tool_[0-9a-f]{16}', str(r.get('id', '')))
         and r.get('text') and not r.get('text_truncated')})
     if ids:
-        result['$defs']['StudioClaim']['properties']['tool_result_ids']['items']['enum'] = ids
+        evidence_field = result['$defs']['StudioClaim']['properties']['tool_result_ids']
+        evidence_field['items']['enum'] = ids
+        evidence_field['maxItems'] = min(evidence_field['maxItems'], len(ids))
     else:
         result['properties']['studio_claims']['maxItems'] = 0
     tool_field = result['$defs']['ToolRequest']['properties']['tool']

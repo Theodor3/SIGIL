@@ -266,6 +266,7 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
             payload.prompt, payload.mode, max_revisions=payload.max_revisions,
             specialist_execution=payload.specialist_execution,
             local_role=payload.local_role,
+            requires_tests=payload.requires_tests,
         )
 
     @app.get("/api/missions/{mission_id}")
