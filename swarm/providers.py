@@ -7,8 +7,9 @@ from dataclasses import dataclass
 from .models import GEMINI_MODEL, OPENAI_MODEL
 from .response_contract import response_schema
 
-RATES = {"gemini": (0.25, 1.50), "openai": (4.0, 20.0)}
+RATES = {"gemini": (2.0, 12.0), "openai": (4.0, 20.0)}
 MAX_OUTPUT = 2400
+GEMINI_MAX_OUTPUT = 8192
 # Reserve for the worker model's full documented output capacity, including
 # thinking, even though the request has a much smaller generation limit.
 GEMINI_BILLED_OUTPUT_RESERVE = 65536
@@ -200,12 +201,12 @@ class Providers:
                         model=GEMINI_MODEL, contents=prompt,
                         config=types.GenerateContentConfig(
                             system_instruction=system, candidate_count=1,
-                            max_output_tokens=MAX_OUTPUT,
+                            max_output_tokens=GEMINI_MAX_OUTPUT,
                             # Pydantic emits JSON Schema (including additionalProperties),
                             # not the older OpenAPI-style responseSchema protocol.
                             response_mime_type="application/json",
                             response_json_schema=response_schema(schema, prompt),
-                            thinking_config=types.ThinkingConfig(thinking_level="minimal"),
+                            thinking_config=types.ThinkingConfig(thinking_level="low"),
                             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
                         ),
                     )

@@ -4,6 +4,10 @@ This checkout belongs to the user-authorized standing SIGIL team. It is separate
 
 ## Local-worker authorization (September 27, 2026)
 
+## Development model selection (September 29, 2026)
+
+Within the authorized development budget, the coordinator selected gemini-3.1-pro-preview for the seven Gemini roles after concrete Flash-Lite coding failures. This supersedes the historical worker model below. OpenAI coordination and all spending, isolation and review boundaries remain unchanged.
+
 ## Development authorization (September 28, 2026)
 
 The user explicitly renewed paid coding and review work with a $100 total ceiling and instructed the coordinator to proceed. This supersedes the expired pilot spending restriction below for this development round only. The controller conservatively counts historical spending against $100, uses a $20 daily throttle, and expires on October 28, 2026 without automatic renewal. Preserve the canonical ledger and store identity. Local workers remain preferred when effective. Bounded coordinator delegation, synthetic Docker tests and reviewed development work are authorized; no push, deployment or trading is authorized. Docker execution was enabled and a real restricted-container probe passed on September 28. Historical notes below describe the earlier pilot.

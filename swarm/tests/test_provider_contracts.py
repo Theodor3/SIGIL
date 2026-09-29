@@ -8,7 +8,7 @@ import openai
 import pytest
 
 from swarm.models import GEMINI_MODEL, OPENAI_MODEL, Plan, Report
-from swarm.providers import ProviderFailure, Providers, provider_failure
+from swarm.providers import ProviderResult, ProviderFailure, Providers, provider_failure
 from swarm.response_contract import response_schema
 
 
@@ -72,12 +72,13 @@ def test_gemini_sdk_request_and_thinking_usage(monkeypatch, contextual):
     assert result.returned_model == GEMINI_MODEL
     assert requests[0]["generationConfig"]["responseMimeType"] == "application/json"
     generation = requests[0]["generationConfig"]
+    assert generation["maxOutputTokens"] == 8192
     # The legacy responseSchema does not accept additionalProperties. Send the
     # original JSON Schema via the API's JSON-schema field instead.
     assert "responseSchema" not in generation
     assert generation["responseJsonSchema"] == response_schema(Report, prompt)
     # This SDK serializes the nested protobuf field in snake case and the enum in uppercase.
-    assert requests[0]["generationConfig"]["thinkingConfig"] == {"thinking_level": "MINIMAL"}
+    assert requests[0]["generationConfig"]["thinkingConfig"] == {"thinking_level": "LOW"}
     assert not requests[0].get("tools")
 
 
@@ -123,3 +124,12 @@ def test_gemini_400_errors_are_specific_and_redacted(message, expected):
     assert expected in str(result)
     assert "secret-fixture" not in str(result)
     assert result.definitely_unbilled
+
+
+def test_pro_pricing_reserve_covers_full_output_and_rejects_large_context():
+    providers = Providers()
+    reserve = providers.reservation("gemini", "System", "Task", Report)
+    assert reserve > 65536 * 12 / 1_000_000
+    assert ProviderResult("", 1000, 1000, GEMINI_MODEL).cost("gemini") == 0.014
+    with pytest.raises(ValueError, match="too large"):
+        providers.reservation("gemini", "System", "x" * 200000, Report)

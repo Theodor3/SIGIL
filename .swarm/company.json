@@ -9,7 +9,7 @@
   "baselineCommit": "794ee62",
   "coordinatorTaskId": "01a06aed-e74d-7061-bd25-2a2773a28566",
   "runtime": "Bounded local and paid development missions with source evidence, isolated Docker tests and reviewed drafts.",
-  "model": "gemini-3.1-flash-lite workers; gpt-5.6-sol coordinator; gpt-4.1-mini web-search utility",
+  "model": "gemini-3.1-pro-preview workers; gpt-5.6-sol coordinator; gpt-4.1-mini web-search utility",
   "automationId": "sigil-company-coordinator",
   "cadenceMinutes": 1440,
   "budget": {
@@ -22,9 +22,9 @@
     "maxConcurrentSpecialists": 2,
     "maxRoundsPerMission": 5,
     "maxPeerRevisionRounds": 2,
-    "recordedSpendingUsd": 1.646255,
+    "recordedSpendingUsd": 1.89192,
     "reservationsBeforeDispatch": true,
-    "recordedSpendingAsOf": "September 28 development trials",
+    "recordedSpendingAsOf": "September 29 before Pro acceptance trial",
     "costKind": "estimate",
     "recordedProviderEstimates": {
       "gemini": 0.314028,
@@ -47,7 +47,7 @@
     "recurringDispatchMode": "supervised_daily_readiness_gated"
   },
   "status": "development_review_required",
-  "lastCoordinatorCycle": "The pilot expired with .562843 recorded, no reservation, and no uncertain billing. S011 was not run.",
+  "lastCoordinatorCycle": "DEV006 blocked after real Docker test failures; preparing bounded Pro model trial.",
   "modelAccessNote": "Both session API keys verified by successful model responses September 28. Keys remain session-only; no credential file copied.",
   "pauseReason": null,
   "automationStatus": "DELETED_AFTER_PILOT",
@@ -139,49 +139,49 @@
       "id": "research-events",
       "name": "Novel research: corporate events",
       "provider": "Gemini",
-      "model": "gemini-3.1-flash-lite",
+      "model": "gemini-3.1-pro-preview",
       "status": "available_when_session_key_connected"
     },
     {
       "id": "research-frontier",
       "name": "Novel research: frontier ideas",
       "provider": "Gemini",
-      "model": "gemini-3.1-flash-lite",
+      "model": "gemini-3.1-pro-preview",
       "status": "available_when_session_key_connected"
     },
     {
       "id": "data",
       "name": "Data engineering",
       "provider": "Gemini",
-      "model": "gemini-3.1-flash-lite",
+      "model": "gemini-3.1-pro-preview",
       "status": "available_when_session_key_connected"
     },
     {
       "id": "quant",
       "name": "Quantitative testing",
       "provider": "Gemini",
-      "model": "gemini-3.1-flash-lite",
+      "model": "gemini-3.1-pro-preview",
       "status": "available_when_session_key_connected"
     },
     {
       "id": "engineering",
       "name": "Engineering",
       "provider": "Gemini",
-      "model": "gemini-3.1-flash-lite",
+      "model": "gemini-3.1-pro-preview",
       "status": "available_when_session_key_connected"
     },
     {
       "id": "review",
       "name": "Independent review",
       "provider": "Gemini",
-      "model": "gemini-3.1-flash-lite",
+      "model": "gemini-3.1-pro-preview",
       "status": "available_when_session_key_connected"
     },
     {
       "id": "product-ops",
       "name": "Product and operations",
       "provider": "Gemini",
-      "model": "gemini-3.1-flash-lite",
+      "model": "gemini-3.1-pro-preview",
       "status": "available_when_session_key_connected"
     }
   ],
@@ -197,7 +197,7 @@
     "sourceEvidence": "Studio claims reference visible completed read IDs. The controller and store verify paths, ranges, lowercase SHA-256, the pinned commit and truthful truncation flags. Absence claims require continuous, untruncated coverage, including multiple chunks when needed."
   },
   "continuousOperations": ".swarm/CONTINUOUS-OPERATIONS.md",
-  "runtimeVersion": "0.4.0",
+  "runtimeVersion": "0.4.1",
   "readinessEndpoint": "http://127.0.0.1:8765/api/readiness",
   "currentReadiness": "capabilities_ready_worker_quality_blocked",
   "currentBlocker": "Worker coding and audit did not satisfy output/evidence contracts. Coordinator draft passes 20 isolated tests; unattended dispatch remains paused.",

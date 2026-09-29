@@ -32,6 +32,11 @@ class FakeProviders(Providers):
         self.peer_request = peer_request
         self.hook = None
 
+    def reservation(self, provider, system, prompt, schema):
+        # Protocol fixtures use bounded synthetic token counts; use a small reserve
+        # so worker concurrency tests do not depend on production model prices.
+        return 0.05
+
     def check_gemini_model(self):
         pass
 

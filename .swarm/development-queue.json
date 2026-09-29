@@ -53,6 +53,26 @@
       "specialist_execution": "sequential",
       "requires_tests": true,
       "review": "Engineering returned invalid JSON before any draft was saved. Usage settled at $0.029092. Prior provider adapter did not record finish reason, so truncation cannot be established retrospectively. Exact-edit tool and finish-reason recording added for the next diagnostic."
+    },
+    {
+      "id": "DEV006",
+      "status": "blocked",
+      "mission_id": "m_318daaa3896949cd",
+      "prompt": "DEV006: Verify exact-edit coding, isolated tests and review after the controller fixes. Assign engineering then quant sequentially, plus built-in reviewer. All roles read api/data/edgar.py. Engineering MUST use draft_edit, not draft_file: path=api/data/edgar.py, query is the exact single age_days calculation line including indentation/newline; content is that line followed by a correctly indented negative-age guard. Do not copy the full file. Check syntax. Quant creates tests/test_edgar_future_dates.py with normal EdgarProvider import and fixed TODAY=date(2026,9,28). Mandatory 16-case matrix: NT 10-K and NT 10-Q with 120-day window, 8-K item4.01 and item4.02 with 180-day window, each at age -1,0,window,window+1. Use stacked pytest parametrizations, assert exact full flags dictionaries. Add invalid dates None, not-a-date, 2026-02-30 and one simultaneous4.01/4.02 case asserting only restatement: at least20 tests. Run run_tests on that file using final drafts. No date.today, public tools, network, live services, peer messages or scope expansion. Keep report fields concise; test source goes only in draft_file content. Reviewer inspect actual coverage, test output and checked draft hashes, accept only a matching passing run with all required cases. One concrete revision allowed if necessary. Keep drafts unapplied; stop after review.",
+      "mode": "live",
+      "max_revisions": 1,
+      "specialist_execution": "sequential",
+      "requires_tests": true,
+      "review": "Real Docker runs exposed an invented pytest helper (9 failed, 3 passed), then an invalid repair causing collection SyntaxError. Reviewer rejected missing coverage and failed tests. Revision response exceeded a schema string bound. All recorded finish reasons STOP. Cost $0.106795. No replay; drafts unapplied."
+    },
+    {
+      "id": "DEV007",
+      "status": "ready",
+      "prompt": "DEV007: Bounded acceptance trial using Gemini Pro after observed Flash-Lite coding failures. Verify exact-edit coding, isolated tests and review. Assign engineering then quant sequentially, plus built-in reviewer. All roles read api/data/edgar.py. Engineering MUST use draft_edit, not draft_file: path=api/data/edgar.py, query is the exact single age_days calculation line including indentation/newline; content is that line followed by a correctly indented negative-age guard. Do not copy the full file. Check syntax. Quant creates tests/test_edgar_future_dates.py with normal EdgarProvider import and fixed TODAY=date(2026,9,28). Mandatory 16-case matrix: NT 10-K and NT 10-Q with 120-day window, 8-K item4.01 and item4.02 with 180-day window, each at age -1,0,window,window+1. Use stacked pytest parametrizations, assert exact full flags dictionaries. Add invalid dates None, not-a-date, 2026-02-30 and one simultaneous4.01/4.02 case asserting only restatement: at least20 tests. Run run_tests on that file using final drafts. No date.today, public tools, network, live services, peer messages or scope expansion. Keep report fields concise; test source goes only in draft_file content. Reviewer inspect actual coverage, test output and checked draft hashes, accept only a matching passing run with all required cases. One concrete revision allowed if necessary. Keep drafts unapplied; stop after review. For any test repair use draft_file with the full corrected test file. draft_edit query is limited to 400 characters. Use standard datetime.timedelta; do not invent pytest date helpers. Test exactly the real normal-import implementation; no substitute functions.",
+      "mode": "live",
+      "max_revisions": 1,
+      "specialist_execution": "sequential",
+      "requires_tests": true
     }
   ]
 }

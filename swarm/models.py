@@ -11,7 +11,7 @@ Recipient = Literal[
     "engineering", "review", "product-ops",
 ]
 
-GEMINI_MODEL = "gemini-3.1-flash-lite"
+GEMINI_MODEL = "gemini-3.1-pro-preview"
 OPENAI_MODEL = "gpt-5.6-sol"
 DAILY_LIMIT = 1.0
 PILOT_LIMIT = 7.0
