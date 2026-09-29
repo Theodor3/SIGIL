@@ -15,11 +15,13 @@
     },
     {
       "id": "DEV002",
-      "status": "ready",
+      "status": "blocked",
       "prompt": "DEV002: Read api/research/backtester.py and any additional source chunks needed for complete coverage. Produce a concise evidence-linked audit of entry/exit date selection, calendar versus trading horizons, missing prices, directional SPY-relative return semantics and cost treatment. Separate confirmed behavior from possible bias. Propose at most three synthetic regression cases with explicit expected outcomes. Do not change code, fetch public sources, run market-data jobs, invent performance or infer account results. Every code claim must reference recorded read IDs; absence claims need complete coverage. Stop after this audit. Assign quant only plus built-in reviewer. Keep each JSON artifact body under 2500 characters and each summary under 1000. No drafts or tests in this read-only audit. Stop after the audit; no follow-ups.",
       "mode": "live",
       "max_revisions": 0,
-      "specialist_execution": "sequential"
+      "specialist_execution": "sequential",
+      "mission_id": "m_7186e5e7e43d44ee",
+      "review": "External Codex review rejects the worker audit: structured evidence references invalid and only first 120 of 151 backtester lines read; no evaluator reads. Out-of-scope peer request ended the run. Cost $0.056211. Separate coordinator source audit recorded; no model audit accepted and no automatic replay."
     }
   ]
 }

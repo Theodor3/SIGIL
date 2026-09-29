@@ -22,9 +22,9 @@
     "maxConcurrentSpecialists": 2,
     "maxRoundsPerMission": 5,
     "maxPeerRevisionRounds": 2,
-    "recordedSpendingUsd": 1.562843,
+    "recordedSpendingUsd": 1.646255,
     "reservationsBeforeDispatch": true,
-    "recordedSpendingAsOf": "2026-09-06 after the closed administrative follow-up chain; all billing settled",
+    "recordedSpendingAsOf": "September 28 development trials",
     "costKind": "estimate",
     "recordedProviderEstimates": {
       "gemini": 0.314028,
@@ -46,7 +46,7 @@
     "workerDrafts": true,
     "recurringDispatchMode": "supervised_daily_readiness_gated"
   },
-  "status": "development_authorized",
+  "status": "development_review_required",
   "lastCoordinatorCycle": "The pilot expired with .562843 recorded, no reservation, and no uncertain billing. S011 was not run.",
   "modelAccessNote": "Both session API keys verified by successful model responses September 28. Keys remain session-only; no credential file copied.",
   "pauseReason": null,
@@ -199,8 +199,8 @@
   "continuousOperations": ".swarm/CONTINUOUS-OPERATIONS.md",
   "runtimeVersion": "0.4.0",
   "readinessEndpoint": "http://127.0.0.1:8765/api/readiness",
-  "currentReadiness": "paid_and_local_ready_docker_verified",
-  "currentBlocker": null,
+  "currentReadiness": "capabilities_ready_worker_quality_blocked",
+  "currentBlocker": "Worker coding and audit did not satisfy output/evidence contracts. Coordinator draft passes 20 isolated tests; unattended dispatch remains paused.",
   "storage": {
     "engine": "SQLite",
     "schemaVersion": 1,
@@ -275,6 +275,8 @@
     "automaticRefill": false,
     "codingTrial": "m_2886707acce34bf3",
     "codingTrialStatus": "blocked_schema_output",
-    "testedCoordinatorDraft": ".swarm/reports/2026-09-28-edgar-tested-draft.json"
+    "testedCoordinatorDraft": ".swarm/reports/2026-09-28-edgar-tested-draft.json",
+    "review": ".swarm/reports/2026-09-28-development-review.md",
+    "newEstimatedSpendUsd": 0.083412
   }
 }
