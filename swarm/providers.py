@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from dataclasses import dataclass
 
 from .models import GEMINI_MODEL, OPENAI_MODEL
+from .response_contract import response_schema
 
 RATES = {"gemini": (0.25, 1.50), "openai": (4.0, 20.0)}
 MAX_OUTPUT = 2400
@@ -142,7 +143,7 @@ class Providers:
             return 0.0
         # One byte per input token is deliberately conservative for text-only
         # prompts; include the complete schema and substantial framing overhead.
-        input_bound = len((system + prompt + json.dumps(schema.model_json_schema())).encode("utf-8")) + 8192
+        input_bound = len((system + prompt + json.dumps(response_schema(schema, prompt))).encode("utf-8")) + 8192
         if input_bound > 100000:
             raise ValueError("This task's context is too large. Start a narrower mission.")
         output_bound = GEMINI_BILLED_OUTPUT_RESERVE if provider == "gemini" else MAX_OUTPUT
@@ -170,7 +171,7 @@ class Providers:
                         input=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
                         text={"format": {
                             "type": "json_schema", "name": schema.__name__,
-                            "schema": schema.model_json_schema(), "strict": True,
+                            "schema": response_schema(schema, prompt), "strict": True,
                         }},
                     )
                     usage = response.usage
@@ -200,7 +201,7 @@ class Providers:
                             # Pydantic emits JSON Schema (including additionalProperties),
                             # not the older OpenAPI-style responseSchema protocol.
                             response_mime_type="application/json",
-                            response_json_schema=schema.model_json_schema(),
+                            response_json_schema=response_schema(schema, prompt),
                             thinking_config=types.ThinkingConfig(thinking_level="minimal"),
                             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
                         ),

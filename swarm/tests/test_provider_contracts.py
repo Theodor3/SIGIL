@@ -9,6 +9,7 @@ import pytest
 
 from swarm.models import GEMINI_MODEL, OPENAI_MODEL, Plan, Report
 from swarm.providers import ProviderFailure, Providers, provider_failure
+from swarm.response_contract import response_schema
 
 
 def test_openai_sdk_request_and_usage(monkeypatch):
@@ -41,7 +42,8 @@ def test_openai_sdk_request_and_usage(monkeypatch):
     assert requests[0]["max_output_tokens"] == 2400
 
 
-def test_gemini_sdk_request_and_thinking_usage(monkeypatch):
+@pytest.mark.parametrize('contextual', [False, True])
+def test_gemini_sdk_request_and_thinking_usage(monkeypatch, contextual):
     requests = []
     payload = {"summary": "Fixture", "artifact_title": "Fixture", "artifact_body": "Fixture",
                "messages": [], "sources": [], "source_requests": []}
@@ -61,7 +63,10 @@ def test_gemini_sdk_request_and_thinking_usage(monkeypatch):
     monkeypatch.setattr(genai, "Client", client)
     providers = Providers()
     providers.configure(gemini_api_key="fixture-only")
-    result = providers.run("gemini", "System", "Task", Report)
+    prompt = json.dumps({'your_current_source_evidence': [
+        {'id': 'tool_0123456789abcdef', 'text': 'fixture', 'text_truncated': False}],
+        'allowed_tools': ['read_file'], 'allowed_recipients': ['coordinator']}) if contextual else 'Task'
+    result = providers.run("gemini", "System", prompt, Report)
     assert Report.model_validate_json(result.text).summary == "Fixture"
     assert (result.input_tokens, result.output_tokens) == (100, 150)
     assert result.returned_model == GEMINI_MODEL
@@ -70,7 +75,7 @@ def test_gemini_sdk_request_and_thinking_usage(monkeypatch):
     # The legacy responseSchema does not accept additionalProperties. Send the
     # original JSON Schema via the API's JSON-schema field instead.
     assert "responseSchema" not in generation
-    assert generation["responseJsonSchema"] == Report.model_json_schema()
+    assert generation["responseJsonSchema"] == response_schema(Report, prompt)
     # This SDK serializes the nested protobuf field in snake case and the enum in uppercase.
     assert requests[0]["generationConfig"]["thinkingConfig"] == {"thinking_level": "MINIMAL"}
     assert not requests[0].get("tools")

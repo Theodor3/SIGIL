@@ -6,6 +6,7 @@ import httpx
 from pydantic import ValidationError
 
 from .providers import ProviderFailure, ProviderResult
+from .response_contract import response_schema
 
 LOCAL_URL = "http://127.0.0.1:1234/v1"
 LOCAL_MODEL = "sigil-local"
@@ -29,7 +30,7 @@ class LocalProvider:
                 "note": "Local inference; no model API fee. Electricity is not included."}
 
     def run(self, system, prompt, schema):
-        if len((system + prompt + json.dumps(schema.model_json_schema())).encode("utf-8")) > 85000:
+        if len((system + prompt + json.dumps(response_schema(schema, prompt))).encode("utf-8")) > 85000:
             raise ProviderFailure("Local context is too large; split this assignment.", True)
         with self.lock:
             try:
@@ -38,7 +39,7 @@ class LocalProvider:
                         "model": LOCAL_MODEL,
                         "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
                         "response_format": {"type": "json_schema", "json_schema": {
-                            "name": schema.__name__, "strict": True, "schema": schema.model_json_schema()}},
+                            "name": schema.__name__, "strict": True, "schema": response_schema(schema, prompt)}},
                         "temperature": 0.1, "max_tokens": 4000, "stream": False,
                     })
                     response.raise_for_status()

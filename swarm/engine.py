@@ -347,6 +347,25 @@ class Engine:
         }
         return [path for path in available if path in task and path not in already_read][:6]
 
+    def _preload_sources(self, mission_id, assignment, task_id):
+        pending = [(path, 1) for path in self._assigned_source_paths(
+            mission_id, assignment.agent_id, assignment.task)]
+        # Round-robin first chunks preserve coverage of all assigned paths.
+        # Additional chunks consume the existing mission tool allowance.
+        for _ in range(6):
+            if not pending:
+                break
+            path, start = pending.pop(0)
+            record = self.tools.execute(mission_id, assignment.agent_id,
+                ToolRequest(tool='read_file', path=path, start=start), self.check_stop,
+                task_id=task_id)
+            result = record.get('result', {})
+            if (record.get('status') == 'completed' and not result.get('text_truncated')
+                    and type(result.get('end')) is int
+                    and type(result.get('total_lines')) is int
+                    and result['end'] < result['total_lines']):
+                pending.append((path, result['end'] + 1))
+
     def _status(self, mission_id, status, summary):
         with self.store.lock:
             data = self.store.get(mission_id)
@@ -450,7 +469,19 @@ class Engine:
             data, agent_id, independent=independent, task_id=task_id,
         )
         latest_drafts = {d["path"]: d for d in data.get("drafts", [])}
+        allowed_tools = ['read_file', 'search_code']
+        if not independent:
+            allowed_tools += ['check_syntax', 'run_tests']
+            if agent_id in ('engineering', 'quant'):
+                allowed_tools.append('draft_file')
+            if data['mission']['mode'] != 'local' and not any((
+                current_source_evidence, prior_source_evidence, upstream_source_evidence, team_source_evidence,
+            )):
+                allowed_tools += ['web_search', 'paper_search', 'fetch_page']
         prompt = json.dumps({
+            "your_role": agent_id, "independent_critique": independent,
+            "mission_mode": data['mission']['mode'], "allowed_tools": allowed_tools,
+            "allowed_recipients": sorted(set(data.get('participants', [])) | {'coordinator'}),
             "mission": data["mission"]["prompt"], "your_task": task, "baseline": BASELINE,
             "messages_addressed_to_you": messages, "relevant_artifacts": artifacts,
             "retrieved_sources": [] if independent else [
@@ -512,6 +543,12 @@ class Engine:
                 "paper_search finds scholarly metadata without an API fee; web_search uses a billed GPT-4.1 Mini "
                 "search utility with citations. Search only public concepts, never repository text, keys or local paths. "
                 "Leave tool_requests empty when you can finish. Missing entitlements cannot be inferred from code."
+                " Keep summary under 600 characters and artifact_body under 1200 characters. "
+                "Full file contents belong only in draft_file content, never in narrative fields. "
+                "Use only allowed_tools and allowed_recipients. Do not request peer replies unless essential. "
+                "For evidence IDs, copy the exact id from a visible source-evidence record; never invent an ID. "
+                "If a file is incomplete, request read_file at end + 1 before making absence claims. "
+                "After a successful draft/check, do not repeat identical tools; report their actual results."
             )
             if independent:
                 system += (
@@ -573,12 +610,7 @@ class Engine:
             data["tasks"].append(task)
             self.store.save(data)
         try:
-            for path in self._assigned_source_paths(mission_id, assignment.agent_id, assignment.task):
-                self.tools.execute(
-                    mission_id, assignment.agent_id,
-                    ToolRequest(tool="read_file", path=path), self.check_stop,
-                    task_id=task["id"],
-                )
+            self._preload_sources(mission_id, assignment, task['id'])
             delivered_ids = []
             for tool_round in range(3):
                 result, received_ids = self._call(mission_id, assignment.agent_id,

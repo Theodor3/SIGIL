@@ -22,6 +22,16 @@
       "specialist_execution": "sequential",
       "mission_id": "m_7186e5e7e43d44ee",
       "review": "External Codex review rejects the worker audit: structured evidence references invalid and only first 120 of 151 backtester lines read; no evaluator reads. Out-of-scope peer request ended the run. Cost $0.056211. Separate coordinator source audit recorded; no model audit accepted and no automatic replay."
+    },
+    {
+      "id": "DEV003",
+      "status": "done",
+      "mission_id": "m_cf10dadf4d254c48",
+      "prompt": "DEV003 diagnostic coding run: assign engineering only plus the built-in reviewer. Read api/data/edgar.py and verify future dates currently pass the upper-bound windows. Use draft_file to propose the minimal full-file replacement adding `if age_days < 0: continue` after age calculation. Do not put file contents or diffs in artifact_body; code belongs only in tool_requests.content. Keep summary under 600 characters and artifact_body under 1000. Use exact visible tool result IDs in studio_claims; no absence claims, no invented IDs, no peer messages, no public tools. Run check_syntax on the draft, then finish. No tests required in this diagnostic job, no implementation or automatic follow-ups. Reviewer: inspect exact diff and source references. State syntax is not behavior testing. Stop with precise diagnostics if structured output fails.",
+      "mode": "live",
+      "max_revisions": 0,
+      "specialist_execution": "sequential",
+      "review": "Externally inspected both source reads and final draft diff. Minimal future-date guard is present; only additional difference is missing final newline. Exact final draft syntax passed. Diagnostic accepted only as source/draft/syntax workflow, not behavior validation. Reviewer guessed an incorrect line number in prose; recorded full-file evidence is authoritative. Cost $0.071170."
     }
   ]
 }
