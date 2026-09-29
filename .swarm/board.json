@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-27",
+  "updated": "2026-09-29",
   "states": [
     "ready",
     "assigned",
@@ -201,7 +201,7 @@
       "validationStatus": "Real local worker and same-model critique finished; coordinator accepted the source-scoped inventory with documented qualifications. No paid API calls."
     }
   ],
-  "nextEngineeringPriority": "Process explicit local-only tasks in .swarm/local-queue.json; the paid pilot remains closed.",
-  "operatingStatus": "pilot_complete",
-  "runtimeVersion": "0.4.0"
+  "nextEngineeringPriority": "DEV007 accepted as an unapplied, tested worker draft. Explicit queue exhausted; no automatic refill. Native Bionic integration and recurring Docker image disappearance remain open.",
+  "operatingStatus": "development_trial_accepted_unattended_paused",
+  "runtimeVersion": "0.4.1"
 }

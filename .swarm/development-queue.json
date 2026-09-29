@@ -67,12 +67,14 @@
     },
     {
       "id": "DEV007",
-      "status": "ready",
+      "status": "done",
       "prompt": "DEV007: Bounded acceptance trial using Gemini Pro after observed Flash-Lite coding failures. Verify exact-edit coding, isolated tests and review. Assign engineering then quant sequentially, plus built-in reviewer. All roles read api/data/edgar.py. Engineering MUST use draft_edit, not draft_file: path=api/data/edgar.py, query is the exact single age_days calculation line including indentation/newline; content is that line followed by a correctly indented negative-age guard. Do not copy the full file. Check syntax. Quant creates tests/test_edgar_future_dates.py with normal EdgarProvider import and fixed TODAY=date(2026,9,28). Mandatory 16-case matrix: NT 10-K and NT 10-Q with 120-day window, 8-K item4.01 and item4.02 with 180-day window, each at age -1,0,window,window+1. Use stacked pytest parametrizations, assert exact full flags dictionaries. Add invalid dates None, not-a-date, 2026-02-30 and one simultaneous4.01/4.02 case asserting only restatement: at least20 tests. Run run_tests on that file using final drafts. No date.today, public tools, network, live services, peer messages or scope expansion. Keep report fields concise; test source goes only in draft_file content. Reviewer inspect actual coverage, test output and checked draft hashes, accept only a matching passing run with all required cases. One concrete revision allowed if necessary. Keep drafts unapplied; stop after review. For any test repair use draft_file with the full corrected test file. draft_edit query is limited to 400 characters. Use standard datetime.timedelta; do not invent pytest date helpers. Test exactly the real normal-import implementation; no substitute functions.",
       "mode": "live",
       "max_revisions": 1,
       "specialist_execution": "sequential",
-      "requires_tests": true
+      "requires_tests": true,
+      "mission_id": "m_0ad6150f190847e0",
+      "review": "Accepted by external Codex source and diff inspection, exact claim-binding verification, all 20 required normal-import Docker cases passing against both final draft hashes, and independent baseline run failing exactly the four future-date cases (16 others pass). Initial reviewer prose says line 65; calculation is line 67. Final same-model critique has no structured claims and is assistance only, not independent validation. No market or live-service validation. Trial estimate $0.289042."
     }
   ]
 }

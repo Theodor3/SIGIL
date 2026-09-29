@@ -22,13 +22,13 @@
     "maxConcurrentSpecialists": 2,
     "maxRoundsPerMission": 5,
     "maxPeerRevisionRounds": 2,
-    "recordedSpendingUsd": 1.89192,
+    "recordedSpendingUsd": 2.180962,
     "reservationsBeforeDispatch": true,
-    "recordedSpendingAsOf": "September 29 before Pro acceptance trial",
+    "recordedSpendingAsOf": "September 29 after DEV007",
     "costKind": "estimate",
     "recordedProviderEstimates": {
-      "gemini": 0.314028,
-      "openai": 1.248815
+      "gemini": 0.637535,
+      "openai": 1.543427
     },
     "authorizationId": "2026-09-28-development"
   },
@@ -46,13 +46,13 @@
     "workerDrafts": true,
     "recurringDispatchMode": "supervised_daily_readiness_gated"
   },
-  "status": "development_review_required",
-  "lastCoordinatorCycle": "DEV006 blocked after real Docker test failures; preparing bounded Pro model trial.",
+  "status": "development_trial_accepted",
+  "lastCoordinatorCycle": "DEV007 Pro trial completed and externally reviewed: 20 passed with draft; 4 failed and 16 passed on baseline. No automatic queue refill.",
   "modelAccessNote": "Both session API keys verified by successful model responses September 28. Keys remain session-only; no credential file copied.",
   "pauseReason": null,
   "automationStatus": "DELETED_AFTER_PILOT",
   "architecturePlan": ".swarm/API-TEAM-PLAN.md",
-  "latestAudit": ".swarm/reports/2026-09-04-chat-audit.md",
+  "latestAudit": ".swarm/reports/2026-09-29-pro-acceptance.json",
   "dashboardUrl": "http://127.0.0.1:8765/",
   "runtimeGuide": "swarm/README.md",
   "historicalBrowserWorkers": [
@@ -199,8 +199,8 @@
   "continuousOperations": ".swarm/CONTINUOUS-OPERATIONS.md",
   "runtimeVersion": "0.4.1",
   "readinessEndpoint": "http://127.0.0.1:8765/api/readiness",
-  "currentReadiness": "capabilities_ready_worker_quality_blocked",
-  "currentBlocker": "Worker coding and audit did not satisfy output/evidence contracts. Coordinator draft passes 20 isolated tests; unattended dispatch remains paused.",
+  "currentReadiness": "bounded_coding_trial_passed_unattended_paused",
+  "currentBlocker": "No ready queue items. Reviewed worker patch remains unapplied. Docker test image disappeared twice; restored, cause unconfirmed. Bionic native integration remains unverified.",
   "storage": {
     "engine": "SQLite",
     "schemaVersion": 1,
@@ -273,10 +273,10 @@
   "developmentOperations": {
     "queue": ".swarm/development-queue.json",
     "automaticRefill": false,
-    "codingTrial": "m_2886707acce34bf3",
-    "codingTrialStatus": "blocked_schema_output",
+    "codingTrial": "m_0ad6150f190847e0",
+    "codingTrialStatus": "accepted_unapplied",
     "testedCoordinatorDraft": ".swarm/reports/2026-09-28-edgar-tested-draft.json",
-    "review": ".swarm/reports/2026-09-28-development-review.md",
-    "newEstimatedSpendUsd": 0.083412
+    "review": ".swarm/reports/2026-09-29-pro-acceptance.json",
+    "newEstimatedSpendUsd": 0.618119
   }
 }

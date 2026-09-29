@@ -1,0 +1,91 @@
+{
+  "mission_id": "m_0ad6150f190847e0",
+  "reviewer": "codex",
+  "accepted": true,
+  "note": "Accepted by external Codex source and diff inspection, exact claim-binding verification, all 20 required normal-import Docker cases passing against both final draft hashes, and independent baseline run failing exactly the four future-date cases (16 others pass). Initial reviewer prose says line 65; calculation is line 67. Final same-model critique has no structured claims and is assistance only, not independent validation. No market or live-service validation. Trial estimate $0.289042.",
+  "source_commit": "4134f7b5a5437e6d0c6be29380116b94829f9435",
+  "source_reads": [
+    {
+      "path": "api/data/edgar.py",
+      "start": 1,
+      "end": 113,
+      "sha256": "799719de3776f8366232e87bc5201b9512f0ddf1436738f0e701909e12a41f50",
+      "commit": "4134f7b5a5437e6d0c6be29380116b94829f9435"
+    },
+    {
+      "path": "api/data/edgar.py",
+      "start": 1,
+      "end": 113,
+      "sha256": "799719de3776f8366232e87bc5201b9512f0ddf1436738f0e701909e12a41f50",
+      "commit": "4134f7b5a5437e6d0c6be29380116b94829f9435"
+    },
+    {
+      "path": "api/data/edgar.py",
+      "start": 1,
+      "end": 113,
+      "sha256": "799719de3776f8366232e87bc5201b9512f0ddf1436738f0e701909e12a41f50",
+      "commit": "4134f7b5a5437e6d0c6be29380116b94829f9435"
+    }
+  ],
+  "drafts": [
+    {
+      "id": "draft_679860c8746f4110",
+      "path": "api/data/edgar.py",
+      "author": "engineering",
+      "before_sha256": "799719de3776f8366232e87bc5201b9512f0ddf1436738f0e701909e12a41f50",
+      "content": "\"\"\"SEC EDGAR data provider \u2014 filing red flags.\n\nScans each company's recent filings for three discrete bearish events:\n  - NT 10-K / NT 10-Q (\"notification of late filing\")\n  - 8-K Item 4.01 (auditor change)\n  - 8-K Item 4.02 (non-reliance on previously issued financials, i.e. restatement)\n\nAll data comes from the free data.sec.gov submissions API. Per SEC fair-access\npolicy we identify ourselves via User-Agent and stay well under 10 req/s.\n\"\"\"\nfrom __future__ import annotations\n\nimport asyncio\nfrom datetime import date\n\nimport httpx\n\nfrom api.data.base import DataProvider\n\nHEADERS = {\"User-Agent\": \"SIGIL research dashboard (theodoremaiello@gmail.com)\"}\nTICKER_MAP_URL = \"https://www.sec.gov/files/company_tickers.json\"\nSUBMISSIONS_URL = \"https://data.sec.gov/submissions/CIK{cik:010d}.json\"\n\nNT_WINDOW_DAYS = 120\nITEM_WINDOW_DAYS = 180\nCONCURRENCY = 4\nREQUEST_SPACING_SECONDS = 0.5  # per worker \u2192 ~8 req/s ceiling across 4 workers\n\n# ticker -> CIK, loaded once per process (the mapping file is ~1MB and stable)\n_cik_cache: dict[str, int] = {}\n\n\nclass EdgarProvider(DataProvider):\n    @property\n    def name(self) -> str:\n        return \"edgar\"\n\n    async def _load_cik_map(self, client: httpx.AsyncClient) -> dict[str, int]:\n        global _cik_cache\n        if _cik_cache:\n            return _cik_cache\n        resp = await client.get(TICKER_MAP_URL)\n        resp.raise_for_status()\n        data = resp.json()\n        _cik_cache = {\n            str(row[\"ticker\"]).upper(): int(row[\"cik_str\"])\n            for row in data.values()\n            if row.get(\"ticker\") and row.get(\"cik_str\")\n        }\n        return _cik_cache\n\n    @staticmethod\n    def _scan_filings(recent: dict, today: date) -> dict:\n        \"\"\"Extract red-flag events from a submissions 'recent' block.\"\"\"\n        forms = recent.get(\"form\", []) or []\n        dates = recent.get(\"filingDate\", []) or []\n        items = recent.get(\"items\", []) or []\n\n        flags = {\"nt_filings\": [], \"auditor_changes\": [], \"restatements\": []}\n        for i, form in enumerate(forms):\n            if i >= len(dates):\n                break\n            try:\n                filed = date.fromisoformat(dates[i])\n            except (ValueError, TypeError):\n                continue\n            age_days = (today - filed).days\n            if age_days < 0:\n                continue\n\n            if form.startswith(\"NT \") and age_days <= NT_WINDOW_DAYS:\n                flags[\"nt_filings\"].append({\"form\": form, \"date\": dates[i]})\n            elif form.startswith(\"8-K\") and age_days <= ITEM_WINDOW_DAYS:\n                filing_items = items[i] if i < len(items) else \"\"\n                if not filing_items:\n                    continue\n                if \"4.02\" in filing_items:\n                    flags[\"restatements\"].append({\"form\": form, \"date\": dates[i]})\n                elif \"4.01\" in filing_items:\n                    flags[\"auditor_changes\"].append({\"form\": form, \"date\": dates[i]})\n        return flags\n\n    async def fetch(self, tickers: list[str], **kwargs) -> dict[str, dict]:\n        \"\"\"Return {ticker: {nt_filings, auditor_changes, restatements}} for\n        every ticker that was successfully checked (empty lists = clean).\"\"\"\n        results: dict[str, dict] = {}\n        today = date.today()\n        sem = asyncio.Semaphore(CONCURRENCY)\n\n        async with httpx.AsyncClient(timeout=20, headers=HEADERS) as client:\n            try:\n                cik_map = await self._load_cik_map(client)\n            except Exception as e:\n                print(f\"[edgar] CIK map load failed: {e}\")\n                return {}\n\n            async def fetch_one(ticker: str) -> None:\n                cik = cik_map.get(ticker.upper())\n                if cik is None:\n                    return\n                async with sem:\n                    try:\n                        resp = await client.get(SUBMISSIONS_URL.format(cik=cik))\n                        if resp.status_code == 200:\n                            recent = resp.json().get(\"filings\", {}).get(\"recent\", {})\n                            results[ticker] = self._scan_filings(recent, today)\n                    except Exception:\n                        pass\n                    await asyncio.sleep(REQUEST_SPACING_SECONDS)\n\n            await asyncio.gather(*(fetch_one(t) for t in tickers))\n\n        flagged = sum(1 for f in results.values() if any(f.values()))\n        print(f\"[edgar] Checked {len(results)}/{len(tickers)} tickers, {flagged} with red flags\")\n        return results\n",
+      "content_sha256": "85f6f58d001f7c8a72f22e19f15c163408ac99890904ffca5b9d7abb6dfd484f",
+      "diff": "--- a/api/data/edgar.py\n+++ b/api/data/edgar.py\n@@ -65,6 +65,8 @@\n             except (ValueError, TypeError):\n                 continue\n             age_days = (today - filed).days\n+            if age_days < 0:\n+                continue\n \n             if form.startswith(\"NT \") and age_days <= NT_WINDOW_DAYS:\n                 flags[\"nt_filings\"].append({\"form\": form, \"date\": dates[i]})\n",
+      "status": "draft",
+      "created_at": "2026-09-29T10:43:32.986286+00:00",
+      "commit": "4134f7b5a5437e6d0c6be29380116b94829f9435"
+    },
+    {
+      "id": "draft_aa87dba0a5be430a",
+      "path": "tests/test_edgar_future_dates.py",
+      "author": "quant",
+      "before_sha256": null,
+      "content": "import pytest\nfrom datetime import date, timedelta\nfrom api.data.edgar import EdgarProvider\n\nTODAY = date(2026, 9, 28)\n\n@pytest.mark.parametrize(\"form\", [\"NT 10-K\", \"NT 10-Q\"])\n@pytest.mark.parametrize(\"age\", [-1, 0, 120, 121])\ndef test_nt_filings(form, age):\n    filed = TODAY - timedelta(days=age)\n    recent = {\n        \"form\": [form],\n        \"filingDate\": [filed.isoformat()],\n        \"items\": [\"\"]\n    }\n    result = EdgarProvider._scan_filings(recent, TODAY)\n    expected = {\"nt_filings\": [], \"auditor_changes\": [], \"restatements\": []}\n    if 0 <= age <= 120:\n        expected[\"nt_filings\"].append({\"form\": form, \"date\": filed.isoformat()})\n    assert result == expected\n\n@pytest.mark.parametrize(\"item_val,key\", [(\"4.01\", \"auditor_changes\"), (\"4.02\", \"restatements\")])\n@pytest.mark.parametrize(\"age\", [-1, 0, 180, 181])\ndef test_8k_filings(item_val, key, age):\n    filed = TODAY - timedelta(days=age)\n    recent = {\n        \"form\": [\"8-K\"],\n        \"filingDate\": [filed.isoformat()],\n        \"items\": [item_val]\n    }\n    result = EdgarProvider._scan_filings(recent, TODAY)\n    expected = {\"nt_filings\": [], \"auditor_changes\": [], \"restatements\": []}\n    if 0 <= age <= 180:\n        expected[key].append({\"form\": \"8-K\", \"date\": filed.isoformat()})\n    assert result == expected\n\n@pytest.mark.parametrize(\"invalid_date\", [None, \"not-a-date\", \"2026-02-30\"])\ndef test_invalid_dates(invalid_date):\n    recent = {\n        \"form\": [\"8-K\"],\n        \"filingDate\": [invalid_date] if invalid_date is not None else [None],\n        \"items\": [\"4.02\"]\n    }\n    result = EdgarProvider._scan_filings(recent, TODAY)\n    expected = {\"nt_filings\": [], \"auditor_changes\": [], \"restatements\": []}\n    assert result == expected\n\ndef test_simultaneous_items():\n    filed = TODAY - timedelta(days=5)\n    recent = {\n        \"form\": [\"8-K\"],\n        \"filingDate\": [filed.isoformat()],\n        \"items\": [\"4.01, 4.02\"]\n    }\n    result = EdgarProvider._scan_filings(recent, TODAY)\n    expected = {\"nt_filings\": [], \"auditor_changes\": [], \"restatements\": [{\"form\": \"8-K\", \"date\": filed.isoformat()}]}\n    assert result == expected\n",
+      "content_sha256": "dfd5a6a063afaef1f6df850e4ca1a2985e7b2922aabffcecef713409f2c6eb1b",
+      "diff": "--- /dev/null\n+++ b/tests/test_edgar_future_dates.py\n@@ -0,0 +1,57 @@\n+import pytest\n+from datetime import date, timedelta\n+from api.data.edgar import EdgarProvider\n+\n+TODAY = date(2026, 9, 28)\n+\n+@pytest.mark.parametrize(\"form\", [\"NT 10-K\", \"NT 10-Q\"])\n+@pytest.mark.parametrize(\"age\", [-1, 0, 120, 121])\n+def test_nt_filings(form, age):\n+    filed = TODAY - timedelta(days=age)\n+    recent = {\n+        \"form\": [form],\n+        \"filingDate\": [filed.isoformat()],\n+        \"items\": [\"\"]\n+    }\n+    result = EdgarProvider._scan_filings(recent, TODAY)\n+    expected = {\"nt_filings\": [], \"auditor_changes\": [], \"restatements\": []}\n+    if 0 <= age <= 120:\n+        expected[\"nt_filings\"].append({\"form\": form, \"date\": filed.isoformat()})\n+    assert result == expected\n+\n+@pytest.mark.parametrize(\"item_val,key\", [(\"4.01\", \"auditor_changes\"), (\"4.02\", \"restatements\")])\n+@pytest.mark.parametrize(\"age\", [-1, 0, 180, 181])\n+def test_8k_filings(item_val, key, age):\n+    filed = TODAY - timedelta(days=age)\n+    recent = {\n+        \"form\": [\"8-K\"],\n+        \"filingDate\": [filed.isoformat()],\n+        \"items\": [item_val]\n+    }\n+    result = EdgarProvider._scan_filings(recent, TODAY)\n+    expected = {\"nt_filings\": [], \"auditor_changes\": [], \"restatements\": []}\n+    if 0 <= age <= 180:\n+        expected[key].append({\"form\": \"8-K\", \"date\": filed.isoformat()})\n+    assert result == expected\n+\n+@pytest.mark.parametrize(\"invalid_date\", [None, \"not-a-date\", \"2026-02-30\"])\n+def test_invalid_dates(invalid_date):\n+    recent = {\n+        \"form\": [\"8-K\"],\n+        \"filingDate\": [invalid_date] if invalid_date is not None else [None],\n+        \"items\": [\"4.02\"]\n+    }\n+    result = EdgarProvider._scan_filings(recent, TODAY)\n+    expected = {\"nt_filings\": [], \"auditor_changes\": [], \"restatements\": []}\n+    assert result == expected\n+\n+def test_simultaneous_items():\n+    filed = TODAY - timedelta(days=5)\n+    recent = {\n+        \"form\": [\"8-K\"],\n+        \"filingDate\": [filed.isoformat()],\n+        \"items\": [\"4.01, 4.02\"]\n+    }\n+    result = EdgarProvider._scan_filings(recent, TODAY)\n+    expected = {\"nt_filings\": [], \"auditor_changes\": [], \"restatements\": [{\"form\": \"8-K\", \"date\": filed.isoformat()}]}\n+    assert result == expected\n",
+      "status": "draft",
+      "created_at": "2026-09-29T10:43:57.778280+00:00",
+      "commit": "4134f7b5a5437e6d0c6be29380116b94829f9435"
+    }
+  ],
+  "worker_test_run": {
+    "status": "passed",
+    "executed": true,
+    "target": "tests/test_edgar_future_dates.py",
+    "exit_code": 0,
+    "output": "....................                                                     [100%]\n20 passed in 0.09s\n",
+    "truncated": false,
+    "commit": "4134f7b5a5437e6d0c6be29380116b94829f9435",
+    "image": "sha256:e8fc68718f718b782865256c375406871e4f4c7ba5e8f2a396032c61e9585db7",
+    "note": "Isolated pytest run only. This does not validate live services, market performance or a production deployment.",
+    "checked_drafts": [
+      {
+        "id": "draft_679860c8746f4110",
+        "path": "api/data/edgar.py",
+        "sha256": "85f6f58d001f7c8a72f22e19f15c163408ac99890904ffca5b9d7abb6dfd484f"
+      },
+      {
+        "id": "draft_aa87dba0a5be430a",
+        "path": "tests/test_edgar_future_dates.py",
+        "sha256": "dfd5a6a063afaef1f6df850e4ca1a2985e7b2922aabffcecef713409f2c6eb1b"
+      }
+    ]
+  },
+  "baseline_test_run": {
+    "status": "failed",
+    "executed": true,
+    "target": "tests/test_edgar_future_dates.py",
+    "exit_code": 1,
+    "output": "FF......FF..........                                                     [100%]\n=================================== FAILURES ===================================\n_________________________ test_nt_filings[-1-NT 10-K] __________________________\ntests/test_edgar_future_dates.py:20: in test_nt_filings\n    assert result == expected\nE   AssertionError: assert {'nt_filings'...atements': []} == {'nt_filings'...atements': []}\nE     \nE     Omitting 2 identical items, use -vv to show\nE     Differing items:\nE     {'nt_filings': [{'form': 'NT 10-K', 'date': '2026-09-29'}]} != {'nt_filings': []}\nE     Use -v to get more diff\n_________________________ test_nt_filings[-1-NT 10-Q] __________________________\ntests/test_edgar_future_dates.py:20: in test_nt_filings\n    assert result == expected\nE   AssertionError: assert {'nt_filings'...atements': []} == {'nt_filings'...atements': []}\nE     \nE     Omitting 2 identical items, use -vv to show\nE     Differing items:\nE     {'nt_filings': [{'form': 'NT 10-Q', 'date': '2026-09-29'}]} != {'nt_filings': []}\nE     Use -v to get more diff\n___________________ test_8k_filings[-1-4.01-auditor_changes] ___________________\ntests/test_edgar_future_dates.py:35: in test_8k_filings\n    assert result == expected\nE   AssertionError: assert {'nt_filings'...atements': []} == {'nt_filings'...atements': []}\nE     \nE     Omitting 2 identical items, use -vv to show\nE     Differing items:\nE     {'auditor_changes': [{'form': '8-K', 'date': '2026-09-29'}]} != {'auditor_changes': []}\nE     Use -v to get more diff\n____________________ test_8k_filings[-1-4.02-restatements] _____________________\ntests/test_edgar_future_dates.py:35: in test_8k_filings\n    assert result == expected\nE   AssertionError: assert {'nt_filings'...2026-09-29'}]} == {'nt_filings'...atements': []}\nE     \nE     Omitting 2 identical items, use -vv to show\nE     Differing items:\nE     {'restatements': [{'form': '8-K', 'date': '2026-09-29'}]} != {'restatements': []}\nE     Use -v to get more diff\n=========================== short test summary info ============================\nFAILED tests/test_edgar_future_dates.py::test_nt_filings[-1-NT 10-K] - Assert...\nFAILED tests/test_edgar_future_dates.py::test_nt_filings[-1-NT 10-Q] - Assert...\nFAILED tests/test_edgar_future_dates.py::test_8k_filings[-1-4.01-auditor_changes]\nFAILED tests/test_edgar_future_dates.py::test_8k_filings[-1-4.02-restatements]\n4 failed, 16 passed in 0.10s\n",
+    "truncated": false,
+    "commit": "4134f7b5a5437e6d0c6be29380116b94829f9435",
+    "image": "sha256:e8fc68718f718b782865256c375406871e4f4c7ba5e8f2a396032c61e9585db7",
+    "note": "Isolated pytest run only. This does not validate live services, market performance or a production deployment."
+  },
+  "application": "Unapplied; retained for user review as requested."
+}
