@@ -100,6 +100,11 @@ if ($swarmHealth) {
             throw 'The old dashboard did not stop cleanly. No replacement was started.'
         }
         $swarmHealth = $null
+        # Windows can retain the listener briefly after its verified process exits.
+        for ($releaseAttempt = 0; $releaseAttempt -lt 20; $releaseAttempt++) {
+            if (-not (Get-NetTCPConnection -LocalPort 8765 -State Listen -ErrorAction SilentlyContinue)) { break }
+            Start-Sleep -Milliseconds 500
+        }
     } else {
         if ($swarmHealth.version -ne $expectedVersion -or -not $swarmHealth.studio_current) {
             throw 'The dashboard is running an older snapshot. Run this launcher with -Restart after confirming no mission is active.'
