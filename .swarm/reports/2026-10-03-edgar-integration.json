@@ -1,0 +1,39 @@
+{
+  "isolation": {
+    "status": "passed",
+    "executed": true,
+    "target": "tests/test_isolation_probe.py",
+    "exit_code": 0,
+    "output": ".                                                                        [100%]\n1 passed in 0.01s\n",
+    "truncated": false,
+    "commit": "fa42277bb54e2a95ca069eefbcef94f01a5c6b2f",
+    "image": "sha256:e8fc68718f718b782865256c375406871e4f4c7ba5e8f2a396032c61e9585db7",
+    "note": "Isolated pytest run only. This does not validate live services, market performance or a production deployment."
+  },
+  "baseline": {
+    "status": "failed",
+    "executed": true,
+    "target": "tests/test_edgar_future_dates.py",
+    "exit_code": 1,
+    "output": "FF......FF..........                                                     [100%]\n=================================== FAILURES ===================================\n_________________________ test_nt_filings[-1-NT 10-K] __________________________\ntests/test_edgar_future_dates.py:20: in test_nt_filings\n    assert result == expected\nE   AssertionError: assert {'nt_filings'...atements': []} == {'nt_filings'...atements': []}\nE     \nE     Omitting 2 identical items, use -vv to show\nE     Differing items:\nE     {'nt_filings': [{'form': 'NT 10-K', 'date': '2026-09-29'}]} != {'nt_filings': []}\nE     Use -v to get more diff\n_________________________ test_nt_filings[-1-NT 10-Q] __________________________\ntests/test_edgar_future_dates.py:20: in test_nt_filings\n    assert result == expected\nE   AssertionError: assert {'nt_filings'...atements': []} == {'nt_filings'...atements': []}\nE     \nE     Omitting 2 identical items, use -vv to show\nE     Differing items:\nE     {'nt_filings': [{'form': 'NT 10-Q', 'date': '2026-09-29'}]} != {'nt_filings': []}\nE     Use -v to get more diff\n___________________ test_8k_filings[-1-4.01-auditor_changes] ___________________\ntests/test_edgar_future_dates.py:35: in test_8k_filings\n    assert result == expected\nE   AssertionError: assert {'nt_filings'...atements': []} == {'nt_filings'...atements': []}\nE     \nE     Omitting 2 identical items, use -vv to show\nE     Differing items:\nE     {'auditor_changes': [{'form': '8-K', 'date': '2026-09-29'}]} != {'auditor_changes': []}\nE     Use -v to get more diff\n____________________ test_8k_filings[-1-4.02-restatements] _____________________\ntests/test_edgar_future_dates.py:35: in test_8k_filings\n    assert result == expected\nE   AssertionError: assert {'nt_filings'...2026-09-29'}]} == {'nt_filings'...atements': []}\nE     \nE     Omitting 2 identical items, use -vv to show\nE     Differing items:\nE     {'restatements': [{'form': '8-K', 'date': '2026-09-29'}]} != {'restatements': []}\nE     Use -v to get more diff\n=========================== short test summary info ============================\nFAILED tests/test_edgar_future_dates.py::test_nt_filings[-1-NT 10-K] - Assert...\nFAILED tests/test_edgar_future_dates.py::test_nt_filings[-1-NT 10-Q] - Assert...\nFAILED tests/test_edgar_future_dates.py::test_8k_filings[-1-4.01-auditor_changes]\nFAILED tests/test_edgar_future_dates.py::test_8k_filings[-1-4.02-restatements]\n4 failed, 16 passed in 0.15s\n",
+    "truncated": false,
+    "commit": "fa42277bb54e2a95ca069eefbcef94f01a5c6b2f",
+    "image": "sha256:e8fc68718f718b782865256c375406871e4f4c7ba5e8f2a396032c61e9585db7",
+    "note": "Isolated pytest run only. This does not validate live services, market performance or a production deployment."
+  },
+  "patched": {
+    "status": "passed",
+    "executed": true,
+    "target": "tests/test_edgar_future_dates.py",
+    "exit_code": 0,
+    "output": "....................                                                     [100%]\n20 passed in 0.08s\n",
+    "truncated": false,
+    "commit": "fa42277bb54e2a95ca069eefbcef94f01a5c6b2f",
+    "image": "sha256:e8fc68718f718b782865256c375406871e4f4c7ba5e8f2a396032c61e9585db7",
+    "note": "Isolated pytest run only. This does not validate live services, market performance or a production deployment."
+  },
+  "draft_hashes": {
+    "api/data/edgar.py": "85f6f58d001f7c8a72f22e19f15c163408ac99890904ffca5b9d7abb6dfd484f",
+    "tests/test_edgar_future_dates.py": "dfd5a6a063afaef1f6df850e4ca1a2985e7b2922aabffcecef713409f2c6eb1b"
+  }
+}

@@ -65,6 +65,8 @@ class EdgarProvider(DataProvider):
             except (ValueError, TypeError):
                 continue
             age_days = (today - filed).days
+            if age_days < 0:
+                continue
 
             if form.startswith("NT ") and age_days <= NT_WINDOW_DAYS:
                 flags["nt_filings"].append({"form": form, "date": dates[i]})
