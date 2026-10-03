@@ -206,9 +206,17 @@
       "title": "Integrate accepted SEC fix and correct backtest reporting",
       "status": "done",
       "validationStatus": "39 isolated application tests, isolation probe and frontend build passed. See .swarm/reports/2026-10-03-integration.md. Local only."
+    },
+    {
+      "id": "DEV009",
+      "owner": "coordinator",
+      "title": "Investigate risk signal versions and input correctness",
+      "status": "done",
+      "missionId": "m_cdcfb405a40e4213",
+      "validationStatus": "Coordinator investigation complete; API mission blocked on quant HTTP 400. Zero-EPS fix passes 55 isolated tests; PEG mapping defect reproduced. Performance causation unproven."
     }
   ],
-  "nextEngineeringPriority": "SEC draft integrated locally and backtest reporting corrected. Proposed next: fresh audit of debt_distress and earnings_miss_risk versions. No automatic queue refill; Docker tag inconsistency root cause and Bionic integration remain open.",
+  "nextEngineeringPriority": "Repair FMP PEG/forward-P/E mapping with merge/cache/version contracts; diagnose Gemini HTTP 400 before further paid missions; paired cohort comparison requires sanitized contexts.",
   "operatingStatus": "local_integration_verified_unattended_paused",
   "runtimeVersion": "0.4.1"
 }

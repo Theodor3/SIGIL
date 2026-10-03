@@ -16,7 +16,7 @@ class EarningsMissRiskSignal(Signal):
 
     @property
     def version(self) -> str:
-        return "1.1"
+        return "1.2"
 
     @property
     def default_weight(self) -> float:
@@ -98,7 +98,7 @@ class EarningsMissRiskSignal(Signal):
             eps_low = fwd.get("estimated_eps_low")
             eps_high = fwd.get("estimated_eps_high")
             eps_avg = fwd.get("estimated_eps_avg")
-            if eps_low and eps_high and eps_avg and eps_avg > 0:
+            if eps_low is not None and eps_high is not None and eps_avg is not None and eps_avg > 0:
                 spread = (eps_high - eps_low) / eps_avg
                 meta["eps_estimate_spread"] = round(spread, 2)
                 if spread > 1.0:

@@ -22,13 +22,13 @@
     "maxConcurrentSpecialists": 2,
     "maxRoundsPerMission": 5,
     "maxPeerRevisionRounds": 2,
-    "recordedSpendingUsd": 2.180962,
+    "recordedSpendingUsd": 2.30363,
     "reservationsBeforeDispatch": true,
-    "recordedSpendingAsOf": "September 29 after DEV007",
+    "recordedSpendingAsOf": "October 3 after DEV009",
     "costKind": "estimate",
     "recordedProviderEstimates": {
-      "gemini": 0.637535,
-      "openai": 1.543427
+      "gemini": 0.740755,
+      "openai": 1.562875
     },
     "authorizationId": "2026-09-28-development"
   },
@@ -47,12 +47,12 @@
     "recurringDispatchMode": "supervised_daily_readiness_gated"
   },
   "status": "reviewed_fixes_integrated_locally",
-  "lastCoordinatorCycle": "October 3: integrated accepted EDGAR fix; 39 application tests and isolation probe passed; backtest reporting and frontend build verified.",
+  "lastCoordinatorCycle": "DEV009 quant request blocked; coordinator verified zero-EPS defect, 55 tests pass; PEG mapping issue reproduced. Causation remains unproven.",
   "modelAccessNote": "Both session API keys verified by successful model responses September 28. Keys remain session-only; no credential file copied.",
   "pauseReason": null,
   "automationStatus": "DELETED_AFTER_PILOT",
   "architecturePlan": ".swarm/API-TEAM-PLAN.md",
-  "latestAudit": ".swarm/reports/2026-10-03-integration.md",
+  "latestAudit": ".swarm/reports/2026-10-03-signal-investigation.md",
   "dashboardUrl": "http://127.0.0.1:8765/",
   "runtimeGuide": "swarm/README.md",
   "historicalBrowserWorkers": [
@@ -200,7 +200,7 @@
   "runtimeVersion": "0.4.1",
   "readinessEndpoint": "http://127.0.0.1:8765/api/readiness",
   "currentReadiness": "local_integration_verified",
-  "currentBlocker": "No ready queue items. Recurrence remains paused. Provider keys are session-only and must be reconnected after dashboard restart.",
+  "currentBlocker": "No automatic queue refill. Quant Gemini HTTP 400 needs diagnosis; PEG mapping and paired evaluation remain open.",
   "storage": {
     "engine": "SQLite",
     "schemaVersion": 1,
