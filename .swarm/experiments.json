@@ -1,5 +1,26 @@
 {
   "schemaVersion": 1,
   "policy": "Register hypotheses, parameter variants and holdouts before testing. Retain negative outcomes. Forward/paper results are not live profits.",
-  "experiments": []
+  "experiments": [
+    {
+      "id": "EXP-CSX-001",
+      "title": "CSX recovery quality",
+      "type": "company_research",
+      "ticker": "CSX",
+      "stage": "feasibility",
+      "status": "ready",
+      "hypothesisVersion": "draft-1",
+      "hypothesis": "Broad congestion relief may improve business forecasts after accounting for freight volume and seasonality; return predictability is a separate untested hypothesis.",
+      "createdAt": "2026-10-03",
+      "evidenceReport": "C:/Users/Theodore/Documents/Codex/2026-10-03/op/outputs/sigil-csx-first-audit.md",
+      "evidenceManifest": "C:/Users/Theodore/Documents/Codex/2026-10-03/op/outputs/csx-evidence/source-audit.json",
+      "nextAction": "Audit Item 11 units and aggregation rules, terminal identity continuity, historical coverage and public availability before freezing test parameters.",
+      "sourceSamples": 3,
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "paperTrial": null,
+      "missionIds": [],
+      "runtimeDispatchEnabled": false
+    }
+  ]
 }
