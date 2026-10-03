@@ -46,13 +46,13 @@
     "workerDrafts": true,
     "recurringDispatchMode": "supervised_daily_readiness_gated"
   },
-  "status": "development_trial_accepted",
-  "lastCoordinatorCycle": "DEV007 Pro trial completed and externally reviewed: 20 passed with draft; 4 failed and 16 passed on baseline. No automatic queue refill.",
+  "status": "reviewed_fixes_integrated_locally",
+  "lastCoordinatorCycle": "October 3: integrated accepted EDGAR fix; 39 application tests and isolation probe passed; backtest reporting and frontend build verified.",
   "modelAccessNote": "Both session API keys verified by successful model responses September 28. Keys remain session-only; no credential file copied.",
   "pauseReason": null,
   "automationStatus": "DELETED_AFTER_PILOT",
   "architecturePlan": ".swarm/API-TEAM-PLAN.md",
-  "latestAudit": ".swarm/reports/2026-09-29-pro-acceptance.json",
+  "latestAudit": ".swarm/reports/2026-10-03-integration.md",
   "dashboardUrl": "http://127.0.0.1:8765/",
   "runtimeGuide": "swarm/README.md",
   "historicalBrowserWorkers": [
@@ -199,8 +199,8 @@
   "continuousOperations": ".swarm/CONTINUOUS-OPERATIONS.md",
   "runtimeVersion": "0.4.1",
   "readinessEndpoint": "http://127.0.0.1:8765/api/readiness",
-  "currentReadiness": "bounded_coding_trial_passed_unattended_paused",
-  "currentBlocker": "No ready queue items. Reviewed worker patch remains unapplied. Docker test image disappeared twice; restored, cause unconfirmed. Bionic native integration remains unverified.",
+  "currentReadiness": "local_integration_verified",
+  "currentBlocker": "No ready queue items. Recurrence remains paused. Provider keys are session-only and must be reconnected after dashboard restart.",
   "storage": {
     "engine": "SQLite",
     "schemaVersion": 1,
@@ -274,7 +274,7 @@
     "queue": ".swarm/development-queue.json",
     "automaticRefill": false,
     "codingTrial": "m_0ad6150f190847e0",
-    "codingTrialStatus": "accepted_unapplied",
+    "codingTrialStatus": "integrated_locally",
     "testedCoordinatorDraft": ".swarm/reports/2026-09-28-edgar-tested-draft.json",
     "review": ".swarm/reports/2026-09-29-pro-acceptance.json",
     "newEstimatedSpendUsd": 0.618119

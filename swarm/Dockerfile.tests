@@ -1,4 +1,4 @@
 FROM python:3.12-slim@sha256:f77ac9e44ae96ef2c90b8053ea08c31f8be030f824196b0ae4db6d462c84e51f
-RUN pip install --no-cache-dir pytest==9.1.1 httpx==0.28.1
+RUN pip install --no-cache-dir pytest==9.1.1 httpx==0.28.1 sqlalchemy==2.0.35 aiosqlite==0.20.0 pydantic-settings==2.5.0 pydantic==2.9.0
 USER 65534:65534
 WORKDIR /tmp

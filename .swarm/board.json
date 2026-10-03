@@ -1,5 +1,5 @@
 {
-  "updated": "2026-09-29",
+  "updated": "2026-10-03",
   "states": [
     "ready",
     "assigned",
@@ -199,9 +199,16 @@
       "missionId": "m_d88d36436b434540",
       "artifact": ".swarm/reports/2026-09-27-local-worker-trial.md",
       "validationStatus": "Real local worker and same-model critique finished; coordinator accepted the source-scoped inventory with documented qualifications. No paid API calls."
+    },
+    {
+      "id": "DEV008",
+      "owner": "coordinator",
+      "title": "Integrate accepted SEC fix and correct backtest reporting",
+      "status": "done",
+      "validationStatus": "39 isolated application tests, isolation probe and frontend build passed. See .swarm/reports/2026-10-03-integration.md. Local only."
     }
   ],
-  "nextEngineeringPriority": "DEV007 accepted as an unapplied, tested worker draft. Explicit queue exhausted; no automatic refill. Native Bionic integration and recurring Docker image disappearance remain open.",
-  "operatingStatus": "development_trial_accepted_unattended_paused",
+  "nextEngineeringPriority": "SEC draft integrated locally and backtest reporting corrected. Proposed next: fresh audit of debt_distress and earnings_miss_risk versions. No automatic queue refill; Docker tag inconsistency root cause and Bionic integration remain open.",
+  "operatingStatus": "local_integration_verified_unattended_paused",
   "runtimeVersion": "0.4.1"
 }

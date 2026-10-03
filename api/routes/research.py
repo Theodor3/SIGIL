@@ -15,9 +15,9 @@ router = APIRouter(prefix="/api/research", tags=["research"])
 
 
 @router.get("/backtest/{signal_name}")
-async def backtest(signal_name: str, horizons: str = "5,20"):
+async def backtest(signal_name: str, horizons: str = "5,20", round_trip_cost_bps: float | None = None):
     """Replay a signal over recorded pipeline contexts and grade its calls
-    against real subsequent prices vs SPY — same math as the live evaluator."""
+    against subsequent prices with matched SPY dates and optional assumed costs."""
     from api.research.backtester import backtest_signal
     try:
         parsed = tuple(sorted({int(h) for h in horizons.split(",") if h.strip()}))
@@ -25,7 +25,7 @@ async def backtest(signal_name: str, horizons: str = "5,20"):
         return {"error": f"bad horizons: {horizons}"}
     if not parsed:
         parsed = (5, 20)
-    return await backtest_signal(signal_name, horizons=parsed)
+    return await backtest_signal(signal_name, horizons=parsed, round_trip_cost_bps=round_trip_cost_bps)
 
 
 @router.get("/backtest-coverage")
