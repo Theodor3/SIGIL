@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/static/styles.css">
   <script src="/static/app.js" defer></script>
   <script src="/static/studio.js" defer></script>
+  <script src="/static/experiments.js" defer></script>
 </head>
 <body>
   <svg aria-hidden="true" class="svg-definitions" xmlns="http://www.w3.org/2000/svg"><defs>
@@ -36,6 +37,7 @@
         <button class="nav-item" data-view="missions"><svg><use href="#i-stack"/></svg><span>Missions</span><span id="nav-mission-count" class="nav-count">0</span></button>
         <button class="nav-item" data-view="evidence"><svg><use href="#i-file"/></svg><span>Evidence</span></button>
         <button class="nav-item" data-view="studio"><svg><use href="#i-code"/></svg><span>Studio</span></button>
+        <button class="nav-item" data-view="experiments"><svg><use href="#i-file"/></svg><span>Experiments</span></button>
         <button class="nav-item" data-view="team"><svg><use href="#i-team"/></svg><span>The team</span><span class="nav-count">8</span></button>
       </nav>
       <div class="sidebar-note"><span class="tiny-label">THE WORKING AGREEMENT</span><p>Explore boldly.<br>Test carefully.<br>Keep the evidence.</p><div class="branch-chip"><span>⑂</span> Isolated development</div></div>
@@ -69,6 +71,11 @@
         </aside>
       </div>
       <section id="view-missions" class="secondary-view" hidden><div class="view-intro"><span class="eyebrow">THE WORK LOG</span><h2>Every question has a trail.</h2><p>Pick up an investigation, review a result, or start somewhere new.</p></div><div id="missions-list" class="missions-list"></div></section>
+      <section id="view-experiments" class="secondary-view" hidden>
+        <div class="studio-intro"><div class="view-intro"><span class="eyebrow">THE RESEARCH NOTEBOOK</span><h2>Give an idea room to prove itself.</h2><p>Saved hypotheses, findings and open questions. A useful result can be a reason to stop.</p></div><button id="experiments-refresh" class="button secondary small">Refresh notebook</button></div>
+        <p id="experiments-status" role="status"></p>
+        <div id="experiments-list" class="experiments-list"></div>
+      </section>
       <section id="view-evidence" class="secondary-view" hidden><div class="view-intro"><span class="eyebrow">THE SHARED MEMORY</span><h2>Evidence before conviction.</h2><p id="evidence-subtitle">Artifacts from the selected mission. Open one to inspect its findings and sources.</p></div><div id="evidence-list" class="evidence-list"></div></section>
       <section id="view-team" class="secondary-view" hidden><div class="view-intro"><span class="eyebrow">A COMPANY OF EIGHT</span><h2>Different lenses. A shared mission.</h2><p>Choose a specialist to address your next message. The coordinator keeps the work connected.</p></div><div id="team-directory" class="team-directory"></div><div class="team-principle"><span class="brand-mark">✳</span><p>Workers can ask each other questions and challenge a finding. The reviewer makes an independent assessment. Agreement alone is never evidence.</p></div></section>
       <section id="view-studio" class="secondary-view studio-view" hidden>

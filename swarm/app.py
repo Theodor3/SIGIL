@@ -13,6 +13,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from . import __version__
 from .engine import Engine
+from .experiments import read_experiments
 from .models import AGENTS, Disconnect, LocalReview, NewMission, ProviderKeys, UserMessage
 from .providers import Providers
 from .store import Store, now
@@ -185,6 +186,13 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
     @app.get("/api/readiness")
     def readiness():
         return runtime_status()
+
+    @app.get("/api/experiments")
+    def experiments():
+        try:
+            return read_experiments(ROOT.parent)
+        except ValueError:
+            return JSONResponse({"detail": "The experiment registry is unavailable or invalid."}, status_code=503)
 
     @app.get("/api/state")
     def state():

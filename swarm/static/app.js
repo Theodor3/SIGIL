@@ -714,9 +714,9 @@ function schedulePoll(immediate = false) {
 }
 
 function switchView(view) {
-  if (!["workspace", "missions", "evidence", "team", "studio"].includes(view)) return;
+  if (!["workspace", "missions", "evidence", "team", "studio", "experiments"].includes(view)) return;
   currentView = view;
-  for (const name of ["workspace", "missions", "evidence", "team", "studio"]) $(`view-${name}`).hidden = name !== view;
+  for (const name of ["workspace", "missions", "evidence", "team", "studio", "experiments"]) $(`view-${name}`).hidden = name !== view;
   for (const button of document.querySelectorAll(".nav-item")) {
     const active = button.dataset.view === view;
     button.classList.toggle("active", active);
@@ -725,9 +725,12 @@ function switchView(view) {
   }
   const titles = { workspace: "Swarm workspace", missions: "Mission control", evidence: "Shared evidence", team: "Meet the team", studio: "Development studio" };
   const subtitles = { workspace: "One place to think, collaborate, and turn ideas into evidence.", missions: "The questions, handoffs, and decisions that move the work forward.", evidence: "Keep the claims inspectable and the sources close.", team: "Seven Gemini specialists, connected by one GPT coordinator.", studio: "Pinned source, draft changes, and a clear record of the work." };
+  titles.experiments = "Experiments";
+  subtitles.experiments = "Long-running questions, with evidence that survives the next session.";
   $("view-title").replaceChildren(document.createTextNode(titles[view]), element("span", "heading-dot", "."));
   $("view-subtitle").textContent = subtitles[view];
   if (view === "studio") window.sigilStudio?.activate();
+  if (view === "experiments") window.sigilExperiments?.activate();
 }
 
 async function chooseMission(id, nextView = "workspace") {

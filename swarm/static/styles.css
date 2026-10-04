@@ -211,3 +211,19 @@
   .mobile-company-button span:first-child{overflow-wrap:anywhere}
   .mobile-company-button span:last-child{color:var(--muted);font-size:8px;white-space:nowrap}
 }
+.experiments-list{display:grid;gap:24px;max-width:1050px}
+#experiments-status{color:var(--muted);font-size:12px;line-height:1.6;margin:0 0 20px}
+.experiment-card{background:#fcfdf8;border:1px solid var(--line);border-radius:16px;padding:32px;box-shadow:0 8px 32px #20262005}
+.experiment-title{font-size:30px;font-weight:500;letter-spacing:-1px;margin:16px 0}
+.experiment-hypothesis{font-size:17px;line-height:1.7;max-width:760px;color:#465640}
+.experiment-meta{font-size:11px;color:var(--muted);line-height:1.7}
+.experiment-checks{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0 30px}
+.experiment-checks span{font-size:11px;border:1px solid #dce3d2;border-radius:20px;padding:7px 12px;background:#f0f4e8}
+.experiment-card h3{font-size:14px;font-weight:600}
+.experiment-findings{list-style:none;padding:0;margin:16px 0 28px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.experiment-findings li{padding:18px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.experiment-finding-label{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:#7a6b47}
+.experiment-findings p,.experiment-next p{font-size:13px;line-height:1.8;margin:9px 0 0}
+.experiment-next{padding:20px 24px;border-left:3px solid #8d9d67;border-radius:0 10px 10px 0;background:#eef2e5}
+.experiment-next h3{margin:0}
+@media(max-width:700px){.experiment-card{padding:20px}.experiment-title{font-size:25px}.experiment-findings{grid-template-columns:1fr}.experiment-hypothesis{font-size:15px}}
