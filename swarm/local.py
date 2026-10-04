@@ -33,6 +33,7 @@ class LocalProvider:
         if len((system + prompt + json.dumps(response_schema(schema, prompt))).encode("utf-8")) > 85000:
             raise ProviderFailure("Local context is too large; split this assignment.", True)
         with self.lock:
+            stage = "request"
             try:
                 with httpx.Client(trust_env=False, follow_redirects=False, timeout=240) as client:
                     response = client.post(LOCAL_URL + "/chat/completions", json={
@@ -40,23 +41,38 @@ class LocalProvider:
                         "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
                         "response_format": {"type": "json_schema", "json_schema": {
                             "name": schema.__name__, "strict": True, "schema": response_schema(schema, prompt)}},
+                        # Gemma otherwise spends the bounded output on reasoning,
+                        # potentially leaving no final structured report.
+                        "reasoning_effort": "none",
                         "temperature": 0.1, "max_tokens": 4000, "stream": False,
                     })
                     response.raise_for_status()
+                    stage = "response JSON"
                     data = response.json()
+                stage = "model identity"
                 if data.get("model") != LOCAL_MODEL:
                     raise ValueError("Unexpected model")
+                stage = "completion structure"
                 choice = data["choices"][0]
                 if choice.get("finish_reason") != "stop":
-                    raise ValueError("Incomplete generation")
+                    reason = "output token limit reached" if choice.get("finish_reason") == "length" else "incomplete generation"
+                    raise ProviderFailure("Local " + reason + ". No cloud fallback or automatic retry was used.", True)
+                stage = "final content"
                 content = choice["message"]["content"]
                 schema.model_validate_json(content)
+                stage = "usage accounting"
                 usage = data["usage"]
                 counts = [usage["prompt_tokens"], usage["completion_tokens"]]
                 if any(type(n) is not int or n < 0 for n in counts):
                     raise ValueError("Invalid usage")
                 self.verified = True
                 return ProviderResult(content, *counts, data["model"], data.get("id"))
+            except ProviderFailure:
+                self.verified = False
+                raise
+            except httpx.HTTPStatusError as exc:
+                self.verified = False
+                raise ProviderFailure(f"Local server returned HTTP {exc.response.status_code}. No cloud fallback or automatic retry was used.", True) from None
             except ValidationError as exc:
                 self.verified = False
                 codes = sorted({e['type'] for e in exc.errors(include_input=False, include_context=False, include_url=False)})
@@ -66,4 +82,4 @@ class LocalProvider:
                 raise ProviderFailure("Local generation timed out. No cloud fallback or automatic retry was used.", True) from None
             except Exception:
                 self.verified = False
-                raise ProviderFailure("Local generation failed, timed out, or returned invalid output. No cloud fallback or automatic retry was used.", True) from None
+                raise ProviderFailure("Local generation failed at " + stage + ". No cloud fallback or automatic retry was used.", True) from None
