@@ -214,6 +214,14 @@
       "status": "done",
       "missionId": "m_cdcfb405a40e4213",
       "validationStatus": "Coordinator investigation complete; API mission blocked on quant HTTP 400. Zero-EPS fix passes 55 isolated tests; PEG mapping defect reproduced. Performance causation unproven."
+    },
+    {
+      "id": "DEV010",
+      "owner": "engineering",
+      "title": "Design first experiment evidence view",
+      "status": "blocked",
+      "missionId": "m_282f73a8a64e408e",
+      "validationStatus": "Coordinator review: engineering first generation failed HTTP 400 after reviewer ran first. Artifact is source inventory, not completed design review. Estimated mission cost $0.065616. No retry. See outputs/sigil-dev010-review.md in October 3 handoff workspace."
     }
   ],
   "nextEngineeringPriority": "Repair FMP PEG/forward-P/E mapping with merge/cache/version contracts; diagnose Gemini HTTP 400 before further paid missions; paired cohort comparison requires sanitized contexts.",
