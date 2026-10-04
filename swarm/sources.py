@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 from .store import now
 
 ALLOWED_HOSTS = {
+    "www.stb.gov", "stb.gov", "www.csx.com", "csx.com",
     "www.sec.gov", "sec.gov", "data.sec.gov",
     "arxiv.org", "export.arxiv.org",
     "proceedings.mlr.press", "fred.stlouisfed.org",

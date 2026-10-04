@@ -79,7 +79,7 @@ def test_local_tools_block_outbound_requests(tmp_path, monkeypatch):
     mission = store.create("Inspect source", "local")["id"]
     studio = GitStudio(Path(__file__).resolve().parents[2])
     tools = MissionTools(store, LocalFixture(), studio)
-    for tool in ("web_search", "paper_search", "fetch_page"):
+    for tool in ("web_search",):
         result = tools.execute(mission, "data", ToolRequest(tool=tool, query="public research"), lambda: None)
         assert result["status"] == "blocked"
     store.close()

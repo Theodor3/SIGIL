@@ -3,7 +3,7 @@ import math
 
 from .providers import ProviderFailure
 from .search import SEARCH_MODEL, SEARCH_RESERVATION, paper_search, validate_query, web_search
-from .sources import fetch_source
+from .sources import fetch_source, validate_url
 from .store import BudgetError, now, uid
 
 
@@ -14,9 +14,13 @@ class MissionTools:
     def execute(self, mission_id, agent_id, request, check_stop, *, task_id=None):
         check_stop()
         query_error = None
-        if request.tool in ("web_search", "paper_search"):
+        if request.tool in ("web_search", "paper_search", "fetch_page"):
             try:
-                validate_query(request.query)
+                if request.tool == 'fetch_page':
+                    validate_url(request.query, resolve=False)
+                    validate_query(request.query.removeprefix('https://'))
+                else:
+                    validate_query(request.query)
                 for content in getattr(self.studio, "files", {}).values():
                     if any(len(line.strip()) >= 40 and line.strip() in request.query for line in content.splitlines()):
                         raise ValueError("Search a public concept, not a copied project excerpt.")
@@ -36,8 +40,8 @@ class MissionTools:
             records.append(record)
             self.store.save(data)
         try:
-            if self.store.snapshot(mission_id)["mission"]["mode"] == "local" and request.tool in ("web_search", "paper_search", "fetch_page"):
-                raise ValueError("Local missions use repository tools only. Public and paid research are disabled.")
+            if self.store.snapshot(mission_id)["mission"]["mode"] == "local" and request.tool == "web_search":
+                raise ValueError("Paid web search is disabled in local missions. Use free paper_search or fetch_page on an approved public domain.")
             if query_error:
                 raise ValueError(query_error)
             if request.tool in ("web_search", "paper_search", "fetch_page"):
