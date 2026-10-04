@@ -12,15 +12,37 @@
       "hypothesisVersion": "draft-1",
       "hypothesis": "Broad congestion relief may improve business forecasts after accounting for freight volume and seasonality; return predictability is a separate untested hypothesis.",
       "createdAt": "2026-10-03",
-      "evidenceReport": "C:/Users/Theodore/Documents/Codex/2026-10-03/op/outputs/sigil-csx-first-audit.md",
-      "evidenceManifest": "C:/Users/Theodore/Documents/Codex/2026-10-03/op/outputs/csx-evidence/source-audit.json",
-      "nextAction": "Audit Item 11 units and aggregation rules, terminal identity continuity, historical coverage and public availability before freezing test parameters.",
-      "sourceSamples": 3,
+      "evidenceReport": "C:/Users/Theodore/Documents/Codex/2026-10-03/op/outputs/sigil-csx-coverage-audit.md",
+      "evidenceManifest": "C:/Users/Theodore/Documents/Codex/2026-10-03/op/outputs/csx-evidence/coverage-audit.json",
+      "nextAction": "Expose registered hypothesis, evidence and next action in a local experiment view. Before modeling, reconcile duplicate report versions, audit one contiguous year and resolve intermodal unit conventions.",
+      "sourceSamples": 9,
       "originalPublicationTimesVerified": false,
       "predictiveResultsAvailable": false,
       "paperTrial": null,
       "missionIds": [],
-      "runtimeDispatchEnabled": false
+      "runtimeDispatchEnabled": false,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "observed",
+          "summary": "Nine sampled workbooks share the same 22 category labels; full history remains unaudited."
+        },
+        {
+          "id": "F002",
+          "status": "observed",
+          "summary": "Oldest sampled terminal list contains Rocky Mount instead of Baltimore. Row-position joins are invalid."
+        },
+        {
+          "id": "F003",
+          "status": "source_supported",
+          "summary": "Fertilizer is included within Chemicals; exclude it from additive grand totals."
+        },
+        {
+          "id": "F004",
+          "status": "unresolved",
+          "summary": "Two source URLs exist for November 19, 2025; original publication/version order is unknown."
+        }
+      ]
     }
   ]
 }
