@@ -230,9 +230,17 @@
       "status": "blocked",
       "missionId": "m_9ab18f2505324951",
       "validationStatus": "Specialist and initial reviewer supplied source inventory. Final reviewer failed HTTP 400. Cost estimate $0.117520; no retry. Codex implemented and independently checked the page; this mission is not an approval."
+    },
+    {
+      "id": "DEV015",
+      "owner": "coordinator",
+      "title": "Diagnose Gemini final-review rejection and verify correction",
+      "status": "done",
+      "missionId": "m_e8e488d840f3449a",
+      "validationStatus": "Exact failed-schema A/B rejects evidence-ID enum and succeeds without it. Gemini-only wire restriction removed; controller/store provenance intact. 79 application/diagnostic + 18 provenance tests pass. Fresh six-call mission completes. Diagnostic spend $0.227576; see October 3 workspace outputs/sigil-gemini-fix.md."
     }
   ],
-  "nextEngineeringPriority": "Repair FMP PEG/forward-P/E mapping with merge/cache/version contracts; diagnose Gemini HTTP 400 before further paid missions; paired cohort comparison requires sanitized contexts.",
+  "nextEngineeringPriority": "Gemini evidence-ID enum rejection fixed and verified locally. Await next product task; FMP PEG/forward-P/E mapping and CSX contiguous-year audit remain separate open work.",
   "operatingStatus": "local_integration_verified_unattended_paused",
   "runtimeVersion": "0.4.1"
 }
