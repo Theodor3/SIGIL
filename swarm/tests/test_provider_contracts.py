@@ -76,7 +76,7 @@ def test_gemini_sdk_request_and_thinking_usage(monkeypatch, contextual):
     # The legacy responseSchema does not accept additionalProperties. Send the
     # original JSON Schema via the API's JSON-schema field instead.
     assert "responseSchema" not in generation
-    assert generation["responseJsonSchema"] == response_schema(Report, prompt)
+    assert generation["responseJsonSchema"] == response_schema(Report, prompt, provider="gemini")
     # This SDK serializes the nested protobuf field in snake case and the enum in uppercase.
     assert requests[0]["generationConfig"]["thinkingConfig"] == {"thinking_level": "LOW"}
     assert not requests[0].get("tools")

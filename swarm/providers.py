@@ -149,7 +149,7 @@ class Providers:
             return 0.0
         # One byte per input token is deliberately conservative for text-only
         # prompts; include the complete schema and substantial framing overhead.
-        input_bound = len((system + prompt + json.dumps(response_schema(schema, prompt))).encode("utf-8")) + 8192
+        input_bound = len((system + prompt + json.dumps(response_schema(schema, prompt, provider=provider))).encode("utf-8")) + 8192
         if input_bound > 100000:
             raise ValueError("This task's context is too large. Start a narrower mission.")
         output_bound = GEMINI_BILLED_OUTPUT_RESERVE if provider == "gemini" else MAX_OUTPUT
@@ -177,7 +177,7 @@ class Providers:
                         input=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
                         text={"format": {
                             "type": "json_schema", "name": schema.__name__,
-                            "schema": response_schema(schema, prompt), "strict": True,
+                            "schema": response_schema(schema, prompt, provider=provider), "strict": True,
                         }},
                     )
                     usage = response.usage
@@ -207,7 +207,7 @@ class Providers:
                             # Pydantic emits JSON Schema (including additionalProperties),
                             # not the older OpenAPI-style responseSchema protocol.
                             response_mime_type="application/json",
-                            response_json_schema=response_schema(schema, prompt),
+                            response_json_schema=response_schema(schema, prompt, provider=provider),
                             thinking_config=types.ThinkingConfig(thinking_level="low"),
                             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
                         ),

@@ -8,7 +8,7 @@ import re
 from .models import Report
 
 
-def response_schema(schema, prompt):
+def response_schema(schema, prompt, *, provider=None):
     result = schema.model_json_schema()
     if schema is not Report:
         return result
@@ -46,4 +46,9 @@ def response_schema(schema, prompt):
         result['properties']['messages']['maxItems'] = 0
     if context.get('mission_mode') == 'local' or context.get('independent_critique') or ids:
         result['properties']['source_requests']['maxItems'] = 0
+    if provider == 'gemini' and ids:
+        # Exact failing-schema A/B: opaque read-ID enums can make Gemini reject
+        # an otherwise valid request. Keep array limits; the controller/store
+        # still require every cited ID to resolve to visible, completed reads.
+        result['$defs']['StudioClaim']['properties']['tool_result_ids']['items'].pop('enum', None)
     return result

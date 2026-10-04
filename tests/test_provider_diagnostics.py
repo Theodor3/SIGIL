@@ -83,3 +83,18 @@ def test_profile_survives_settlement_and_reopen(tmp_path):
         assert saved["status"] == "failed"
     finally:
         restored.close()
+
+
+def test_gemini_omits_only_opaque_id_enum_and_preserves_other_constraints():
+    context = dict(your_current_source_evidence=[
+        dict(id="tool_bb482cd9330f4840", text="fixture", text_truncated=False),
+        dict(id="tool_27ccad210c3f448b", text="fixture", text_truncated=False)],
+        allowed_tools=["read_file"], allowed_recipients=["coordinator"])
+    prompt = json.dumps(context)
+    original = response_schema(Report, prompt)
+    gemini = response_schema(Report, prompt, provider="gemini")
+    ids = original['$defs']['StudioClaim']['properties']['tool_result_ids']['items'].pop('enum')
+    assert len(ids) == 2
+    assert gemini == original
+    assert response_schema(Report, prompt, provider="openai") != gemini
+    assert response_schema(Report, prompt, provider="local") != gemini

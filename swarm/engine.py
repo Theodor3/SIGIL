@@ -569,7 +569,7 @@ class Engine:
             system += " Local-only assignment: no public tools, source_requests, paid calls, or automatic application of drafts. Keep the report concise; use recorded read IDs for every code claim. A separate coordinator will review your output."
         amount = self.providers.reservation(provider, system, prompt, schema)
         self.check_stop()
-        profile = request_profile(system, prompt, response_schema(schema, prompt))
+        profile = request_profile(system, prompt, response_schema(schema, prompt, provider=provider))
         call_id = self.store.reserve(mission_id, agent_id, provider, model, amount,
                                      task_id=task_id, request_profile=profile)
         try:
