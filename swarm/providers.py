@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from .models import GEMINI_MODEL, OPENAI_MODEL
 from .response_contract import response_schema
+from .provider_diagnostics import error_detail, safe_error_hint
 
 RATES = {"gemini": (2.0, 12.0), "openai": (4.0, 20.0)}
 MAX_OUTPUT = 2400
@@ -52,7 +53,7 @@ def provider_failure(provider, exc, *, metadata_only=False):
         }
         description = descriptions[code]
         # Only select application-owned messages. Never echo the SDK's body.
-        detail = str(getattr(exc, "message", "") or "").lower()
+        detail = error_detail(exc)
         if code == 400:
             if "api key not valid" in detail or "api_key_invalid" in detail or "api key expired" in detail:
                 description = descriptions[401]
@@ -62,7 +63,8 @@ def provider_failure(provider, exc, *, metadata_only=False):
                 description = "The structured-output schema was rejected. Check the Gemini request format."
             elif "thinking" in detail:
                 description = "The thinking setting was rejected for this model."
-        return ProviderFailure(f"{label} (HTTP {code}): {description}", True)
+        hint = " " + safe_error_hint(exc, detail) if code == 400 else ""
+        return ProviderFailure(f"{label} (HTTP {code}): {description}{hint}", True)
     if metadata_only:
         return ProviderFailure(f"{label}: model availability could not be checked. No generation calls were sent.", True)
     return ProviderFailure(f"{label}: the call did not finish reliably. Its reservation is retained; no automatic retry was made.")

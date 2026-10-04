@@ -704,7 +704,7 @@ class Store:
                 } for provider in ("gemini", "openai")},
             )
 
-    def reserve(self, mission_id, agent_id, provider, model, amount, *, task_id=None):
+    def reserve(self, mission_id, agent_id, provider, model, amount, *, task_id=None, request_profile=None):
         with self.lock:
             mission = self.get(mission_id)["mission"]
             local = provider == "local"
@@ -726,6 +726,8 @@ class Store:
                 task_id=task_id, model=model, status="reserved", created_at=now(), day=local_day(),
                 reservation_usd=round(amount, 6), cost_usd=0,
             )
+            if request_profile is not None:
+                call["request_profile"] = copy.deepcopy(request_profile)
             with self._db:
                 self._upsert_call(call)
             self.ledger.append(call)

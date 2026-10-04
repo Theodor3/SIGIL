@@ -12,6 +12,8 @@ from .models import (
     Assignment, Plan, Report, ToolRequest, Verdict,
 )
 from .providers import ProviderFailure
+from .provider_diagnostics import request_profile
+from .response_contract import response_schema
 from .sources import fetch_source, validate_url
 from .store import BudgetError, now, uid
 from .tooling import MissionTools
@@ -567,7 +569,9 @@ class Engine:
             system += " Local-only assignment: no public tools, source_requests, paid calls, or automatic application of drafts. Keep the report concise; use recorded read IDs for every code claim. A separate coordinator will review your output."
         amount = self.providers.reservation(provider, system, prompt, schema)
         self.check_stop()
-        call_id = self.store.reserve(mission_id, agent_id, provider, model, amount, task_id=task_id)
+        profile = request_profile(system, prompt, response_schema(schema, prompt))
+        call_id = self.store.reserve(mission_id, agent_id, provider, model, amount,
+                                     task_id=task_id, request_profile=profile)
         try:
             # Recheck after reserving so a stop does not dispatch another queued call.
             if self.stop_event.is_set():
