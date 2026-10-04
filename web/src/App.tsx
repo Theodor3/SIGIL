@@ -9,6 +9,7 @@ import Data from "./pages/Data";
 import Performance from "./pages/Performance";
 import Lab from "./pages/Lab";
 import System from "./pages/System";
+import Experiments from "./pages/Experiments";
 
 export default function App() {
   return (
@@ -24,6 +25,8 @@ export default function App() {
           {/* legacy bookmark */}
           <Route path="backtest" element={<Performance />} />
           <Route path="lab" element={<Lab />} />
+          <Route path="experiments" element={<Experiments />} />
+          <Route path="experiments/:experimentId" element={<Experiments />} />
           <Route path="system" element={<System />} />
         </Route>
       </Routes>

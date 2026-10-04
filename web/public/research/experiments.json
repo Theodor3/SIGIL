@@ -1,6 +1,8 @@
 {
   "schemaVersion": 1,
-  "policy": "Register hypotheses, parameter variants and holdouts before testing. Retain negative outcomes. Forward/paper results are not live profits.",
+  "publicationMode": "reviewed_snapshot",
+  "reviewedOn": "2026-10-04",
+  "contentSha256": "5f4b9c68328734c5cee74e77e8fc57b6b5d869ce4b05224217b511d688ba782c",
   "experiments": [
     {
       "id": "EXP-CSX-001",
@@ -12,15 +14,10 @@
       "hypothesisVersion": "draft-1",
       "hypothesis": "Broad congestion relief may improve business forecasts after accounting for freight volume and seasonality; return predictability is a separate untested hypothesis.",
       "createdAt": "2026-10-03",
-      "evidenceReport": "C:/Users/Theodore/Documents/Codex/2026-10-03/op/outputs/sigil-csx-coverage-audit.md",
-      "evidenceManifest": "C:/Users/Theodore/Documents/Codex/2026-10-03/op/outputs/csx-evidence/coverage-audit.json",
       "nextAction": "Before modeling, reconcile duplicate report versions, audit one contiguous year and resolve intermodal unit conventions.",
-      "sourceSamples": 9,
       "originalPublicationTimesVerified": false,
       "predictiveResultsAvailable": false,
-      "paperTrial": null,
-      "missionIds": [],
-      "runtimeDispatchEnabled": false,
+      "sourceSamples": 9,
       "findings": [
         {
           "id": "F001",
@@ -49,49 +46,49 @@
           "url": "https://www.stb.gov/reports-data/rail-service-data/"
         },
         {
+          "title": "CSX weekly workbook: 2026-09-25",
           "url": "https://www.stb.gov/wp-content/uploads/files/rsir/CSX/CSX%20Data%202026-09-30.xlsx",
-          "sha256": "18a9c448e1d97136f78394118e87353b4e002111ca4d04bb58c71f46c7b0e38f",
-          "title": "CSX weekly workbook: 2026-09-25"
+          "sha256": "18a9c448e1d97136f78394118e87353b4e002111ca4d04bb58c71f46c7b0e38f"
         },
         {
+          "title": "CSX weekly workbook: 2026-09-18",
           "url": "https://www.stb.gov/wp-content/uploads/files/rsir/CSX/CSX%20Data%202026-09-23.xlsx",
-          "sha256": "3d66a8f96616e04b8572fe722f2d31a394e4340455294535d6cc64f6dc91c20e",
-          "title": "CSX weekly workbook: 2026-09-18"
+          "sha256": "3d66a8f96616e04b8572fe722f2d31a394e4340455294535d6cc64f6dc91c20e"
         },
         {
+          "title": "CSX weekly workbook: 2025-11-28",
           "url": "https://www.stb.gov/wp-content/uploads/files/rsir/CSX/CSX%20Data%202025-12-03.xlsx",
-          "sha256": "88beb3271c15900d06e186b305315e6313f0026c79fca9ae230aa3c3e4782c09",
-          "title": "CSX weekly workbook: 2025-11-28"
+          "sha256": "88beb3271c15900d06e186b305315e6313f0026c79fca9ae230aa3c3e4782c09"
         },
         {
+          "title": "CSX weekly workbook: 2018-12-28",
           "url": "https://www.stb.gov/wp-content/uploads/files/rsir/CSX/csx_data_2019-01-02.xlsx",
-          "sha256": "28c72d3752c588a35aff529d237e0039ff356caba6ea051c8bc33e015472b7b2",
-          "title": "CSX weekly workbook: 2018-12-28"
+          "sha256": "28c72d3752c588a35aff529d237e0039ff356caba6ea051c8bc33e015472b7b2"
         },
         {
+          "title": "CSX weekly workbook: 2019-12-27",
           "url": "https://www.stb.gov/wp-content/uploads/files/rsir/CSX/csx_data_2020-01-01.xlsx",
-          "sha256": "5861983b02afd72cbf1ce5f58015a8760ff15db853175fb6a05412dfc8645202",
-          "title": "CSX weekly workbook: 2019-12-27"
+          "sha256": "5861983b02afd72cbf1ce5f58015a8760ff15db853175fb6a05412dfc8645202"
         },
         {
+          "title": "CSX weekly workbook: 2021-01-01",
           "url": "https://www.stb.gov/wp-content/uploads/files/rsir/CSX/CSX%20Data%202021-01-06.xlsx",
-          "sha256": "4abbf3af372a47986766d83d7ba6f797d54b9a86f2aba969f8c7c9c2d0e5ec18",
-          "title": "CSX weekly workbook: 2021-01-01"
+          "sha256": "4abbf3af372a47986766d83d7ba6f797d54b9a86f2aba969f8c7c9c2d0e5ec18"
         },
         {
+          "title": "CSX weekly workbook: 2021-12-31",
           "url": "https://www.stb.gov/wp-content/uploads/files/rsir/CSX/CSX%20Data%202022-01-05.xlsx",
-          "sha256": "e4d8922b60158bf9fcf2b1182e137301e88ffb93546ff12c8c947bbb5a01491d",
-          "title": "CSX weekly workbook: 2021-12-31"
+          "sha256": "e4d8922b60158bf9fcf2b1182e137301e88ffb93546ff12c8c947bbb5a01491d"
         },
         {
+          "title": "CSX weekly workbook: 2022-12-30",
           "url": "https://www.stb.gov/wp-content/uploads/files/rsir/CSX/CSX%20Data%202023-01-04.xlsx",
-          "sha256": "bb0874d66582b9a4dfac0b878b884e4596cbe8eaa8e372f931b9da360bba980d",
-          "title": "CSX weekly workbook: 2022-12-30"
+          "sha256": "bb0874d66582b9a4dfac0b878b884e4596cbe8eaa8e372f931b9da360bba980d"
         },
         {
+          "title": "CSX weekly workbook: 2023-12-29",
           "url": "https://www.stb.gov/wp-content/uploads/files/rsir/CSX/CSX%20Data%202024-01-03.xlsx",
-          "sha256": "33ae37f21159c49e9c40ca6c16a068cd9c8d6afda56070ffd004c37eb5cf369a",
-          "title": "CSX weekly workbook: 2023-12-29"
+          "sha256": "33ae37f21159c49e9c40ca6c16a068cd9c8d6afda56070ffd004c37eb5cf369a"
         },
         {
           "title": "CSX reporting methodology: Item 11 definitions",

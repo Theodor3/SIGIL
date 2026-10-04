@@ -1,5 +1,5 @@
 {
-  "updated": "2026-10-03",
+  "updated": "2026-10-04",
   "states": [
     "ready",
     "assigned",
@@ -222,6 +222,14 @@
       "status": "blocked",
       "missionId": "m_282f73a8a64e408e",
       "validationStatus": "Coordinator review: engineering first generation failed HTTP 400 after reviewer ran first. Artifact is source inventory, not completed design review. Estimated mission cost $0.065616. No retry. See outputs/sigil-dev010-review.md in October 3 handoff workspace."
+    },
+    {
+      "id": "DEV011",
+      "owner": "product-ops",
+      "title": "Review main-app Experiments acceptance criteria",
+      "status": "blocked",
+      "missionId": "m_9ab18f2505324951",
+      "validationStatus": "Specialist and initial reviewer supplied source inventory. Final reviewer failed HTTP 400. Cost estimate $0.117520; no retry. Codex implemented and independently checked the page; this mission is not an approval."
     }
   ],
   "nextEngineeringPriority": "Repair FMP PEG/forward-P/E mapping with merge/cache/version contracts; diagnose Gemini HTTP 400 before further paid missions; paired cohort comparison requires sanitized contexts.",

@@ -9,6 +9,7 @@ const tabs = [
   { to: "/research", label: "Research", icon: "◎" },
   { to: "/performance", label: "Performance", icon: "▸" },
   { to: "/lab", label: "Lab", icon: "⚗" },
+  { to: "/experiments", label: "Experiments", icon: "✳" },
   { to: "/system", label: "System", icon: "⚙" },
 ];
 
@@ -91,17 +92,18 @@ export default function Layout() {
             {tab.label}
           </NavLink>
         ))}
-        <NavLink
-          to="/system"
-          className={({ isActive }) =>
-            `flex flex-col items-center py-2 px-1 text-[10px] transition-colors flex-1 ${
-              isActive ? "text-sigil-accent" : "text-sigil-muted"
-            }`
-          }
-        >
-          <span className="text-lg">⚙</span>
-          More
-        </NavLink>
+        <details className="relative flex-1 group">
+          <summary className="flex flex-col items-center py-2 px-1 text-[10px] text-sigil-muted cursor-pointer list-none">
+            <span className="text-lg">☰</span>More
+          </summary>
+          <div className="absolute bottom-full right-0 mb-2 w-48 rounded-xl border border-sigil-border bg-sigil-surface shadow-xl p-2">
+            {tabs.slice(5).map(tab => <NavLink key={tab.to} to={tab.to}
+              onClick={event => event.currentTarget.closest("details")?.removeAttribute("open")}
+              className={({isActive}) => `block px-3 py-3 rounded-lg text-sm ${isActive ? "text-sigil-accent bg-sigil-accent/10" : "text-sigil-text"}`}>
+              {tab.icon} {tab.label}
+            </NavLink>)}
+          </div>
+        </details>
       </nav>
     </div>
   );
