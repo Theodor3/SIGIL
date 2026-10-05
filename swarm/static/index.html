@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/static/styles.css">
   <script src="/static/app.js" defer></script>
   <script src="/static/studio.js" defer></script>
-  <script src="/static/experiments.js" defer></script>
+  <script src="/static/experiments.js" defer></script><script src="/static/handoff.js" defer></script>
 </head>
 <body>
   <svg aria-hidden="true" class="svg-definitions" xmlns="http://www.w3.org/2000/svg"><defs>
@@ -34,7 +34,7 @@
       <div class="workspace-label"><span class="workspace-dot"></span> Your swarm <span class="local-label">LOCAL</span></div>
       <nav class="nav-links">
         <button class="nav-item active" data-view="workspace" aria-current="page"><svg><use href="#i-grid"/></svg><span>Workspace</span></button>
-        <button class="nav-item" data-view="missions"><svg><use href="#i-stack"/></svg><span>Missions</span><span id="nav-mission-count" class="nav-count">0</span></button>
+        <button class="nav-item" data-view="handoff"><svg><use href="#i-check"/></svg><span>Needs Theodore</span></button><button class="nav-item" data-view="missions"><svg><use href="#i-stack"/></svg><span>Missions</span><span id="nav-mission-count" class="nav-count">0</span></button>
         <button class="nav-item" data-view="evidence"><svg><use href="#i-file"/></svg><span>Evidence</span></button>
         <button class="nav-item" data-view="studio"><svg><use href="#i-code"/></svg><span>Studio</span></button>
         <button class="nav-item" data-view="experiments"><svg><use href="#i-file"/></svg><span>Experiments</span></button>
@@ -51,7 +51,7 @@
       <header class="page-header"><div><div class="eyebrow">SIGIL / LAB</div><h1 id="view-title">Swarm workspace<span class="heading-dot">.</span></h1><p id="view-subtitle">One place to think, collaborate, and turn ideas into evidence.</p></div><button class="button primary" id="new-mission"><svg><use href="#i-plus"/></svg>New mission</button></header>
       <div class="global-error" id="global-error" role="alert" hidden><span id="error-text"></span><div><button id="copy-error" class="text-button">Copy details</button><button id="dismiss-error" class="icon-button" aria-label="Dismiss error"><svg><use href="#i-close"/></svg></button></div></div>
       <section id="company-status" class="company-status loading" aria-labelledby="company-status-title"><div class="company-status-mark"><span class="presence-dot"></span><svg><use href="#i-team"/></svg></div><div class="company-status-copy"><span class="tiny-label" id="company-status-kicker">COMPANY STATUS</span><h2 id="company-status-title">Checking your company…</h2><p id="company-status-detail">Reading connections, budget, and work that needs attention.</p><div class="company-status-meta"><span id="company-cadence">Hourly supervision</span><span id="company-last-run">No mission activity yet</span><span id="company-key-policy">Keys reset with the server</span></div></div><button id="company-action" class="button secondary" hidden>Open status</button></section>
-      <div class="workspace-view" id="view-workspace">
+      <section id="view-handoff" hidden><div class="section-row"><h2>Your morning brief</h2><button id="handoff-refresh" class="button secondary">Refresh</button></div><p id="handoff-status" role="status"></p><div id="handoff-content"></div></section><div class="workspace-view" id="view-workspace">
         <section class="conversation-panel" aria-labelledby="conversation-heading">
           <header class="conversation-header"><div class="conversation-heading-wrap"><div class="eyebrow" id="mission-eyebrow">YOUR NEXT QUESTION STARTS HERE</div><h2 id="conversation-heading">Give good ideas a place to grow.</h2></div><span id="mission-mode" class="pill sample">Sample mode</span></header>
           <div class="mission-toolbar" id="mission-toolbar" hidden><div><span class="status-pill" id="mission-status">Ready</span><span id="mission-round" class="muted">Round 0 of 5</span><span id="mission-cost" class="mission-cost">Est. $0.00</span></div><div><button id="resume-mission" class="text-button" hidden>Continue</button><a id="export-mission" class="icon-button" aria-label="Download mission record" title="Download mission record"><svg><use href="#i-download"/></svg></a><button id="stop-mission" class="button small secondary" hidden><svg><use href="#i-pause"/></svg>Stop</button></div></div><div id="mission-guidance" class="mission-guidance" hidden><div><span id="mission-guidance-label" class="tiny-label">NEXT STEP</span><p id="mission-guidance-text"></p></div><button id="mission-action" class="button secondary small">Review</button></div>

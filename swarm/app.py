@@ -14,6 +14,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from . import __version__
 from .engine import Engine
 from .experiments import read_experiments
+from .handoff import Decision, Answer, Progress, add_record, answer_record, digest
 from .models import AGENTS, Disconnect, LocalReview, NewMission, ProviderKeys, UserMessage
 from .providers import Providers
 from .store import Store, now
@@ -186,6 +187,24 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
     @app.get("/api/readiness")
     def readiness():
         return runtime_status()
+
+    @app.get("/api/handoff")
+    def handoff():
+        with engine.lock:
+            active = engine.active_id
+        return digest(store, active)
+
+    @app.post("/api/handoff/decisions")
+    def add_decision(body: Decision):
+        return add_record(store, 'decisions', body)
+
+    @app.post("/api/handoff/progress")
+    def add_progress(body: Progress):
+        return add_record(store, 'progress', body)
+
+    @app.post("/api/handoff/decisions/{identity}/answer")
+    def answer_decision(identity: str, body: Answer):
+        return answer_record(store, identity, body.answer)
 
     @app.get("/api/experiments")
     def experiments():

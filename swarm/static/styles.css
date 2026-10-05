@@ -227,3 +227,10 @@
 .experiment-next{padding:20px 24px;border-left:3px solid #8d9d67;border-radius:0 10px 10px 0;background:#eef2e5}
 .experiment-next h3{margin:0}
 @media(max-width:700px){.experiment-card{padding:20px}.experiment-title{font-size:25px}.experiment-findings{grid-template-columns:1fr}.experiment-hypothesis{font-size:15px}}
+/* Human handoff stays readable on narrow developer workspaces. */
+#view-handoff { max-width: 1050px; }
+#view-handoff h2 { margin-top: 28px; }
+#view-handoff h4 { margin: 16px 0 4px; }
+#view-handoff p, #view-handoff li { overflow-wrap: anywhere; }
+#view-handoff textarea { display:block; width:100%; min-height:90px; margin:12px 0; }
+.handoff-options { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
