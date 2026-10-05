@@ -156,7 +156,10 @@ async def _fetch_ticker(client: httpx.AsyncClient, symbol: str) -> dict | None:
         "industry": profile.get("industry", ""),
         "description": (profile.get("description") or "")[:500],
         "trailing_pe": _num(ratios.get("priceToEarningsRatioTTM")),
-        "forward_pe": _num(ratios.get("priceToEarningsGrowthRatioTTM")),
+        # PEG is growth-adjusted valuation, not forward P/E. These endpoints
+        # provide no verified forward P/E; leave it missing for the existing
+        # merge to fill from another provider when available.
+        "forward_pe": None,
         "price_to_sales": _num(ratios.get("priceToSalesRatioTTM")),
         "ev_to_ebitda": _num(ratios.get("enterpriseValueMultipleTTM")),
         "ev_to_revenue": _num(metrics.get("evToSalesTTM")),
