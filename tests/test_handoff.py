@@ -6,6 +6,22 @@ from swarm.handoff import Decision, Progress, add_record, answer_record, digest
 from swarm.store import Store
 
 
+def test_evidence_only_serves_reviewed_catalog(tmp_path):
+    from swarm.handoff import REPORTS, evidence_links, read_evidence
+    reports = tmp_path / '.swarm' / 'reports'
+    reports.mkdir(parents=True)
+    (reports / REPORTS['fmp']).write_text('Reviewed report', encoding='utf-8')
+    assert read_evidence(tmp_path, 'fmp') == 'Reviewed report'
+    assert evidence_links()['.swarm/reports/' + REPORTS['fmp']] == '/api/handoff/evidence/fmp'
+    for key in ('../.env', '.env', 'csx-conclusion', 'https://example.com'):
+        with pytest.raises(ValueError): read_evidence(tmp_path, key)
+    (reports / REPORTS['fmp']).unlink()
+    secret = tmp_path / 'private.txt'
+    secret.write_text('Private')
+    (reports / REPORTS['fmp']).symlink_to(secret)
+    with pytest.raises(ValueError): read_evidence(tmp_path, 'fmp')
+
+
 def test_decision_survives_restart_and_cannot_dispatch_or_overwrite(tmp_path):
     store = Store(tmp_path)
     identity = store.store_id

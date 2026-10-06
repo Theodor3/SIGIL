@@ -14,7 +14,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from . import __version__
 from .engine import Engine
 from .experiments import read_experiments
-from .handoff import Decision, Answer, Progress, add_record, answer_record, digest
+from .handoff import Decision, Answer, Progress, add_record, answer_record, digest, read_evidence
 from .models import AGENTS, Disconnect, LocalReview, NewMission, ProviderKeys, UserMessage
 from .providers import Providers
 from .store import Store, now
@@ -193,6 +193,11 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
         with engine.lock:
             active = engine.active_id
         return digest(store, active)
+
+    @app.get("/api/handoff/evidence/{key}")
+    def handoff_evidence(key: str):
+        return PlainTextResponse(read_evidence(ROOT.parent, key),
+                                 headers={'X-Content-Type-Options': 'nosniff'})
 
     @app.post("/api/handoff/decisions")
     def add_decision(body: Decision):

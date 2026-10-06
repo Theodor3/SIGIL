@@ -10,6 +10,33 @@ from pydantic import Field
 from .models import StrictModel
 from .store import now, uid
 
+# Deliberately reviewed public reports; never serve arbitrary evidence paths.
+REPORTS = {
+    'fmp': '2026-10-05-fmp-forward-pe.md',
+    'csx-duplicates': '2026-10-05-csx-duplicate.md',
+    'csx-coverage': '2026-10-06-csx-year-coverage.md',
+    'csx-fields': '2026-10-06-csx-fields.md',
+    'csx-conclusion': '2026-10-06-csx-audit-conclusion.md',
+}
+
+
+def evidence_links():
+    return {f'.swarm/reports/{name}': f'/api/handoff/evidence/{key}'
+            for key, name in REPORTS.items()}
+
+
+def read_evidence(root, key):
+    if key not in REPORTS:
+        raise ValueError('Unknown evidence reference.')
+    path = root / '.swarm' / 'reports' / REPORTS[key]
+    # Reject redirection through file or parent directory symlinks/junctions.
+    if path.resolve() != path.absolute():
+        raise ValueError('Evidence reference is unavailable.')
+    try:
+        return path.read_text(encoding='utf-8')
+    except OSError:
+        raise ValueError('Evidence reference is unavailable.') from None
+
 
 class Decision(StrictModel):
     question: str = Field(min_length=5, max_length=500)
@@ -82,6 +109,7 @@ def digest(store, active_id=None, at=None):
                     for m in store.summaries() if recent(m.get('updated_at'))]
         calls = [c for c in store.ledger if recent(c.get('finished_at') or c.get('created_at'))]
         return dict(generated_at=at.isoformat(), window_hours=24, active_mission_id=active_id,
+                    evidence_links=evidence_links(),
                     decisions=list(reversed(data['decisions'])),
                     progress=[p for p in reversed(data['progress']) if recent(p['created_at'])],
                     missions=missions, recorded_estimate_usd=round(sum(c.get('cost_usd') or 0 for c in calls), 6),
