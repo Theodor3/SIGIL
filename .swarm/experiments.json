@@ -14,7 +14,7 @@
       "createdAt": "2026-10-03",
       "evidenceReport": "C:/Users/Theodore/Documents/Codex/2026-10-03/op/outputs/sigil-csx-coverage-audit.md",
       "evidenceManifest": "C:/Users/Theodore/Documents/Codex/2026-10-03/op/outputs/csx-evidence/coverage-audit.json",
-      "nextAction": "Before modeling, reconcile duplicate report versions, audit one contiguous year and resolve intermodal unit conventions.",
+      "nextAction": "Before modeling, audit all 53 weekly report dates in the 2025 index, resolve intermodal unit conventions, and establish publication-timing limits. The duplicate November 19 URLs currently have identical bytes.",
       "sourceSamples": 9,
       "originalPublicationTimesVerified": false,
       "predictiveResultsAvailable": false,
@@ -40,7 +40,7 @@
         {
           "id": "F004",
           "status": "unresolved",
-          "summary": "Two source URLs exist for November 19, 2025; original publication/version order is unknown."
+          "summary": "Both November 19, 2025 URLs returned byte-identical workbooks in the October 5 Eastern retrieval (SHA-256 98e43538ac253c2099020c2ccd9b45b0e8c8baa4949f31abe133d81999e30754). Count one observation. Original publication timing remains unverified."
         }
       ],
       "publicSources": [
