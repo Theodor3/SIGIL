@@ -6,10 +6,19 @@
   const el = (tag, text, cls = '') => {
     const node = document.createElement(tag); node.textContent = text; node.className = cls; return node;
   };
+  let evidenceLinks = {};
   const evidence = (card, refs) => {
     if (!refs?.length) return;
     const list = el('ul', '', 'experiment-findings');
-    for (const ref of refs) list.append(el('li', ref));
+    for (const ref of refs) {
+      const row = el('li', '');
+      const href = Object.hasOwn(evidenceLinks, ref) ? evidenceLinks[ref] : null;
+      if (href && /^\/api\/handoff\/evidence\/[a-z-]+$/.test(href)) {
+        const link = el('a', ref); link.href = href; link.target = '_blank';
+        link.rel = 'noopener noreferrer'; row.append(link);
+      } else row.textContent = ref;
+      list.append(row);
+    }
     card.append(el('h4', 'Evidence / preview references'), list);
   };
   let loading = false;
@@ -59,12 +68,17 @@
       const response = await fetch('/api/handoff', {cache:'no-store', signal:AbortSignal.timeout(10000)});
       if (!response.ok) throw new Error();
       const data = await response.json();
+      evidenceLinks = data.evidence_links || {};
       host.replaceChildren();
       const open = data.decisions.filter(d => d.status === 'open');
       const summary = el('div', '', 'experiment-checks');
       summary.append(el('span', `${open.length} decisions for you`), el('span', data.active_mission_id ? 'Mission running' : 'No mission running'), el('span', `$${data.recorded_estimate_usd.toFixed(4)} recorded estimate · 24h`));
       if (data.unresolved_calls) summary.append(el('span', `${data.unresolved_calls} calls with unresolved cost`));
       host.append(summary, el('h2', 'Needs Theodore'));
+      const preview = el('a', 'Open published CSX experiment');
+      preview.href = 'https://sigil-production-ff3a.up.railway.app/experiments/EXP-CSX-001';
+      preview.target = '_blank'; preview.rel = 'noopener noreferrer';
+      host.append(preview, el('p', 'Published preview may lag local reviewed changes. Historical mission attention flags are coordinator triage, not additional decisions for you.'));
       if (!open.length) host.append(el('p', 'Nothing needs your decision. Routine investigation can continue.'));
       for (const item of open) host.append(decision(item));
       host.append(el('h2', 'Reviewed progress'));
