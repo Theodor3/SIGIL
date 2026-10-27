@@ -267,11 +267,25 @@
       "id": "STRATEGY002",
       "owner": "data",
       "title": "Prospective freight source receipt and mapping",
+      "status": "review",
+      "validationStatus": "October27 retrieved current October21 CSX workbook with source URL, UTC receipt, rawbytes and SHA256. Original publication time remains unknown; sheet mapping not newly validated. No backdated signal. See market-data receipt."
+    },
+    {
+      "id": "STRATEGY003",
+      "owner": "coordinator",
+      "title": "Real SPY history and fixed trend strategy comparison",
+      "status": "done",
+      "validationStatus": "2512 Yahoo SPY observations; fixed200-observation nextclose trend with10bps fees, commonwindow buyhold and initial70/30 no-rebalance comparison. Independent calculations agree. Lower drawdown but lower return; no superior strategy established. See October27 realdata and independentreview reports."
+    },
+    {
+      "id": "STRATEGY004",
+      "owner": "quant",
+      "title": "Predeclare diversified candidate and static comparator",
       "status": "ready",
-      "validationStatus": "Do not repeat October6 historical CSX audit. Reuse audited parser where possible; preserve first-observed UTC, raw bytes/hash/source URL, exact sheet dates and mapping for new snapshots. Never backdate publication timing or trade."
+      "validationStatus": "One bounded design/critique only. Use real-data negative SPY result; specify diversified unlevered universe, realistic cash-return source, costs, static comparator, prospective period and failure criteria. No sample optimization. Same existing budget/cutoff; see handoff."
     }
   ],
-  "nextEngineeringPriority": "Prospective data intake for strategy-lab; see STRATEGY002 and October27 handoff.",
+  "nextEngineeringPriority": "Design one predeclared diversified unlevered candidate with realistic cash returns and static diversification comparator; preserve negative SPY trend results, no parameter search or live trades.",
   "operatingStatus": "local_integration_verified_unattended_paused",
   "runtimeVersion": "0.4.1"
 }
