@@ -41,7 +41,7 @@ function ScoreBar({ score, max = 1 }: { score: number; max?: number }) {
 }
 
 export default function Overview() {
-  const { data, loading, error, refetch } = useDashboard();
+  const { data, loading, error, refetch } = useDashboard("overview");
   const [pipelineRunning, setPipelineRunning] = useState(false);
   const [pipelineError, setPipelineError] = useState<string | null>(null);
 
@@ -76,8 +76,8 @@ export default function Overview() {
   };
 
   if (loading)
-    return <div className="text-sigil-muted">Loading dashboard...</div>;
-  if (error) return <div className="text-sigil-danger">Error: {error}</div>;
+    return <div className="space-y-3"><h1 className="text-xl font-bold">Overview</h1><p role="status" className="text-sigil-muted">Loading pipeline, regime and signal summaries...</p></div>;
+  if (error && !data) return <div role="alert" className="text-sigil-danger">Error: {error}</div>;
   if (!data) return null;
 
   const provenance = dashboardProvenance(data);
@@ -103,9 +103,12 @@ export default function Overview() {
         </div>
       </div>
 
+      {error && <p role="alert" className="rounded-lg border border-yellow-500/30 p-3 text-yellow-400">Refresh failed ({error}). Showing the last successful overview; its run timestamp below is unchanged.</p>}
+
       <section aria-label="Data provenance" className="rounded-xl border border-yellow-500/30 bg-yellow-500/5 px-4 py-3 text-sm">
         <h2 className="font-semibold">Data provenance</h2>
         <p>{provenance.account}</p>
+        <p className="text-sigil-muted text-xs">Account mode is configuration metadata here; this overview does not fetch balances or historical evaluation statistics.</p>
         <p>{provenance.pipeline}</p>
         <p className="text-sigil-muted text-xs mt-1">{provenance.caveat}</p>
       </section>
