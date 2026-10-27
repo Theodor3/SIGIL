@@ -31,6 +31,9 @@ export default function App() {
           <Route path="backtest" element={<Performance />} />
           <Route path="lab" element={<Lab />} />
           <Route path="experiments" element={<Experiments />} />
+          <Route path="experiments/market-strategy" element={<MarketStrategy />} />
+          <Route path="experiments/freight-strategy" element={<StrategyLab />} />
+          <Route path="experiments/ripple-lab" element={<RippleLab />} />
           <Route path="experiments/:experimentId" element={<Experiments />} />
           <Route path="system" element={<System />} />
         </Route>

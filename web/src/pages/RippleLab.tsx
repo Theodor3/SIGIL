@@ -95,7 +95,7 @@ export default function RippleLab() {
     } catch { setMessage("Export unavailable: the saved notebook could not be read."); }
   }
   return <div className="ripple-lab">
-    <nav className="ripple-topnav" aria-label="Research navigation"><Link to="/">SIGIL <span>RESEARCH</span></Link><div><Link to="/strategy-lab">Strategy lab ↗</Link><a href="#ripple-notebook">Notebook ↓</a><Link to="/experiments">Experiments ↗</Link></div></nav>
+    <nav className="ripple-topnav" aria-label="Research navigation"><Link to="/">SIGIL <span>RESEARCH</span></Link><div><Link to="/experiments/freight-strategy">Strategy lab ↗</Link><a href="#ripple-notebook">Notebook ↓</a><Link to="/experiments">Experiments ↗</Link></div></nav>
     <header className="ripple-hero"><div><p className="ripple-eyebrow">SIGIL / MARKET RIPPLE LAB</p><h1>One event.<br/><span>Many possible futures.</span></h1><p>Follow a freight slowdown through the economy. Change the assumptions, challenge the story, and keep a record of what you expected.</p></div><div className="ripple-orbit" aria-hidden="true"><i/><i/><i/><b>↗</b><span>FREIGHT / 01</span></div></header>
     <div className="ripple-disclosure"><span className="ripple-dot"/> Interactive scenario · Illustrative coefficients · No live market data or trading connection</div>
     <div className="ripple-workbench">
