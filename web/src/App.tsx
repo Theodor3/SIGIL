@@ -14,6 +14,7 @@ import RippleLab from "./pages/RippleLab";
 import StrategyLab from "./pages/StrategyLab";
 import MarketStrategy from "./pages/MarketStrategy";
 import DiversifiedStrategy from "./pages/DiversifiedStrategy";
+import GuidanceAudit from "./pages/GuidanceAudit";
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="backtest" element={<Performance />} />
           <Route path="lab" element={<Lab />} />
           <Route path="experiments" element={<Experiments />} />
+          <Route path="experiments/guidance-audit" element={<GuidanceAudit />} />
           <Route path="experiments/market-strategy" element={<MarketStrategy />} />
           <Route path="experiments/diversified-strategy" element={<DiversifiedStrategy />} />
           <Route path="experiments/freight-strategy" element={<StrategyLab />} />
