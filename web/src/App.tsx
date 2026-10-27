@@ -13,6 +13,7 @@ import Experiments from "./pages/Experiments";
 import RippleLab from "./pages/RippleLab";
 import StrategyLab from "./pages/StrategyLab";
 import MarketStrategy from "./pages/MarketStrategy";
+import DiversifiedStrategy from "./pages/DiversifiedStrategy";
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="lab" element={<Lab />} />
           <Route path="experiments" element={<Experiments />} />
           <Route path="experiments/market-strategy" element={<MarketStrategy />} />
+          <Route path="experiments/diversified-strategy" element={<DiversifiedStrategy />} />
           <Route path="experiments/freight-strategy" element={<StrategyLab />} />
           <Route path="experiments/ripple-lab" element={<RippleLab />} />
           <Route path="experiments/:experimentId" element={<Experiments />} />

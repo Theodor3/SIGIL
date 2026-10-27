@@ -1,0 +1,68 @@
+{
+  "mission": {
+    "id": "m_1f44dce6f088402c",
+    "title": "STRATEGY005: Critique supplied exact design, no rewrite/optimization/code. STRAT",
+    "prompt": "STRATEGY005: Critique supplied exact design, no rewrite/optimization/code. STRATEGY005 frozen research design, October27 before performance review. Newly requested work, not retry of STRATEGY004.\nFour equal25% sleeves: SPY,EFA,IEF,GLD. At each completed monthend close, each ETF strictly above its own trailing200 adjusted closes retains25%; otherwise that sleeve allocates25% to BIL. No ranking, leverage, shorts or optimization. Execute at next supplied daily close, old positions earn intervening return first. Benchmark stays25%each of the same four ETFs, monthly rebalance at identical closes. BIL earns only its adjustedprice return (no added interest); it is a traded ETF with costs. Charge10bps on actual traded notional on every rebalance and final liquidation; solve postcost equity self-consistently. Fixed25bps cost sensitivity only. First evaluation starts first monthtransition after200warmup, optional2023+slice resets both identically. Reject missing/nonpositive/misaligned data; never forwardfill. Current-vintage adjustedprices are totalreturn proxies, not executable prices or archived vintages. Exact stocks/period choice is retrospective. Prospective paper-only evaluation would begin October30 signal with execution next available marketclose and run12months; NOT activated by this design. Falsification screen: candidate must lower fullwindow maxDD by>=20%relative while losing <=1percentagepoint annualizedreturn against static benchmark, and not have higherDD in2023+slice. These thresholds are design choices, not statistical significance. Report all failures unchanged. No trading/deployment. Identify material leakage, benchmark, cash or accounting issues; suggest precise corrections only. No performance claims or empirical test. Separate-context critic follows.",
+    "mode": "local",
+    "status": "blocked",
+    "created_at": "2026-10-27T12:44:51.974051-04:00",
+    "local_role": "quant",
+    "requires_tests": false,
+    "updated_at": "2026-10-27T12:46:18.219454-04:00",
+    "round": 1,
+    "max_revisions": 0,
+    "max_rounds": 1,
+    "specialist_execution": "sequential",
+    "max_specialists": 2,
+    "spent_usd": 0,
+    "summary": "Local critique rejected as approval evidence: both artifacts are identical and truncated mid-sentence. Retain warning that static diversified comparator is not equal-risk. Do not replace benchmark with same-regime exposure, which would erase the decision being tested. Exact next-close ordering and self-financing fees are specified in frozen design and separately tested/reviewed. No automatic retry; independent reference review is authoritative for this implementation.",
+    "peer_rounds": 0,
+    "replay_allowed": true,
+    "max_runtime_minutes": 20,
+    "deadline_at": "2026-10-27T13:04:52.087474-04:00",
+    "provider_routes": {
+      "quant": "local",
+      "review": "local",
+      "coordinator": "external_review"
+    },
+    "local_model": "sigil-local",
+    "coordinator_review": {
+      "accepted": false,
+      "reviewer": "codex",
+      "note": "Local critique rejected as approval evidence: both artifacts are identical and truncated mid-sentence. Retain warning that static diversified comparator is not equal-risk. Do not replace benchmark with same-regime exposure, which would erase the decision being tested. Exact next-close ordering and self-financing fees are specified in frozen design and separately tested/reviewed. No automatic retry; independent reference review is authoritative for this implementation.",
+      "at": "2026-10-27T12:46:18.218455-04:00"
+    },
+    "cost_kind": "estimate",
+    "status_reason": "Local critique rejected as approval evidence: both artifacts are identical and truncated mid-sentence. Retain warning that static diversified comparator is not equal-risk. Do not replace benchmark with same-regime exposure, which would erase the decision being tested. Exact next-close ordering and self-financing fees are specified in frozen design and separately tested/reviewed. No automatic retry; independent reference review is authoritative for this implementation.",
+    "retryable": false,
+    "required_action": "review_evidence",
+    "evidence_status": "not_validated"
+  },
+  "artifacts": [
+    {
+      "id": "art_26bea59f52fa4594",
+      "title": "STRATEGY005 Design Critique",
+      "body": "### STRATEGY005 Design Critique\n\n**1. Benchmark Misalignment (Structural Risk)**\n* **Issue:** The benchmark is a static 25% allocation to SPY, EFA, IEF, and GLD. The strategy uses a dynamic switch to BIL when an ETF falls below its 200-day trailing adjusted close. \n* **Impact:** The benchmark does not account for the 'cash' component (BIL) or the risk-reduction mechanism. This makes the Falsification Screen (MaxDD reduction vs. Return loss) potentially biased, as the benchmark's volatility profile is fundamentally different from the strategy's regime-switching profile.\n* **Correction:** Ensure the benchmark is evaluated against the same risk-regime or explicitly acknowledge the benchmark as a 'Maximum Risk' proxy rather than a 'Neutral' proxy.\n\n**2. Accounting & Costing Complexity**\n* **Issue:** The requirement to \"solve postcost equity self-consistently\" with 10bps on traded notional and 25bps cost sensitivity is mathematically non-trivial when rebalancing between ETFs and BIL.\n* **Impact:** If the equity is solved iteratively to account for costs, the order of operations (rebalance vs. return accrual) must be strictly defined to avoid look-ahead bias or circularity.\n* **Correction:** Define the exact sequence: (1) Calculate end-of-month signals, (2) Determine required trades, (3) Deduct 10bps from the notional of the trade, (4) Update equity for the next period.\n\n**3. Data Integrity & Execution Timing**\n* **Issue:** The design specifies execution at the \"next supplied daily close\" after a monthend close signal. \n* **Risk:** If the data provider's \"daily close\" for the signal day and the ",
+      "author": "quant",
+      "created_at": "2026-10-27T12:45:09.384556-04:00",
+      "verification": "unverified",
+      "sources": [],
+      "provenance_status": "none",
+      "studio_claims": [],
+      "round": 1
+    },
+    {
+      "id": "art_7b417945d96f45f7",
+      "title": "STRATEGY005 Design Critique",
+      "body": "### STRATEGY005 Design Critique\n\n**1. Benchmark Misalignment (Structural Risk)**\n* **Issue:** The benchmark is a static 25% allocation to SPY, EFA, IEF, and GLD. The strategy uses a dynamic switch to BIL when an ETF falls below its 200-day trailing adjusted close. \n* **Impact:** The benchmark does not account for the 'cash' component (BIL) or the risk-reduction mechanism. This makes the Falsification Screen (MaxDD reduction vs. Return loss) potentially biased, as the benchmark's volatility profile is fundamentally different from the strategy's regime-switching profile.\n* **Correction:** Ensure the benchmark is evaluated against the same risk-regime or explicitly acknowledge the benchmark as a 'Maximum Risk' proxy rather than a 'Neutral' proxy.\n\n**2. Accounting & Costing Complexity**\n* **Issue:** The requirement to \"solve postcost equity self-consistently\" with 10bps on traded notional and 25bps cost sensitivity is mathematically non-trivial when rebalancing between ETFs and BIL.\n* **Impact:** If the equity is solved iteratively to account for costs, the order of operations (rebalance vs. return accrual) must be strictly defined to avoid look-ahead bias or circularity.\n* **Correction:** Define the exact sequence: (1) Calculate end-of-month signals, (2) Determine required trades, (3) Deduct 10bps from the notional of the trade, (4) Update equity for the next period.\n\n**3. Data Integrity & Execution Timing**\n* **Issue:** The design specifies execution at the \"next supplied daily close\" after a monthend close signal. \n* **Risk:** If the data provider's \"daily close\" for the signal day and the ",
+      "author": "review",
+      "created_at": "2026-10-27T12:45:24.642413-04:00",
+      "verification": "unverified",
+      "sources": [],
+      "provenance_status": "none",
+      "studio_claims": [],
+      "round": 1
+    }
+  ],
+  "review": "Local critique rejected as approval evidence: both artifacts are identical and truncated mid-sentence. Retain warning that static diversified comparator is not equal-risk. Do not replace benchmark with same-regime exposure, which would erase the decision being tested. Exact next-close ordering and self-financing fees are specified in frozen design and separately tested/reviewed. No automatic retry; independent reference review is authoritative for this implementation."
+}

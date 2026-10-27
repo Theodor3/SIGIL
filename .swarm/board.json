@@ -284,6 +284,14 @@
       "status": "rejected",
       "validationStatus": "Rejected as implementation-ready design. The four-ETF momentum proposal omits allocation weights and precise momentum threshold/ranking; next-open cannot be simulated as next-close; missing assets change the universe without a fixed allocation rule; zero cash yield fails the requested realistic cash-source requirement; annual benchmark rebalancing is charged only initial fees; no prospective start/end is specified. The same-model critic missed several material gaps. Retain diversification as an unvalidated hypothesis only. No new tests, code or trades; no automatic retry.",
       "missionId": "m_c4a08025e8144284"
+    },
+    {
+      "id": "STRATEGY005",
+      "owner": "quant",
+      "title": "Fixed diversified trend experiment with real ETF data",
+      "status": "done",
+      "validationStatus": "12 accounting tests and independent reference agree. Five rawreceipts/2512aligned observations verified. Full10bps CAGR6.618vs9.356 andDD11.332vs19.704: fails frozen1ppreturn-sacrifice criterion. No tuning. Localcritic truncatedduplicate rejectedasapproval; externalreviewcomplete. UI full/recent,costswitch/exportverified.",
+      "missionId": "m_1f44dce6f088402c"
     }
   ],
   "nextEngineeringPriority": "No automatic queue refill. Diversified proposal needs exact rules, realistic cash source, symmetric costs and prospective dates before any implementation.",
