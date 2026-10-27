@@ -238,6 +238,21 @@
       "status": "done",
       "missionId": "m_e8e488d840f3449a",
       "validationStatus": "Exact failed-schema A/B rejects evidence-ID enum and succeeds without it. Gemini-only wire restriction removed; controller/store provenance intact. 79 application/diagnostic + 18 provenance tests pass. Fresh six-call mission completes. Diagnostic spend $0.227576; see October 3 workspace outputs/sigil-gemini-fix.md."
+    },
+    {
+      "id": "RIPPLE001",
+      "owner": "quant",
+      "title": "Challenge freight slowdown hypothesis before observations",
+      "status": "done",
+      "validationStatus": "Local worker and critic completed; external coordinator rejected the contract for changing pure volume criteria with revenue offsets and fertilizer-only restrictions. Useful period/source separation advice retained; no signal validated. See October 27 ripple-lab handoff.",
+      "missionId": "m_4600a00748f148bc"
+    },
+    {
+      "id": "RIPPLE002",
+      "owner": "data",
+      "title": "Design auditable freight observation intake",
+      "status": "ready",
+      "validationStatus": "Create one concise observation intake proposal, keeping volume comparison separate from tradability and recording period labels, non-overlapping categories, units, source URLs and first-seen versus publication timestamps. Conceptual task only; no fabricated data or tests."
     }
   ],
   "nextEngineeringPriority": "Gemini evidence-ID enum rejection fixed and verified locally. Await next product task; FMP PEG/forward-P/E mapping and CSX contiguous-year audit remain separate open work.",

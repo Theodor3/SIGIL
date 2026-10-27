@@ -9,6 +9,7 @@ const tabs = [
   { to: "/research", label: "Research", icon: "◎" },
   { to: "/performance", label: "Performance", icon: "▸" },
   { to: "/lab", label: "Lab", icon: "⚗" },
+  { to: "/ripple-lab", label: "Ripple lab", icon: "◉" },
   { to: "/experiments", label: "Experiments", icon: "✳" },
   { to: "/system", label: "System", icon: "⚙" },
 ];

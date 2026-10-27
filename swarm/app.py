@@ -278,6 +278,13 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
                 raise ValueError("Wait for the current mission before changing the budget.")
             return store.renew_development_budget()
 
+    @app.post("/api/budget/authorize-overnight")
+    def authorize_overnight():
+        with engine.lock:
+            if engine.active_id:
+                raise ValueError("Wait for the current mission before changing the budget.")
+            return store.authorize_overnight_budget()
+
     @app.post("/api/providers")
     def configure(payload: ProviderKeys):
         with engine.lock:

@@ -10,12 +10,13 @@ import Performance from "./pages/Performance";
 import Lab from "./pages/Lab";
 import System from "./pages/System";
 import Experiments from "./pages/Experiments";
+import RippleLab from "./pages/RippleLab";
 
 export default function App() {
   return (
-    <LoginGate>
       <Routes>
-        <Route element={<Layout />}>
+        <Route path="ripple-lab" element={<RippleLab />} />
+        <Route element={<LoginGate><Layout /></LoginGate>}>
           <Route index element={<Overview />} />
           <Route path="signals" element={<Signals />} />
           <Route path="data" element={<Data />} />
@@ -30,6 +31,5 @@ export default function App() {
           <Route path="system" element={<System />} />
         </Route>
       </Routes>
-    </LoginGate>
   );
 }

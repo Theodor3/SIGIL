@@ -19,6 +19,10 @@ RENEWAL_ID = "2026-09-28-development"
 RENEWAL_TOTAL = 100.0
 RENEWAL_DAILY = 20.0
 RENEWAL_EXPIRY = "2026-10-28"
+OVERNIGHT_ID = "2026-10-27-market-ripple-lab"
+OVERNIGHT_START = "2026-10-27T00:00:00-04:00"
+OVERNIGHT_STOP = "2026-10-28T08:00:00-04:00"
+OVERNIGHT_LIMIT = 20.0
 
 
 def now():
@@ -676,6 +680,35 @@ class Store:
             self.settings = updated
             return self.budget()
 
+    def authorize_overnight_budget(self):
+        """Record the one-night additional cap without resetting historical usage."""
+        with self.lock:
+            existing = self.settings.get("overnight")
+            if existing:
+                if existing.get("authorization_id") != OVERNIGHT_ID:
+                    raise BudgetError("A different overnight authorization already exists.")
+                return self.budget()
+            current = datetime.fromisoformat(now())
+            if not datetime.fromisoformat(OVERNIGHT_START) <= current < datetime.fromisoformat(OVERNIGHT_STOP):
+                raise BudgetError("This overnight authorization is outside its fixed time window.")
+            if any(c["status"] in ("reserved", "uncertain") for c in self.ledger):
+                raise BudgetError("Settle outstanding calls before authorizing overnight work.")
+            if self.settings.get("authorization_id") != RENEWAL_ID:
+                raise BudgetError("The existing development authorization is required; no cumulative limit is increased.")
+            overnight = dict(authorization_id=OVERNIGHT_ID, authorized_at=now(),
+                             stops_at=OVERNIGHT_STOP, limit_usd=OVERNIGHT_LIMIT,
+                             prior_call_ids=[c["id"] for c in self.ledger])
+            updated = {**self.settings, "overnight": overnight}
+            with self._db:
+                self._insert_event({"id": uid("evt"), "at": now(),
+                    "type": "overnight_budget_authorization", "authorization_id": OVERNIGHT_ID,
+                    "limit_usd": OVERNIGHT_LIMIT, "stops_at": OVERNIGHT_STOP,
+                    "note": "Additional $20 cap through October 28 08:00 Eastern; existing daily and cumulative limits remain in force."})
+                self._db.execute("UPDATE metadata SET value = ? WHERE key = 'pilot_settings'",
+                                 (self._json(updated),))
+            self.settings = updated
+            return self.budget()
+
     def budget(self):
         with self.lock:
             day = local_day()
@@ -684,14 +717,34 @@ class Store:
             today = sum(x.get("cost_usd", 0) for x in self.ledger if x["day"] == day)
             total = sum(x.get("cost_usd", 0) for x in self.ledger)
             held = sum(x["reservation_usd"] for x in self.ledger if x["status"] in ("reserved", "uncertain"))
+            overnight = self.settings.get("overnight")
+            night_remaining = float("inf")
+            night_expired = False
+            night_active = False
+            night_usage = 0
+            if overnight:
+                previous = set(overnight["prior_call_ids"])
+                night_calls = [c for c in self.ledger if c["id"] not in previous]
+                night_usage = sum(c.get("cost_usd", 0) + (
+                    c["reservation_usd"] if c["status"] in ("reserved", "uncertain") else 0
+                ) for c in night_calls)
+                night_remaining = max(0, min(OVERNIGHT_LIMIT, overnight["limit_usd"]) - night_usage)
+                night_expired = datetime.fromisoformat(now()) >= datetime.fromisoformat(OVERNIGHT_STOP)
+                night_active = (overnight.get("authorization_id") == OVERNIGHT_ID
+                    and self.settings.get("authorization_id") == RENEWAL_ID
+                    and datetime.fromisoformat(OVERNIGHT_START) <= datetime.fromisoformat(now())
+                    < datetime.fromisoformat(OVERNIGHT_STOP))
             return dict(
                 daily_limit_usd=daily_limit, pilot_limit_usd=pilot_limit,
                 today_usd=round(today, 6), pilot_usd=round(total, 6),
                 reserved_usd=round(held, 6),
-                remaining_today_usd=round(max(0, daily_limit - today - held), 6),
-                remaining_pilot_usd=round(max(0, pilot_limit - total - held), 6),
+                remaining_today_usd=round(min(night_remaining, max(0, daily_limit - today - held)), 6),
+                remaining_pilot_usd=round(min(night_remaining, max(0, pilot_limit - total - held)), 6),
                 expires_on=self.settings["expires_on"], timezone="America/New_York",
-                expired=day >= self.settings["expires_on"],
+                expired=(day >= self.settings["expires_on"] and not night_active) or night_expired,
+                overnight=(dict(authorization_id=OVERNIGHT_ID, limit_usd=OVERNIGHT_LIMIT,
+                    used_and_reserved_usd=round(night_usage, 6), remaining_usd=round(night_remaining, 6),
+                    stops_at=OVERNIGHT_STOP, expired=night_expired) if overnight else None),
                 uncertain=any(x["status"] == "uncertain" and x["provider"] != "local" for x in self.ledger),
                 cost_kind="estimate",
                 by_provider={provider: {
