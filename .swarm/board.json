@@ -281,11 +281,12 @@
       "id": "STRATEGY004",
       "owner": "quant",
       "title": "Predeclare diversified candidate and static comparator",
-      "status": "ready",
-      "validationStatus": "One bounded design/critique only. Use real-data negative SPY result; specify diversified unlevered universe, realistic cash-return source, costs, static comparator, prospective period and failure criteria. No sample optimization. Same existing budget/cutoff; see handoff."
+      "status": "rejected",
+      "validationStatus": "Rejected as implementation-ready design. The four-ETF momentum proposal omits allocation weights and precise momentum threshold/ranking; next-open cannot be simulated as next-close; missing assets change the universe without a fixed allocation rule; zero cash yield fails the requested realistic cash-source requirement; annual benchmark rebalancing is charged only initial fees; no prospective start/end is specified. The same-model critic missed several material gaps. Retain diversification as an unvalidated hypothesis only. No new tests, code or trades; no automatic retry.",
+      "missionId": "m_c4a08025e8144284"
     }
   ],
-  "nextEngineeringPriority": "Design one predeclared diversified unlevered candidate with realistic cash returns and static diversification comparator; preserve negative SPY trend results, no parameter search or live trades.",
+  "nextEngineeringPriority": "No automatic queue refill. Diversified proposal needs exact rules, realistic cash source, symmetric costs and prospective dates before any implementation.",
   "operatingStatus": "local_integration_verified_unattended_paused",
   "runtimeVersion": "0.4.1"
 }
