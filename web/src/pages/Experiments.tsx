@@ -53,6 +53,15 @@ export default function Experiments() {
       <h1>{selected ? selected.title : "Better questions. Measurable answers."}</h1>
       <p>{selected ? "A company research dossier. Evidence first; market predictions only after testing." : "A home for the ideas that haven’t earned their place in a strategy. Follow what we’re learning, what failed, and what comes next."}</p>
     </header>
+    {!experimentId && <section className="research-section" aria-label="Strategy experiments">
+      <div className="research-section-title"><h2>Strategy experiments</h2><span>Research only · No live trading</span></div>
+      <div className="research-findings">
+        <article className="research-panel"><p className="research-kicker">REAL DATA / HISTORICAL TEST</p><h2>SPY trend versus simpler portfolios</h2><p>Compare a fixed trend rule, buy-and-hold and an initial 70/30 stock/cash mix. The trend rule reduced drawdowns but lagged both alternatives in annualized return.</p><Link className="research-button" to="/experiments/market-strategy">Explore results ↗</Link></article>
+        <article className="research-panel"><p className="research-kicker">SYNTHETIC DEMO / IMPORT WORKBENCH</p><h2>Freight strategy workbench</h2><p>Define a CSX/cash rule, account for costs, and save reproducible runs. The supplied sample is invented; imported source timing still needs verification.</p><Link className="research-button" to="/experiments/freight-strategy">Open workbench ↗</Link></article>
+        <article className="research-panel"><p className="research-kicker">SCENARIOS / HYPOTHESES</p><h2>Market Ripple Lab</h2><p>Explore assumed freight effects and record hypotheses before observing outcomes. Scenario sensitivities are illustrative, not forecasts.</p><Link className="research-button" to="/experiments/ripple-lab">Explore scenarios ↗</Link></article>
+        <article className="research-panel"><p className="research-kicker">DIVERSIFIED PROPOSAL / REJECTED IN REVIEW</p><h2>A proposal that needs better rules</h2><p>The local swarm's multi-asset design omitted allocation rules, realistic cash returns and consistent benchmark fees. It was not implemented or tested. The finding is retained without a performance claim.</p></article>
+      </div>
+    </section>}
     {error ? <section className="research-panel" role="alert"><h2>Research is temporarily unavailable.</h2><p>The saved snapshot could not be loaded. This does not mean experiments were deleted.</p><button className="research-button" onClick={() => setAttempt(n => n + 1)}>Try again</button></section>
       : !data ? <p role="status">Loading the research notebook…</p>
       : <>
