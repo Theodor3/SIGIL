@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDashboard } from "../hooks/useDashboard";
+import { dashboardProvenance } from "../lib/dashboardProvenance";
 
 function StatCard({
   label,
@@ -79,6 +80,7 @@ export default function Overview() {
   if (error) return <div className="text-sigil-danger">Error: {error}</div>;
   if (!data) return null;
 
+  const provenance = dashboardProvenance(data);
   const duration = data.pipeline.duration;
   const isRunning = pipelineRunning || data.pipeline.status === "running";
 
@@ -100,6 +102,13 @@ export default function Overview() {
           </button>
         </div>
       </div>
+
+      <section aria-label="Data provenance" className="rounded-xl border border-yellow-500/30 bg-yellow-500/5 px-4 py-3 text-sm">
+        <h2 className="font-semibold">Data provenance</h2>
+        <p>{provenance.account}</p>
+        <p>{provenance.pipeline}</p>
+        <p className="text-sigil-muted text-xs mt-1">{provenance.caveat}</p>
+      </section>
 
       {pipelineError && (
         <div className="rounded-lg bg-sigil-danger/10 border border-sigil-danger/30 px-4 py-2 text-sm text-sigil-danger flex items-center justify-between">

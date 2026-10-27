@@ -35,10 +35,7 @@ export default function Layout() {
               <span className="hidden sm:inline">Pipeline running</span>
             </span>
           )}
-          <span className="px-2 py-0.5 rounded-full text-xs border border-sigil-accent/30 text-sigil-accent bg-sigil-accent/10">
-            risk_on
-          </span>
-          <span className="text-sigil-muted text-xs hidden sm:inline">Paper Mode</span>
+          <span className="text-sigil-muted text-xs hidden sm:inline">Research dashboard</span>
           <span
             className={`w-2 h-2 rounded-full ${connected ? "bg-sigil-accent" : "bg-sigil-danger"}`}
             title={connected ? "WebSocket connected" : "WebSocket disconnected"}

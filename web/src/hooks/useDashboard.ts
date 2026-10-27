@@ -55,6 +55,7 @@ interface DashboardData {
   portfolio: {
     holdings_count: number;
     total_value: number;
+    is_demo?: boolean;
   };
   pipeline: {
     last_run: string | null;
