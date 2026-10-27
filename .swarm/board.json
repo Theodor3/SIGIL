@@ -251,11 +251,27 @@
       "id": "RIPPLE002",
       "owner": "data",
       "title": "Design auditable freight observation intake",
+      "status": "done",
+      "validationStatus": "Externally accepted as a conceptual intake proposal only, pending real source mapping and observation validation. No empirical edge established. Final coordinator artifact has a truncated closing sentence; substantive rules retained. Paid estimated cost $0.167342.",
+      "missionId": "m_6ecbf2b3608f41a2"
+    },
+    {
+      "id": "STRATEGY001",
+      "owner": "quant",
+      "title": "Challenge freight long-cash strategy evaluation rules",
+      "status": "done",
+      "missionId": "m_298da284cfb246bb",
+      "validationStatus": "Strategy workbench implemented; 14 evaluator tests pass. Parent corrected threshold-dependent benchmark endpoints and conservative exit-day overlap. Browser-tested save/reload, changed-input notice, export, synthetic import labels, malformed baseline rejection and no-evaluation handling. Synthetic only; historical publication timing unresolved."
+    },
+    {
+      "id": "STRATEGY002",
+      "owner": "data",
+      "title": "Prospective freight source receipt and mapping",
       "status": "ready",
-      "validationStatus": "Create one concise observation intake proposal, keeping volume comparison separate from tradability and recording period labels, non-overlapping categories, units, source URLs and first-seen versus publication timestamps. Conceptual task only; no fabricated data or tests."
+      "validationStatus": "Do not repeat October6 historical CSX audit. Reuse audited parser where possible; preserve first-observed UTC, raw bytes/hash/source URL, exact sheet dates and mapping for new snapshots. Never backdate publication timing or trade."
     }
   ],
-  "nextEngineeringPriority": "Gemini evidence-ID enum rejection fixed and verified locally. Await next product task; FMP PEG/forward-P/E mapping and CSX contiguous-year audit remain separate open work.",
+  "nextEngineeringPriority": "Prospective data intake for strategy-lab; see STRATEGY002 and October27 handoff.",
   "operatingStatus": "local_integration_verified_unattended_paused",
   "runtimeVersion": "0.4.1"
 }

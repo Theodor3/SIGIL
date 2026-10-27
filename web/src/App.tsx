@@ -11,11 +11,13 @@ import Lab from "./pages/Lab";
 import System from "./pages/System";
 import Experiments from "./pages/Experiments";
 import RippleLab from "./pages/RippleLab";
+import StrategyLab from "./pages/StrategyLab";
 
 export default function App() {
   return (
       <Routes>
         <Route path="ripple-lab" element={<RippleLab />} />
+        <Route path="strategy-lab" element={<StrategyLab />} />
         <Route element={<LoginGate><Layout /></LoginGate>}>
           <Route index element={<Overview />} />
           <Route path="signals" element={<Signals />} />
