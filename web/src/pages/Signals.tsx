@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useDashboard } from "../hooks/useDashboard";
 
 interface HorizonStats {
@@ -49,6 +50,7 @@ export default function Signals() {
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-bold">Signal Health</h1>
+      <Link className="inline-block rounded-lg border border-sigil-border px-4 py-3 text-sigil-accent" to="/experiments/freight-evidence">Explore freight evidence → <span className="text-sigil-muted text-xs">Research preview · No active signal</span></Link>
       <p className="text-sigil-muted text-sm">
         Each signal is tracked independently. Hit rate, information coefficient,
         and alpha are computed after predictions are graded at 5, 20, and 60-day
@@ -254,3 +256,4 @@ export default function Signals() {
     </div>
   );
 }
+
