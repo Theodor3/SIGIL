@@ -186,7 +186,7 @@ function intentForRuntimeAction(action, code = "") {
 }
 
 function missionAtAttention() {
-  return (state?.missions || []).find((mission) => mission.status === "needs_review") || (state?.missions || []).find((mission) => mission.status === "blocked") || null;
+  return (state?.missions || []).find((mission) => mission.requires_review) || (state?.missions || []).find((mission) => mission.needs_attention) || null;
 }
 
 function renderBudget() {
@@ -372,7 +372,7 @@ function renderMissions() {
     const content = element("div", "mission-list-content");
     content.append(element("h3", "", mission.title || "Untitled mission"), element("p", "", `${formatDate(mission.updated_at)} · Round ${mission.round || 0} of ${mission.max_rounds || 5} · ${mission.mode === "demo" ? "No API spending" : `${estimatedMoney(mission.spent_usd)} estimated model cost`}`));
     const meta = element("div", "mission-list-meta");
-    meta.append(element("span", `pill ${mission.mode === "demo" ? "sample" : "live"}`, mission.mode === "demo" ? "Sample" : mission.mode === "local" ? "Local" : "API"), statusPill(mission.status), icon("arrow"));
+    meta.append(element("span", `pill ${mission.mode === "demo" ? "sample" : "live"}`, mission.mode === "demo" ? "Sample" : mission.mode === "local" ? "Local" : "API"), missionStatusPill(mission), icon("arrow"));
     button.append(graphic, content, meta);
     return button;
   });
@@ -397,7 +397,7 @@ function renderMissionHeader() {
   $("message-input").placeholder = !hasMission ? "Start a mission to talk with your team…" : roundLimit ? "This mission reached its round limit. Start a focused follow-up to continue." : "Ask a question, challenge a finding, or steer the next step…";
   $("composer-note").textContent = roundLimit ? "This research cycle is closed. Start a focused follow-up to keep the next question narrow and auditable." : mission?.mode === "demo" ? "Sample replies are scripted. Your messages are saved, but no model reads them." : hasMission ? "Messages are shared with the selected role. Only relevant context is passed to other workers." : "Your team works in a separate research workspace.";
   if (mission) {
-    $("mission-status").textContent = statuses[mission.status] || "Unknown status";
+    $("mission-status").textContent = mission.review_resolution ? `${statuses[mission.status] || mission.status} · Review recorded: ${mission.review_resolution.disposition}` : statuses[mission.status] || "Unknown status";
     $("mission-status").className = `status-pill ${Object.hasOwn(statuses, mission.status) ? mission.status : "ready"}`;
     $("mission-round").textContent = `Round ${mission.round || 0} of ${mission.max_rounds || 5}`;
     $("mission-cost").textContent = `Est. ${estimatedMoney(mission.spent_usd)}`;
@@ -408,8 +408,8 @@ function renderMissionHeader() {
     $("export-mission").href = `/api/missions/${encodeURIComponent(mission.id)}/export`;
     $("export-mission").setAttribute("download", "");
   }
-  $("mission-summary").hidden = !mission?.summary;
-  $("mission-summary-text").textContent = mission?.summary || "";
+  $("mission-summary").hidden = !mission?.summary && !mission?.review_resolution;
+  $("mission-summary-text").textContent = mission?.review_resolution ? `Administrative review: ${mission.review_resolution.note} Original execution summary is retained in the run record.` : mission?.summary || "";
   renderMissionGuidance(mission, roundLimit);
 }
 
@@ -432,7 +432,13 @@ function renderMissionGuidance(mission, roundLimit = false) {
     panel.hidden = true;
     return;
   }
-  if (mission.status !== "needs_review" && mission.status !== "blocked" && (roundLimit || /new.?mission|follow.?up/.test(combined))) {
+  if (mission.review_resolution) {
+    const review = mission.review_resolution;
+    label = review.disposition === "evidence_blocked" ? "BLOCKED ON EVIDENCE - REVIEW RECORDED" : "ADMINISTRATIVE REVIEW RECORDED";
+    text = `${review.meaning} Runtime status: ${statuses[mission.status] || mission.status}. ${review.reviewer} at ${formatDate(review.at)}: ${review.note} Evidence: ${review.evidence}`;
+    button = "View evidence";
+    missionActionIntent = "evidence";
+  } else if (mission.status !== "needs_review" && mission.status !== "blocked" && (roundLimit || /new.?mission|follow.?up/.test(combined))) {
     label = "RESEARCH CYCLE COMPLETE";
     text = mission.status_reason || "This mission reached its round limit. Carry the strongest unresolved question into a focused follow-up.";
     button = "Start focused follow-up";
@@ -1101,3 +1107,41 @@ document.addEventListener("visibilitychange", () => schedulePoll(true));
 window.addEventListener("online", () => schedulePoll(true));
 window.addEventListener("beforeunload", () => { clearTimeout(pollTimer); });
 schedulePoll(true);
+
+
+function missionStatusPill(mission) {
+  const pill = statusPill(mission.status);
+  if (mission.review_resolution) pill.textContent = `${statuses[mission.status] || mission.status} · Review recorded: ${mission.review_resolution.disposition}`;
+  return pill;
+}
+
+$("record-review").addEventListener("click", () => {
+  const eligible = (state?.missions || []).filter(m => ["needs_review", "blocked", "completed", "stopped"].includes(m.status) && !m.review_resolution);
+  const select = $("resolution-mission");
+  select.replaceChildren(...eligible.map(m => { const option = element("option", "", `${m.title} (${m.id})`); option.value = m.id; return option; }));
+  if (!eligible.length) { toast("No unresolved terminal missions."); return; }
+  if (eligible.some(m => m.id === selectedMissionId)) select.value = selectedMissionId;
+  $("resolution-note").value = "";
+  $("resolution-evidence").value = "";
+  $("resolution-error").hidden = true;
+  $("review-resolution-dialog").showModal();
+});
+
+$("review-resolution-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  if (busy) return;
+  const id = $("resolution-mission").value;
+  busy = true;
+  $("save-resolution").disabled = true;
+  try {
+    await api(`/api/missions/${encodeURIComponent(id)}/review-resolution`, {method:"POST", body:JSON.stringify({
+      disposition:$("resolution-disposition").value, reviewer:$("resolution-reviewer").value,
+      note:$("resolution-note").value.trim(), evidence:$("resolution-evidence").value.trim()
+    })});
+    $("review-resolution-dialog").close();
+    selectedDetailSignature = "";
+    await refresh();
+    toast("Administrative review saved. Execution history preserved.");
+  } catch(error) { showError(error, "resolution-error"); }
+  finally { busy = false; $("save-resolution").disabled = false; }
+});

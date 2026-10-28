@@ -115,6 +115,13 @@ class LocalReview(StrictModel):
     note: str = Field(min_length=10, max_length=4000)
 
 
+class ReviewResolution(StrictModel):
+    disposition: Literal["reviewed", "rejected", "superseded", "evidence_blocked"]
+    reviewer: Literal["codex", "user"]
+    note: str = Field(min_length=10, max_length=4000)
+    evidence: str = Field(min_length=5, max_length=1000)
+
+
 class ProviderKeys(StrictModel):
     gemini_api_key: str | None = Field(default=None, max_length=512)
     openai_api_key: str | None = Field(default=None, max_length=512)

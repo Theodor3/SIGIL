@@ -428,6 +428,35 @@ class Store:
             data.setdefault("drafts", [])
             return data
 
+    def resolve_review(self, mission_id, payload):
+        """Append an administrative disposition without rewriting execution history."""
+        from .models import ReviewResolution
+        payload = ReviewResolution.model_validate(payload).model_dump()
+        if len(payload['note'].strip()) < 10 or len(payload['evidence'].strip()) < 5:
+            raise ValueError('A substantive review note and evidence reference are required.')
+        with self.lock:
+            original = self.get(mission_id)
+            mission = original['mission']
+            if mission['status'] not in ('needs_review', 'blocked', 'completed', 'stopped'):
+                raise ValueError('Only a terminal mission can receive a review resolution.')
+            if any(c['mission_id'] == mission_id and c['status'] == 'reserved' for c in self.ledger):
+                raise ValueError('A mission with an unsettled call cannot be resolved.')
+            previous = mission.get('review_resolution')
+            if previous:
+                if all(previous.get(k) == v for k, v in payload.items()):
+                    return copy.deepcopy(previous)
+                raise ValueError('The review resolution is immutable once recorded.')
+            resolution = {**payload, 'at': now(), 'execution_status': mission['status'],
+                          'meaning': 'Administrative review recorded; no artifact acceptance or validation.'}
+            data = copy.deepcopy(original)
+            data['mission']['review_resolution'] = resolution
+            with self._db:
+                self._upsert_mission(data, touch=False)
+                self._insert_event({'type': 'review_resolution', 'mission_id': mission_id,
+                                    'resolution': resolution})
+            self.missions[mission_id] = data
+            return copy.deepcopy(resolution)
+
     def summaries(self):
         with self.lock:
             return [self.snapshot(key)["mission"] for key in sorted(
