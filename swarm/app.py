@@ -15,6 +15,8 @@ from . import __version__
 from .engine import Engine
 from .experiments import read_experiments
 from .models import AGENTS, Disconnect, LocalReview, NewMission, ProviderKeys, UserMessage
+from .models import ReviewResolution
+from .review_status import review_flags
 from .providers import Providers
 from .store import Store, now
 from .studio import GitStudio
@@ -114,8 +116,8 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
         if not manifest.get("capabilities", {}).get("execution"):
             warnings.append({"code": "execution_unavailable", "message": "Container-backed code execution is unavailable; research and draft review still work."})
 
-        attention_count = sum(m["status"] in ("needs_review", "blocked") for m in summaries)
-        review_count = sum(m["status"] == "needs_review" for m in summaries)
+        attention_count = sum(review_flags(m)['needs_attention'] for m in summaries)
+        review_count = sum(review_flags(m)['requires_review'] for m in summaries)
         if active_id:
             status, label = "working", "Mission in progress"
         elif any(item["code"] == "studio_stale" for item in blockers):
@@ -139,6 +141,8 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
             "scheduler_enabled": False, "scheduler_mode": "manual",
             "cadence_minutes": 1440, "max_mission_minutes": 20, "credentials_persist": False,
             "attention_count": attention_count, "review_count": review_count,
+            "raw_review_count": sum(m['status'] == 'needs_review' for m in summaries),
+            "resolved_review_count": sum(bool(m.get('review_resolution')) for m in summaries),
             "last_mission_at": summaries[0]["updated_at"] if summaries else None,
             "studio_current": manifest.get("is_current", True),
             "studio_commit": manifest.get("commit"), "current_head": manifest.get("current_head"),
@@ -147,6 +151,7 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
 
     def mission_view(mission, runtime):
         result = dict(mission)
+        result.update(review_flags(mission))
         status = result.get("status")
         result["status_reason"] = result.get("summary") or ""
         result["retryable"] = False
@@ -172,6 +177,8 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
             if result.get("mode") == "local":
                 result["retryable"] = status == "ready" and runtime["can_start_local"]
         result["evidence_status"] = "workflow_complete_unvalidated" if status == "completed" and result.get("mode") == "live" else "not_validated"
+        if result.get('review_resolution'):
+            result.update(required_action='review_evidence', retryable=False)
         return result
 
     @app.get("/api/health")
@@ -296,6 +303,14 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
     def stop(mission_id: str):
         return engine.stop(mission_id)
 
+    @app.post('/api/missions/{mission_id}/review-resolution')
+    def resolve_review(mission_id: str, payload: ReviewResolution):
+        with engine.lock:
+            if engine.active_id == mission_id:
+                raise ValueError('An active mission cannot receive a review resolution.')
+            store.resolve_review(mission_id, payload.model_dump())
+            return mission_view(store.snapshot(mission_id)['mission'], runtime_status())
+
     @app.post("/api/missions/{mission_id}/review")
     def review_local(mission_id: str, payload: LocalReview):
         with engine.lock, store.lock:
@@ -342,8 +357,16 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
             "Specialists: " + (", ".join(p for p in data.get("participants", []) if p != "review") or "not assigned"),
             "Studio commit: " + ((data.get("studio") or {}).get("commit") or "not pinned"),
             "Studio branch: " + ((data.get("studio") or {}).get("branch") or "not pinned"),
-            "", "## Mission", m["prompt"], "", "## Conversation",
+            "", "## Mission", m["prompt"],
         ]
+        if m.get('review_resolution'):
+            review = m['review_resolution']
+            lines += ['', '## Administrative review resolution', review['meaning'],
+                      'Original execution status: ' + review['execution_status'],
+                      'Disposition: ' + review['disposition'],
+                      'Reviewer: ' + review['reviewer'] + ' at ' + review['at'],
+                      'Decision: ' + review['note'], 'Evidence reference (text only): ' + review['evidence']]
+        lines += ['', '## Conversation']
         for msg in data["messages"]:
             lines += ["", f"### {msg['sender']} → {msg['recipient']} · {msg['kind']}", msg["text"]]
         for a in data["artifacts"]:
