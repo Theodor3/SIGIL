@@ -10,7 +10,7 @@ from .models import Report
 
 def response_schema(schema, prompt, *, provider=None):
     result = schema.model_json_schema()
-    if schema is not Report:
+    if not issubclass(schema, Report):
         return result
     try:
         context = json.loads(prompt)

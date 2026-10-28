@@ -9,7 +9,7 @@ from pydantic import ValidationError
 
 from .models import (
     AGENT_MAP, GEMINI_MODEL, MAX_ROUNDS, MAX_SPECIALISTS, OPENAI_MODEL,
-    Assignment, Plan, Report, ToolRequest, Verdict,
+    Assignment, Plan, Report, LocalReport, ToolRequest, Verdict,
 )
 from .providers import ProviderFailure
 from .provider_diagnostics import request_profile
@@ -548,8 +548,9 @@ class Engine:
                 "Only engineering/quant can draft; any role can inspect or test. Request only necessary tools. "
                 "paper_search finds scholarly metadata without an API fee; web_search uses a billed GPT-4.1 Mini "
                 "search utility with citations. Search only public concepts, never repository text, keys or local paths. "
-                "Leave tool_requests empty when you can finish. Missing entitlements cannot be inferred from code."
-                " Keep summary under 600 characters and artifact_body under 1200 characters. "
+                "Leave tool_requests empty when you can finish. Missing entitlements cannot be inferred from code." +
+                (" Local reports allow summary up to 6000 characters and artifact_body up to 16000 characters. "
+                 if local else " Keep summary under 600 characters and artifact_body under 1200 characters. ") +
                 "Full file contents belong only in draft_file content, never in narrative fields. "
                 "Prefer draft_edit for a small existing-file change; it constructs a full draft without copying the file. "
                 "Use only allowed_tools and allowed_recipients. Do not request peer replies unless essential. "
@@ -567,6 +568,8 @@ class Engine:
         )
         if local:
             system += " Local-only assignment: no public tools, source_requests, paid calls, or automatic application of drafts. Keep the report concise; use recorded read IDs for every code claim. A separate coordinator will review your output."
+        if local and schema is Report:
+            schema = LocalReport
         amount = self.providers.reservation(provider, system, prompt, schema)
         self.check_stop()
         profile = request_profile(system, prompt, response_schema(schema, prompt, provider=provider))
