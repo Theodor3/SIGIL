@@ -408,8 +408,8 @@ function renderMissionHeader() {
     $("export-mission").href = `/api/missions/${encodeURIComponent(mission.id)}/export`;
     $("export-mission").setAttribute("download", "");
   }
-  $("mission-summary").hidden = !mission?.summary;
-  $("mission-summary-text").textContent = mission?.summary || "";
+  $("mission-summary").hidden = !mission?.summary && !mission?.review_resolution;
+  $("mission-summary-text").textContent = mission?.review_resolution ? `Administrative review: ${mission.review_resolution.note} Original execution summary is retained in the run record.` : mission?.summary || "";
   renderMissionGuidance(mission, roundLimit);
 }
 
