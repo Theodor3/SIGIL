@@ -8,6 +8,14 @@ const code = ts.transpileModule(source, {compilerOptions:{module:ts.ModuleKind.E
 const { dashboardProvenance } = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
 const snapshot = (last_run) => ({portfolio:{is_demo:false},pipeline:{run_id:'fixture-run',last_run,status:'completed'}});
 
+test('overview describes configuration without claiming account values were read', () => {
+ for (const demo of [true, false, undefined]) {
+  const label=dashboardProvenance({view:'overview',portfolio:{is_demo:demo}});
+  assert.match(label.account,/Configured account mode:/);
+  assert.match(label.account,/Account values were not fetched/);
+ }
+});
+
 test('demo values cannot be represented as a broker account', () => {
  const label=dashboardProvenance({portfolio:{is_demo:true}});
  assert.match(label.account,/synthetic demo balances/); assert.match(label.pipeline,/No completed/);

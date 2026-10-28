@@ -1,3 +1,4 @@
+from typing import Literal
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,9 +14,10 @@ DASHBOARD_CACHE_TTL = 30
 
 
 @router.get("/dashboard-data")
-async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
+async def get_dashboard_data(db: AsyncSession = Depends(get_db), view: Literal["full", "overview"] = "full"):
     """Main dashboard payload — consumed by the React frontend."""
-    cached = cache.get(DASHBOARD_CACHE_KEY)
+    cache_key = DASHBOARD_CACHE_KEY if view == "full" else "dashboard_overview"
+    cached = cache.get(cache_key)
     if cached is not None:
         return cached
 
@@ -139,7 +141,8 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
     # Signal health stats with evaluation data
     from api.tracker.evaluator import get_signal_stats
 
-    eval_stats = await get_signal_stats(db)
+    # Overview does not display historical evaluation statistics.
+    eval_stats = await get_signal_stats(db) if view == "full" else {}
 
     # Build signal-to-group mapping from config
     import json
@@ -154,19 +157,20 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
 
     resolved_weights = load_weights()
 
+    # One grouped count replaces one query per registered signal.
+    counts_q = await db.execute(
+        select(SignalPrediction.signal_name, func.count(SignalPrediction.id))
+        .group_by(SignalPrediction.signal_name)
+    )
+    counts = dict(counts_q.all())
     signal_health = []
     for sig in signals.values():
-        count_q = await db.execute(
-            select(func.count(SignalPrediction.id))
-            .where(SignalPrediction.signal_name == sig.name)
-        )
-        pred_count = count_q.scalar() or 0
         stats = eval_stats.get(sig.name, {})
         signal_health.append({
             **sig.meta(),
             "weight": round(resolved_weights.get(sig.name, sig.default_weight), 4),
             "group": sig_to_group.get(sig.name, "ungrouped"),
-            "prediction_count": pred_count,
+            "prediction_count": counts.get(sig.name, 0),
             "eval_stats": stats,
         })
 
@@ -189,24 +193,29 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
     # Portfolio summary
     from api.execution.alpaca_broker import AlpacaBroker
     broker = AlpacaBroker()
-    account = await broker.get_account()
-    positions = await broker.get_positions()
+    if view == "full":
+        account = await broker.get_account()
+        positions = await broker.get_positions()
 
-    closed_trades_q = await db.execute(
-        select(func.sum(Trade.realized_pnl)).where(Trade.status == "closed")
-    )
-    total_pnl = closed_trades_q.scalar() or 0.0
+        closed_trades_q = await db.execute(
+            select(func.sum(Trade.realized_pnl)).where(Trade.status == "closed")
+        )
+        total_pnl = closed_trades_q.scalar() or 0.0
 
-    portfolio_summary = {
-        "holdings_count": len(positions),
-        "total_value": account.portfolio_value,
-        "equity": account.equity,
-        "cash": account.cash,
-        "buying_power": account.buying_power,
-        "unrealized_pnl": sum(p.unrealized_pnl for p in positions),
-        "realized_pnl": total_pnl,
-        "is_demo": broker.is_demo,
-    }
+        portfolio_summary = {
+            "holdings_count": len(positions),
+            "total_value": account.portfolio_value,
+            "equity": account.equity,
+            "cash": account.cash,
+            "buying_power": account.buying_power,
+            "unrealized_pnl": sum(p.unrealized_pnl for p in positions),
+            "realized_pnl": total_pnl,
+            "is_demo": broker.is_demo,
+        }
+
+    else:
+        # Mode is configuration metadata only; no account/position read is needed.
+        portfolio_summary = {"is_demo": broker.is_demo}
 
     # Data source statuses (live from registry)
     from api.data.registry import get_sources
@@ -234,6 +243,7 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
 
     payload = {
         "status": "ok",
+        "view": view,
         "signals": signal_health,
         "signal_groups": group_summary,
         "regime": regime,
@@ -243,7 +253,7 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db)):
         "recent_runs": recent_runs,
         "data_sources": data_sources,
     }
-    cache.set(DASHBOARD_CACHE_KEY, payload, ttl=DASHBOARD_CACHE_TTL)
+    cache.set(cache_key, payload, ttl=DASHBOARD_CACHE_TTL)
     return payload
 
 

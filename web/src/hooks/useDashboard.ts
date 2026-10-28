@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface SignalInfo {
   name: string;
@@ -30,6 +30,7 @@ interface PipelineRun {
 }
 
 interface DashboardData {
+  view?: "full" | "overview";
   status: string;
   signals: SignalInfo[];
   regime: {
@@ -53,8 +54,8 @@ interface DashboardData {
   signal_groups: Record<string, { budget: number; signals: string[] }>;
   top_ideas: TopIdea[];
   portfolio: {
-    holdings_count: number;
-    total_value: number;
+    holdings_count?: number;
+    total_value?: number;
     is_demo?: boolean;
   };
   pipeline: {
@@ -78,27 +79,39 @@ interface DashboardData {
   }>;
 }
 
-export function useDashboard() {
+export function useDashboard(view: "full" | "overview" = "full") {
+  const inFlight = useRef<{ view: string; controller: AbortController } | null>(null);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
+    if (inFlight.current?.view === view) return;
+    inFlight.current?.controller.abort();
+    const controller = new AbortController();
+    inFlight.current = { view, controller };
     try {
-      const res = await fetch("/api/dashboard-data");
+      const res = await fetch(view === "overview" ? "/api/dashboard-data?view=overview" : "/api/dashboard-data", { signal: controller.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
+      if (controller.signal.aborted) return;
       setData(json);
       setError(null);
     } catch (err: unknown) {
+      if (controller.signal.aborted) return;
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
-      setLoading(false);
+      if (inFlight.current?.controller === controller) inFlight.current = null;
+      if (!controller.signal.aborted) setLoading(false);
     }
-  }, []);
+  }, [view]);
 
   useEffect(() => {
     fetchData();
+    return () => {
+      inFlight.current?.controller.abort();
+      inFlight.current = null;
+    };
   }, [fetchData]);
 
   return { data, loading, error, refetch: fetchData };

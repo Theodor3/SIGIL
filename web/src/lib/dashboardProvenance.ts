@@ -1,4 +1,5 @@
 interface ProvenanceInput {
+  view?: "full" | "overview";
   portfolio?: { is_demo?: boolean };
   pipeline?: { run_id?: string | null; last_run?: string | null; status?: string };
 }
@@ -6,7 +7,9 @@ interface ProvenanceInput {
 /** Display metadata only. Does not determine trading eligibility or alter data. */
 export function dashboardProvenance(data: ProvenanceInput, now = Date.now()) {
   const demo = data.portfolio?.is_demo;
-  const account = demo === true
+  const account = data.view === "overview"
+    ? `Configured account mode: ${demo === true ? "synthetic demo" : demo === false ? "paper broker" : "unknown"}. Account values were not fetched.`
+    : demo === true
     ? "Account source: synthetic demo balances. These are not broker account values."
     : demo === false
       ? "Account source: broker-backed paper account. This does not verify market-data freshness."
