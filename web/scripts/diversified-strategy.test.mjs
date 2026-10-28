@@ -97,6 +97,41 @@ test("validation copies and sorts input without modifying its rows", () => {
   assert.equal(v.rows[0].date, "2020-01-01"); assert.equal(JSON.stringify(d), original);
 });
 
+test("missing synthetic month-end can pass the gap check and flip allocation, with an explicit warning", () => {
+  // Synthetic weekday schedule, NOT an exchange calendar or observed market data.
+  // No holiday inference: this fixture exists only to demonstrate accepted input behavior.
+  const d = fixture();
+  d.rows = Array.from({ length: 310 }, (_, i) => day(i))
+    .filter(date => ![0, 6].includes(new Date(`${date}T00:00:00Z`).getUTCDay()))
+    .map(date => ({ date, SPY: date === "2020-10-29" ? 99 : date === "2020-10-30" ? 101 : 100,
+      EFA: 100, IEF: 100, GLD: 100, BIL: 100 }));
+  const options = { startDate: "2020-11-02", costBpsPerSide: 0 };
+  const complete = evaluateDiversified(d, options);
+  const missing = { ...d, rows: d.rows.filter(row => row.date !== "2020-10-30") };
+  const original = JSON.stringify(missing);
+  assert.equal((Date.parse("2020-11-02") - Date.parse("2020-10-29")) / 86400000, 4);
+  assert.doesNotThrow(() => validateDiversifiedDataset(missing));
+  const incomplete = evaluateDiversified(missing, options);
+  assert.equal(complete.rebalances[0].signalDate, "2020-10-30");
+  assert.equal(incomplete.rebalances[0].signalDate, "2020-10-29");
+  assert.equal(complete.rebalances[0].date, "2020-11-02");
+  assert.equal(incomplete.rebalances[0].date, "2020-11-02");
+  assert.equal(complete.rebalances[0].strategyTarget.SPY, .25);
+  assert.equal(incomplete.rebalances[0].strategyTarget.SPY, 0);
+  assert.equal(incomplete.rebalances[0].strategyTarget.BIL, 1);
+  assert.equal(JSON.stringify(missing), original); // no forward fill or mutation
+  assert.match(incomplete.warnings[0], /Calendar completeness is unverified/);
+  assert.match(incomplete.warnings[0], /missing month-end session can pass/);
+  assert.match(incomplete.warnings[0], /does not establish that this dataset has missing sessions/);
+});
+
+test("an ordinary partial-month end remains valid without asserting a missing session", () => {
+  const result = evaluateDiversified(fixture(), { endDate: "2020-09-15" });
+  assert.equal(result.metrics.endDate, "2020-09-15");
+  assert.match(result.warnings[0], /Calendar completeness is unverified/);
+  assert.match(result.warnings[0], /does not establish that this dataset has missing sessions/);
+});
+
 if (process.argv.includes("--real-report")) {
   const dataset = JSON.parse(readFileSync(join(web, "public/research/diversified-history.json"), "utf8").replace(/^\uFEFF/, ""));
   const report = { version: "four-sleeve-monthly-sma200-bil-v1", datasetReceipts: dataset.sources, full10: evaluateDiversified(dataset), recent10: evaluateDiversified(dataset, { startDate: "2023-01-01" }), full25: evaluateDiversified(dataset, { costBpsPerSide: 25 }), recent25: evaluateDiversified(dataset, { startDate: "2023-01-01", costBpsPerSide: 25 }) };
