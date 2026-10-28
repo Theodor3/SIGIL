@@ -83,6 +83,12 @@ class Report(StrictModel):
     studio_claims: list[StudioClaim] = Field(default_factory=list, max_length=12)
 
 
+class LocalReport(Report):
+    """Larger local-only reports; cloud and subscription contracts stay bounded separately."""
+    summary: str = Field(min_length=1, max_length=6000)
+    artifact_body: str = Field(min_length=1, max_length=16000)
+
+
 class Verdict(StrictModel):
     message: str = Field(min_length=1, max_length=3500)
     outcome: Literal["ready_for_user", "revise", "blocked"]

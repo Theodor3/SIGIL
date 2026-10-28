@@ -10,6 +10,7 @@ from .response_contract import response_schema
 
 LOCAL_URL = "http://127.0.0.1:1234/v1"
 LOCAL_MODEL = "sigil-local"
+LOCAL_MAX_OUTPUT_TOKENS = 8192
 
 
 class LocalProvider:
@@ -40,7 +41,7 @@ class LocalProvider:
                         "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
                         "response_format": {"type": "json_schema", "json_schema": {
                             "name": schema.__name__, "strict": True, "schema": response_schema(schema, prompt)}},
-                        "temperature": 0.1, "max_tokens": 4000, "stream": False,
+                        "temperature": 0.1, "max_tokens": LOCAL_MAX_OUTPUT_TOKENS, "stream": False,
                     })
                     response.raise_for_status()
                     data = response.json()
@@ -60,7 +61,11 @@ class LocalProvider:
             except ValidationError as exc:
                 self.verified = False
                 codes = sorted({e['type'] for e in exc.errors(include_input=False, include_context=False, include_url=False)})
-                raise ProviderFailure("Local output failed schema validation (" + ", ".join(codes) + "). No automatic retry was used.", True) from None
+                # Only known top-level schema names; never inputs, arbitrary keys or raw errors.
+                fields = sorted({e['loc'][0] for e in exc.errors(include_input=False, include_context=False, include_url=False)
+                                 if e.get('loc') and e['loc'][0] in schema.model_fields})
+                detail = "; fields=" + ",".join(fields) if fields else ""
+                raise ProviderFailure("Local output failed schema validation (" + ", ".join(codes) + detail + "). No automatic retry was used.", True) from None
             except httpx.TimeoutException:
                 self.verified = False
                 raise ProviderFailure("Local generation timed out. No cloud fallback or automatic retry was used.", True) from None
