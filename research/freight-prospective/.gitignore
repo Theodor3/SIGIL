@@ -1,0 +1,12 @@
+__pycache__/
+.pytest_cache/
+*.pyc
+*.sqlite*
+*.db
+*.xlsx
+*.pdf
+*.bin
+raw/
+sample*/
+fixtures.json
+tests.txt
