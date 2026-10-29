@@ -20,4 +20,3 @@ try{
  [IO.File]::WriteAllText($target,($data | ConvertTo-Json -Depth 6)+"`n",[Text.UTF8Encoding]::new($false))
  [pscustomobject]$data | Select-Object periodStart,periodEnd,systemSpeedMph,systemDwellHours,trendObservations | ConvertTo-Json
 }finally{$z.Dispose()}
-
