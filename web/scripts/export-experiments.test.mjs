@@ -29,3 +29,16 @@ test('reject malformed counts, booleans, duplicate IDs and unsafe URLs', () => {
   const duplicate = fixture(); duplicate.experiments.push(duplicate.experiments[0]);
   assert.throws(() => projectRegistry(duplicate, '2026-10-04'));
 });
+
+test('reviewed overnight records retain outcomes and source boundaries', () => {
+  const input = fixture();
+  const out = projectRegistry(input, '2026-10-29');
+  assert.equal(out.experiments.length, 8);
+  assert.equal(out.experiments.find(x => x.id === 'CROP-SPATIAL-ALIGNMENT-001').predictiveResultsAvailable, false);
+  assert.match(out.experiments.find(x => x.id === 'CPC-CASH-MONTHLY-001').findings[0].summary, /worsened/);
+  for (const url of ['https://www.eia.gov.evil.example/', 'http://www.eia.gov/', 'https://user@www.eia.gov/']) {
+    const bad = structuredClone(input);
+    bad.experiments[1].publicSources = [{title:'invalid', url}];
+    assert.throws(() => projectRegistry(bad, '2026-10-29'));
+  }
+});

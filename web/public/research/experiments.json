@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "publicationMode": "reviewed_snapshot",
-  "reviewedOn": "2026-10-04",
-  "contentSha256": "5f4b9c68328734c5cee74e77e8fc57b6b5d869ce4b05224217b511d688ba782c",
+  "reviewedOn": "2026-10-29",
+  "contentSha256": "d33433c39b3baaed19244b7c177d3d9260c03781ecba8a53a690d601181cc6fe",
   "experiments": [
     {
       "id": "EXP-CSX-001",
@@ -94,6 +94,253 @@
           "title": "CSX reporting methodology: Item 11 definitions",
           "url": "https://www.stb.gov/wp-content/uploads/CSX_Methodology.pdf",
           "sha256": "c38837534a8bba974e1592ddf0a27eea3f01810a8b933995aafe092420dbf482"
+        }
+      ]
+    },
+    {
+      "id": "CPC-CASH-MONTHLY-001",
+      "title": "Corn weather outlooks: a negative monthly test",
+      "type": "research_study",
+      "ticker": "CORN",
+      "stage": "negative_result",
+      "status": "negative_result",
+      "hypothesisVersion": "reviewed-1",
+      "hypothesis": "Do issued summer heat and dryness outlooks improve prediction of monthly corn cash-price changes beyond seasonality and momentum?",
+      "createdAt": "2026-10-29",
+      "nextAction": "Retain the negative result. Test crop-weighted operational forecast revisions against a wholly future outcome only after timing and coverage are resolved.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": true,
+      "sourceSamples": 45,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "negative_result",
+          "summary": "On 15 evaluation months in 2020-2024, baseline MAE was 8.3764 log percentage points; adding weather worsened it to 8.4623. A zero-change baseline was better than both at 8.2709."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Training used 30 months in 2010-2019. Six-state categorical outlooks were equally weighted, not acreage weighted. The price target partly elapsed before the forecast; cash prices are revised current vintages, not futures returns. Earlier exposure to some data means this is chronological evaluation, not untouched confirmation."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "NOAA issued CPC discussion archive",
+          "url": "https://www.cpc.ncep.noaa.gov/products/archives/short_range/"
+        },
+        {
+          "title": "USDA ERS Feed Grains Database",
+          "url": "https://www.ers.usda.gov/data-products/feed-grains-database"
+        }
+      ]
+    },
+    {
+      "id": "GFS-IOWA-ACCURACY-001",
+      "title": "Issued GFS forecasts versus temperature persistence",
+      "type": "research_study",
+      "ticker": "WEATHER",
+      "stage": "limited_weather_result",
+      "status": "limited_weather_result",
+      "hypothesisVersion": "reviewed-1",
+      "hypothesis": "Can archived operational GFS temperature forecasts beat a simple persistence forecast for a future observation in a fixed Iowa sample?",
+      "createdAt": "2026-10-29",
+      "nextAction": "Expand weather verification separately from financial testing; do not infer commodity alpha from temperature accuracy.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": true,
+      "sourceSamples": 16,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "observed",
+          "summary": "Across 16 fixed July cases in 2021-2024, GFS MAE was 2.0967 C versus persistence 2.4688 C (15.1% lower). GFS won only 7 of 16 cases and was worse in 2022; mean bias was -1.8181 C."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "One airport and four summers. Decision assumed initialization plus 24 hours, with temperature target 60 hours later. Archive timestamps support that lag but do not independently prove earliest public dissemination. Observations are later quality-controlled. This tests weather accuracy, not crop yields, commodity prices or trading profit."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "NOAA operational GFS archive",
+          "url": "https://noaa-gfs-bdp-pds.s3.amazonaws.com/"
+        },
+        {
+          "title": "NOAA Global Hourly observations",
+          "url": "https://www.ncei.noaa.gov/data/global-hourly/access/"
+        }
+      ]
+    },
+    {
+      "id": "NG-COST-001",
+      "title": "Natural gas and downstream producer prices",
+      "type": "research_study",
+      "ticker": "GAS / FERTILIZER / POWER",
+      "stage": "mixed_exploratory_result",
+      "status": "mixed_exploratory_result",
+      "hypothesisVersion": "reviewed-1",
+      "hypothesis": "Do lagged natural-gas price changes add predictive information for fertilizer and electric-power producer prices beyond simple controls?",
+      "createdAt": "2026-10-29",
+      "nextAction": "Obtain real-time vintages and test stability before considering any investment signal.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": true,
+      "sourceSamples": 72,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "mixed_result",
+          "summary": "Training: 120 months in 2010-2019; evaluation: 72 months in 2020-2025. Fertilizer MAE improved from 3.3331 to 3.2647 log percentage points (2.05%), but worsened in four of six years. Power MAE worsened from 0.9079 to 0.9099."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Current revised EIA/BLS vintages and an assumed two-month release buffer; no verified point-in-time panel. Producer-price indexes measure neither company margins nor investable returns. These are unstable associations, not causal or profit evidence."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "EIA Henry Hub monthly gas prices",
+          "url": "https://www.eia.gov/dnav/ng/hist/rngwhhdm.htm"
+        },
+        {
+          "title": "BLS public data documentation",
+          "url": "https://www.bls.gov/developers/api_signature_v2.htm"
+        }
+      ]
+    },
+    {
+      "id": "EGG-MARGIN-002",
+      "title": "Bird flu and Cal-Maine: the margin bridge",
+      "type": "research_study",
+      "ticker": "CALM",
+      "stage": "descriptive_result",
+      "status": "descriptive_result",
+      "hypothesisVersion": "reviewed-1",
+      "hypothesis": "Can outbreak timing, egg selling prices and feed costs explain the issuer accounting before testing any predictive investment claim?",
+      "createdAt": "2026-10-29",
+      "nextAction": "Build a predefined dated outbreak cohort with earnings overlaps and peer comparisons before testing returns.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 2,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "source_supported",
+          "summary": "FY2024 Q3 versus FY2023 Q3: gross margin fell from 46.419% to 31.088% (-15.331 percentage points). Sold dozens rose while average selling price fell from $3.298 to $2.247 per dozen. Lower feed cost alone did not imply higher margins."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Feed cost uses dozens produced; selling price uses dozens sold. Those denominators cannot be directly subtracted as an egg-margin measure. Kansas outbreak was within the quarter; the April 1 Texas outbreak followed the March 2 quarter end. Independently recomputed descriptive accounting; no event-return or predictive result."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "Cal-Maine issuer quarterly release",
+          "url": "https://calmainefoods.gcs-web.com/node/13601/pdf"
+        }
+      ]
+    },
+    {
+      "id": "CMS-REFERRAL-001",
+      "title": "Nursing-home penalties: a public-timing veto",
+      "type": "research_study",
+      "ticker": "ENSG / CARE FACILITIES",
+      "stage": "timing_blocked",
+      "status": "timing_blocked",
+      "hypothesisVersion": "reviewed-1",
+      "hypothesis": "Could payment denials at competitors redirect admissions to nearby unpenalized operators before that effect is priced?",
+      "createdAt": "2026-10-29",
+      "nextAction": "Require verifiably earlier enforcement publication and historical facility exposure before testing this mechanism.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 277,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "negative_result",
+          "summary": "Across February and March 2024 snapshots, all 277 newly appearing denial intervals had already ended before the snapshot date (median 98 days earlier). January is left-censored. Snapshot dates are not proven first-public dates."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Earlier state suspension notices were found but do not establish first-public federal denial timing. Ownership aliases and available-bed/referral data remain incomplete. No referral effect or stock-return test was run."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "CMS archived nursing-home data",
+          "url": "https://data.cms.gov/provider-data/archived-data/nursing-homes"
+        }
+      ]
+    },
+    {
+      "id": "ERATE-DISTRICT-AUDIT-001",
+      "title": "School network vendor changes: most leads disappear",
+      "type": "research_study",
+      "ticker": "NETWORK EQUIPMENT",
+      "stage": "unconfirmed_lead",
+      "status": "unconfirmed_lead",
+      "hypothesisVersion": "reviewed-1",
+      "hypothesis": "Can dated school procurement records reveal meaningful vendor displacement rather than aliases or different equipment purchases?",
+      "createdAt": "2026-10-29",
+      "nextAction": "Verify dated procurement intent and actual replacement for the remaining lead before expanding the screen.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 15,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "negative_result",
+          "summary": "All 15 raw brand-change candidates in the screened 68-district subset were audited: ten compared different equipment categories, four were aliases or the same product family, and one remained a different-brand purchase lead."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Bensalem Aruba-to-Fortinet purchases do not prove replacement of installed equipment. Ten original PDFs support the five comparable-category cases; historical first-public timing is unverified. Zero verified installed replacements and zero public-timed investment observations. This subset is not representative of all districts."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "USAC Form 471 line items",
+          "url": "https://opendata.usac.org/resource/hbj5-2bpj.json"
+        }
+      ]
+    },
+    {
+      "id": "CROP-SPATIAL-ALIGNMENT-001",
+      "title": "Crop-weighted forecast revisions: still building",
+      "type": "research_study",
+      "ticker": "CORN",
+      "stage": "in_progress",
+      "status": "in_progress",
+      "hypothesisVersion": "reviewed-1",
+      "hypothesis": "Can issued heat and rain forecast revisions over actual corn acreage improve a wholly future crop outcome beyond persistence?",
+      "createdAt": "2026-10-29",
+      "nextAction": "Finish crop coverage and exact target-week alignment, then declare an outcome mapping and baseline before scoring. Preserve the separate monthly negative study.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 0,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "in_progress",
+          "summary": "A complete five-day forecast pair and a 48-field extension to the future July 31-August 6, 2023 UTC week have been captured and validated. Official prior-year crop-mask statistics succeeded for one small South Dakota cell; additional cells and aggregation remain unfinished."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Zero eligible crop-response comparison samples. The 18-state planted-acreage vector covers 91.37% of national acreage, but the existing forecast region and crop mask do not yet cover that footprint. State crop-condition reports cannot be treated as outcomes for a tiny grid sample. No crop prediction or commodity alpha result."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "USDA official CroplandCROS",
+          "url": "https://croplandcros.scinet.usda.gov/"
+        },
+        {
+          "title": "USDA 2022 South Dakota crop-layer metadata",
+          "url": "https://www.nass.usda.gov/Research_and_Science/Cropland/metadata/metadata_sd22.htm"
         }
       ]
     }
