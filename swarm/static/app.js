@@ -287,6 +287,8 @@ function renderCompanyStatus() {
 function renderModeNote() {
   const local = $("local-mode-input").checked;
   $("local-role").disabled = !local;
+  $("local-context-controls").hidden = !local;
+  $("mission-test-target").required = local && $("local-role").value === "engineering";
   $("new-mission-input").maxLength = 6000;
   if (local) {
     $("mission-mode-note").textContent = localAvailable() ? "One local worker, then a separate-context critique with the same model. Results wait for coordinator review. No paid calls or automatic edits." : "Local worker unavailable: load sigil-local and start the LM Studio server on localhost port 1234. Finish any active mission first.";
@@ -865,8 +867,17 @@ function performMissionAction() {
 }
 
 async function createAndRun(prompt, mode) {
-  const mission = await post("/api/missions", { prompt, mode, local_role: $("local-role").value, max_cost_usd: 2 });
+  const local = mode === 'local';
+  const target = local ? $("mission-test-target").value.trim() : '';
+  const query = local ? $("notebook-query").value.trim() : '';
+  const notes = local ? $("notebook-notes").value.split(/\r?\n/).map(s => s.trim()).filter(Boolean) : [];
+  if (Boolean(query) !== Boolean(notes.length) || notes.length > 6) throw new Error('Select a query and one to six note IDs together.');
+  const mission = await post("/api/missions", { prompt, mode, local_role: $("local-role").value, max_cost_usd: 2,
+    test_target: target || null, requires_tests: local && Boolean(target),
+    notebook_query: query || null, notebook_notes: notes });
   if (mode === "live" && mission.max_cost_usd !== 2) throw new Error("The saved mission cap was not verified; no run was started.");
+  $("notebook-query").value = "";
+  $("notebook-notes").value = "";
   selectedMissionId = mission.id;
   detail = { mission, messages: [], tasks: [], artifacts: [], calls: [] };
   selectedDetailSignature = "";
@@ -1161,3 +1172,4 @@ $("authorize-research-allowance").addEventListener("click", async () => {
   } catch (error) { toast(error.message || "Allowance activation failed."); }
   finally { busy = false; }
 });
+$("local-role").addEventListener("change", renderModeNote);

@@ -477,9 +477,20 @@ class Store:
             )]
 
     def create(self, prompt, mode, *, max_revisions=MAX_ROUNDS - 1,
-               specialist_execution="parallel", local_role="data", requires_tests=False, max_cost_usd=None):
+               specialist_execution="parallel", local_role="data", requires_tests=False, max_cost_usd=None,
+               test_target=None, notebook_context=None):
         if max_cost_usd is not None and (type(max_cost_usd) not in (int, float) or not math.isfinite(max_cost_usd) or not 0 < max_cost_usd <= 20):
             raise ValueError("Mission cap must be positive, finite and at most $20.")
+        if notebook_context is not None:
+            from .notebook import context_for_review
+            if mode != 'local':
+                raise ValueError('Notebook context is local-only.')
+            context_for_review(notebook_context)
+        if test_target is not None:
+            from .coding_gate import valid_target
+            if not valid_target(test_target):
+                raise ValueError('Choose an explicit bounded Python test target.')
+        requires_tests = requires_tests or (mode == 'local' and local_role == 'engineering')
         if mode not in ("demo", "live", "local", "subscription"):
             raise ValueError("Unknown mission mode.")
         if local_role not in ("data", "engineering", "quant", "product-ops"):
@@ -502,7 +513,7 @@ class Store:
                     id=mission_id, title=prompt.splitlines()[0][:80],
                     prompt=prompt, mode=mode, status="ready", created_at=timestamp,
                     local_role=local_role,
-                    requires_tests=requires_tests,
+                    requires_tests=requires_tests, test_target=test_target,
                     updated_at=timestamp, round=0,
                     max_revisions=max_revisions, max_rounds=1 + max_revisions,
                     specialist_execution=specialist_execution,
@@ -515,6 +526,10 @@ class Store:
             }
             if mode == "live" and max_cost_usd is not None:
                 data["mission"]["max_cost_usd"] = max_cost_usd
+            if notebook_context is not None:
+                data['notebook_context'] = copy.deepcopy(notebook_context)
+                data['notebook_context_sha256'] = hashlib.sha256(json.dumps(notebook_context, sort_keys=True, ensure_ascii=True).encode()).hexdigest()
+                data['mission']['notebook_context_selected'] = True
             self.missions[mission_id] = data
             message = dict(
                 id=uid("msg"), sender="user", recipient="coordinator", text=prompt,

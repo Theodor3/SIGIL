@@ -10,10 +10,11 @@ def main():
     parser = argparse.ArgumentParser(description="Start the local SIGIL swarm dashboard.")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--data-dir")
+    parser.add_argument("--notebook-root", help="Explicit approved Sigil Notebook directory for supervised local selections")
     args = parser.parse_args()
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpx2").setLevel(logging.WARNING)
-    uvicorn.run(create_app(args.data_dir), host="127.0.0.1", port=args.port, workers=1,
+    uvicorn.run(create_app(args.data_dir, notebook_root=args.notebook_root), host="127.0.0.1", port=args.port, workers=1,
                 access_log=False, log_level="warning")
 
 

@@ -124,6 +124,9 @@ class NewMission(StrictModel):
     specialist_execution: Literal["parallel", "sequential"] = "parallel"
     requires_tests: bool = False
     max_cost_usd: float = Field(default=2.0, gt=0, le=20, allow_inf_nan=False)
+    test_target: str | None = Field(default=None, max_length=200)
+    notebook_query: str | None = Field(default=None, min_length=1, max_length=180)
+    notebook_notes: list[str] = Field(default_factory=list, max_length=6)
 
 
 class UserMessage(StrictModel):
