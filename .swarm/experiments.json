@@ -3,6 +3,65 @@
   "policy": "Register hypotheses, parameter variants and holdouts before testing. Retain negative outcomes. Forward/paper results are not live profits.",
   "experiments": [
     {
+      "id": "DSM-TEMP-PAPER-001",
+      "title": "October 30 Des Moines temperature: a frozen paper forecast",
+      "type": "weather_verification",
+      "ticker": "KDSM / WEATHER ONLY",
+      "stage": "prospective_paper",
+      "status": "awaiting_outcome",
+      "hypothesisVersion": "frozen-1",
+      "hypothesis": "Does the issued NWS hourly grid forecast outperform a current-temperature persistence baseline for one future airport-temperature event? This checks a forecasting workflow, not an investment signal.",
+      "createdAt": "2026-10-29",
+      "nextAction": "After October 30, 2026 at 22:15 UTC, retrieve and preserve the qualifying KDSM observation, resolve both frozen forecasts against the same event, and compare Brier and absolute-temperature errors. No automatic collection or trading is scheduled.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 1,
+      "findings": [
+        {
+          "id": "FROZEN",
+          "status": "prospectively_recorded",
+          "summary": "Recorded locally at 2026-10-29T21:48:45.429293+00:00. Target: October 30, 2026 at 22:00 UTC. Event: KDSM air temperature is at least 15°C. Outcome remains unresolved; no score or forecast skill is established."
+        },
+        {
+          "id": "COMPARISON",
+          "status": "forecast_not_result",
+          "summary": "NWS hourly grid: 58°F (14.4444°C), exceedance probability 42.6542%. Persistence: latest received KDSM observation 19°C, exceedance probability 90.8789%. Both probabilities use the same arbitrary normal residual assumption with 3°C standard deviation; they are uncalibrated, not official NWS temperature probabilities."
+        },
+        {
+          "id": "RESOLUTION",
+          "status": "predeclared_rule",
+          "summary": "Use the nearest verified-quality KDSM air-temperature observation within 15 minutes of 22:00 UTC, choosing the earlier observation on a tie. Conflicting or missing observations leave the event unresolved. Both forecasts share the same fixed event definition and outcome."
+        },
+        {
+          "id": "PROVENANCE",
+          "status": "receipt_verified",
+          "summary": "Original response bytes, SHA-256 and HTTP receipt metadata were retained locally before the decision. Available-at conservatively uses local receipt time; first public dissemination and an independent attestation of the local clock are not established. Forecast source is the DMX grid point; outcome is KDSM station, so spatial mismatch remains."
+        },
+        {
+          "id": "LIMITS",
+          "status": "not_alpha",
+          "summary": "One event cannot establish calibration or superiority. No commodity, equity or option returns, execution prices, investment profit or trading action are part of this study. This publication is a static reviewed snapshot, not a live outcome feed."
+        },
+        {
+          "id": "IDENTITY",
+          "status": "audit_fingerprint",
+          "summary": "NWS forecast record 79092418003105195d5a880d8fbe15dd33737008d063cda52454fe9d20bf1d57; persistence record b0f03ba485d5f8aab01536dbfdc000a5cd67f93b9f82c82cc2e4225d7bffef50; plan SHA-256 b6424a2797d39ab8a5ae80ee5df75e29c7f530a7dadbc2c62fb0af74b10a875b. Raw inputs and the research SQLite database stay private and local."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "NWS issued hourly forecast for DMX grid 72,47 (current link; retained vintage hash below)",
+          "url": "https://api.weather.gov/gridpoints/DMX/72,47/forecast/hourly",
+          "sha256": "e3a2fcaaa6ad25a897fb5b29fe6d9e1a70e9f1a588aa9407b75489eaf9a73930"
+        },
+        {
+          "title": "NWS latest KDSM observation (current link; retained baseline vintage hash below)",
+          "url": "https://api.weather.gov/stations/KDSM/observations/latest",
+          "sha256": "d878e4472984e56aa3d37a85ffd4c81911172484cf28ab94f36f5ca4cb85beef"
+        }
+      ]
+    },
+    {
       "id": "EXP-CSX-001",
       "title": "CSX recovery quality",
       "type": "company_research",
