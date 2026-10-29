@@ -3,7 +3,7 @@
 No HTTP, prices, model calls, schedules or orders. Use a separate research DB.
 """
 from contextlib import contextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 import hashlib
 from pathlib import Path
 import sqlite3
@@ -79,18 +79,33 @@ class FacilityTracker:
             self.ledger.db.rollback()
             raise
 
-    def source(self, *, url, content, published_at, representation='original_bytes'):
+    def source(self, *, url, content, published_at, representation='original_bytes', published_date=None):
         public_url(url)
         if not isinstance(content, bytes) or not 1 <= len(content) <= 2_000_000:
             raise ValueError('Bounded nonempty bytes required')
         if representation not in ('original_bytes', 'rendered_primary_note'):
             raise ValueError('Unknown source representation')
+        if published_date is not None and (not isinstance(published_date,str) or date.fromisoformat(published_date).isoformat()!=published_date):
+            raise ValueError('Explicit ISO publisher date required')
         now = self._now()
+        publication_metadata_status='minute_known' if published_at else 'date_only' if published_date else 'unknown'
+        if published_date is not None:
+            declared_day=date.fromisoformat(published_date)
+            if declared_day > timestamp(now).date()+timedelta(days=1):
+                raise ValueError('Publisher date clearly follows receipt')
+            if published_at is not None:
+                difference=abs((declared_day-datetime.fromisoformat(published_at.replace('Z','+00:00')).date()).days)
+                if difference>1:
+                    raise ValueError('Publisher date contradicts publication time')
+                if difference:
+                    publication_metadata_status='date_difference_requires_review'
         if published_at is not None and timestamp(published_at) > timestamp(now):
             raise ValueError('Publication after receipt')
         with self._write():
-            ident = self.ledger._put('facility_source', dict(url=url, published_at=published_at,
+            ident = self.ledger._put('facility_source', dict(url=url, published_at=published_at,published_date=published_date,
                 received_at=now, representation=representation,
+                availability_basis='observed_by_receipt',first_public_verified=False,
+                publication_metadata_status=publication_metadata_status,
                 retained_content_sha256=hashlib.sha256(content).hexdigest(),
                 original_bytes_sha256=hashlib.sha256(content).hexdigest() if representation == 'original_bytes' else None,
                 bytes=len(content)))
@@ -109,8 +124,8 @@ class FacilityTracker:
         self.source_bytes(ident)
         if timestamp(source['received_at']) > timestamp(now):
             raise ValueError('Clock precedes source receipt')
-        if mode == 'prospective' and (source['published_at'] is None or source['representation'] != 'original_bytes'):
-            raise ValueError('Prospective record requires original bytes and explicit publication evidence')
+        if mode == 'prospective' and source['representation'] != 'original_bytes':
+            raise ValueError('Prospective record requires original bytes; receipt anchors observation')
         return source
 
     def _head(self, episode):
@@ -123,9 +138,11 @@ class FacilityTracker:
         return any(self.ledger.get(ident, 'facility_confirmation')['episode'] == episode for (ident,) in rows)
 
     def expectation(self, *, episode, issuer, facility, unit, source_id,
-                    target_start, target_end, mode='prospective', prior_id=None):
+                    target_start, target_end, mode='prospective', prior_id=None,milestone='restart'):
         if mode not in ('prospective', 'retrospective_audit') or issuer not in ('CF', 'UAN', 'LXU'):
             raise ValueError('Explicit supported issuer and mode required')
+        if milestone not in ('restart','production_startup'):
+            raise ValueError('Explicit supported operating milestone required')
         for value in (episode, facility, unit):
             text(value)
         start, end = interval(target_start, target_end)
@@ -141,20 +158,22 @@ class FacilityTracker:
             change = 'baseline'
             if prior_id:
                 prior = self.ledger.get(prior_id, 'facility_expectation')
-                if any(prior[k] != v for k, v in [('issuer',issuer),('facility',facility),('unit',unit),('mode',mode)]):
+                if any(prior[k] != v for k, v in [('issuer',issuer),('facility',facility),('unit',unit),('mode',mode)]) or prior.get('milestone','restart')!=milestone:
                     raise ValueError('Revision changes episode identity or mode')
                 if timestamp(prior['recorded_at']) > timestamp(now):
                     raise ValueError('Clock precedes prior record')
                 if mode == 'prospective':
                     old = self._source(prior['source_id'], mode, now)
-                    if timestamp(source['published_at']) <= timestamp(old['published_at']):
+                    # Later receipt alone is not proof of a newer publication.
+                    boundary=old['published_at'] or prior['recorded_at']
+                    if source['published_at'] is None or timestamp(source['published_at']) <= timestamp(boundary):
                         raise ValueError('Source is not a newer publication')
                 relation = timing_relation(prior['target_start'], prior['target_end'], target_start, target_end)
                 change = 'guidance_repeated' if (start,end) == interval(prior['target_start'],prior['target_end']) else 'guidance_'+relation
             return self.ledger._put('facility_expectation', dict(episode=episode,issuer=issuer,
                 facility=facility,unit=unit,source_id=source_id,target_start=target_start,
                 target_end=target_end,mode=mode,prior_id=prior_id,recorded_at=now,
-                change=change,financial_surprise='not_inferred'))
+                change=change,milestone=milestone,financial_surprise='not_inferred'))
 
     def confirmation(self, *, expectation_id, source_id, actual_start, actual_end):
         a,b = interval(actual_start, actual_end)
@@ -172,18 +191,20 @@ class FacilityTracker:
                 raise ValueError('Source predates claimed actual operation')
             if prior['mode'] == 'prospective':
                 old = self._source(prior['source_id'], prior['mode'], now)
-                if a <= timestamp(prior['recorded_at']) or timestamp(source['published_at']) <= timestamp(old['published_at']):
+                if a <= timestamp(prior['recorded_at']) or (source['published_at'] is not None and timestamp(source['published_at']) <= timestamp(prior['recorded_at'])):
                     raise ValueError('Late baseline or old confirmation source')
             old_source = self._source(prior['source_id'], prior['mode'], now)
             before_operation = (timestamp(old_source['published_at']) < a) if old_source['published_at'] else None
+            recorded_before = timestamp(prior['recorded_at']) < a
             relation = (timing_relation(prior['target_start'],prior['target_end'],actual_start,actual_end)
-                        if before_operation is True else 'unavailable_prior_guidance_time'
+                        if before_operation is True or (prior['mode']=='prospective' and recorded_before) else 'unavailable_prior_guidance_time'
                         if before_operation is None else 'invalid_hindsight_guidance')
             return self.ledger._put('facility_confirmation', dict(episode=prior['episode'],expectation_id=expectation_id,
                 source_id=source_id,actual_start=actual_start,actual_end=actual_end,
                 recorded_at=now,mode=prior['mode'],
                 timing_relation=relation,
                 guidance_published_before_operation=before_operation,
+                baseline_recorded_before_operation=recorded_before,
                 financial_surprise='not_inferred',first_public_confirmation_verified=False))
 
     def price_reference(self, *, confirmation_id, url, symbol, start_at, end_at):

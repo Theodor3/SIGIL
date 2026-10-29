@@ -13,18 +13,26 @@ databases are rejected before schema writes. Never point it at the canonical sto
    remain manual evidence assertions, not automatic publisher verification.
 2. `expectation`: identify issuer, facility, production unit and disruption episode;
    record the issuer's expected restart interval. Prospective mode requires original
-   bytes, explicit publication time and a window not yet started when recorded.
+   bytes and a window not yet started when recorded. Receipt/record times anchor
+   current availability; publisher minute may remain unknown and publisher date
+   is stored separately without inventing an instant. First-public status stays
+   unverified. This prospective receipt rule does not relax the frozen historical
+   financial-cohort timing, completeness or sample gates.
    Historical material uses `retrospective_audit` and receives today's record time.
 3. A revision supplies the latest `prior_id`, preserves episode identity, and appends
-   a new version. Stale branches fail; prospective publication times must advance.
+   a new version. Stale branches fail; prospective publication order must be proved.
+   Later receipt alone is insufficient. If old publication time is unknown, a new
+   known publication must follow the prior record cutoff before it can revise it.
    Old guidance remains inspectable. Once confirmed, new disruptions use new IDs.
 4. `confirmation`: link actual restart timing to the latest guidance, using closed
    intervals. `actual_start/end` bound uncertainty in the restart time, not an outage
    duration. Earlier/within/later/overlap labels describe operating timing only.
    An uncertain date crossing a boundary stays `overlap_indeterminate`. The record
    separately says whether prior publication precedes operation when that is known.
-   Unknown prior publication yields `unavailable_prior_guidance_time`; guidance
-   published after operation yields `invalid_hindsight_guidance`, including audits.
+   Historical audit mode with unknown prior publication yields
+   `unavailable_prior_guidance_time`; hindsight guidance yields
+   `invalid_hindsight_guidance`. A prospective baseline can instead establish it
+   was recorded before operation, while leaving original publication unknown.
    A post-operation guidance version cannot get prospective forecast credit.
 5. `price_reference`: attach public issuer/SPY/XLB historical-price references and
    a requested window after a60minute information buffer. Prospective timing uses
@@ -65,6 +73,15 @@ Current LSB news-index access was denied (numeric status was not retained); no c
 expectation was verified, and none was fabricated. A live entry requires a newly
 received original issuer notice with reviewed target/unit/publication evidence.
 No recurring collector or automatic job is activated.
+
+## Later live entry: long-horizon project milestone
+
+A subsequent one-time original-source capture enabled a receipt-anchored CF Blue
+Point production-startup entry for the full2029year. The original issuer page is
+retained, publisher date remains date-only, and the current recording precedes
+the whole target window. It is separate from restart experiments and conveys no
+near-term signal or surprise. Details and resolution rules remain local in the
+BluePoint prospective protocol. No collection schedule or price analysis is enabled.
 
 Tests run only in restricted no-network Docker and include revision history,
 prospective/audit separation, clock and source ordering, interval uncertainty,

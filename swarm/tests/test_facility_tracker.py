@@ -55,11 +55,39 @@ def test_interval_timing_is_not_surprise(actual,expected):
 
 def test_old_or_rendered_inputs_cannot_be_prospective(lab):
     t,_=lab
-    for args in (dict(published=None),dict(representation='rendered_primary_note')):
+    for args in (dict(representation='rendered_primary_note'),):
         with pytest.raises(ValueError,match='requires original'):
             expectation(t,source(t,**args))
     with pytest.raises(ValueError,match='already begun'):
         expectation(t,source(t),target_start='2013-08-03T00:00:00Z',target_end='2013-08-03T23:59:59Z')
+
+
+def test_receipt_based_prospective_baseline_does_not_invent_publication(lab):
+    t,now=lab
+    source_id=source(t,published=None)
+    ident=expectation(t,source_id,milestone='production_startup')
+    assert t.ledger.get(source_id,'facility_source')['published_at'] is None
+    now[0]='2026-01-07T12:00:00Z'
+    confirmation=t.confirmation(expectation_id=ident,source_id=source(t,published=None),actual_start='2026-01-05T00:00:00Z',actual_end='2026-01-05T23:59:59Z')
+    record=t.ledger.get(confirmation,'facility_confirmation')
+    assert record['baseline_recorded_before_operation'] is True
+    assert record['guidance_published_before_operation'] is None
+    assert record['timing_relation']=='within_announced_window'
+
+
+def test_later_receipt_with_unknown_publication_cannot_revise_guidance(lab):
+    t,now=lab
+    ident=expectation(t,source(t,published=None))
+    now[0]='2026-01-02T12:00:00Z'
+    with pytest.raises(ValueError,match='newer publication'):
+        expectation(t,source(t,published=None),prior_id=ident)
+
+
+@pytest.mark.parametrize('published_date,published',[('2030-01-01',None),('2025-01-01','2026-01-01T11:00:00Z')])
+def test_clear_publication_date_contradictions_rejected(lab,published_date,published):
+    t,_=lab
+    with pytest.raises(ValueError):
+        t.source(url='https://www.cfindustries.com/newsroom/example',content=b'test',published_at=published,published_date=published_date)
 
 
 def test_stale_or_cross_identity_revision_rejected(lab):
