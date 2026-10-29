@@ -20,7 +20,7 @@ export function projectRegistry(data, reviewedOn) {
     out.findings = item.findings.map(f => Object.fromEntries(['id', 'status', 'summary'].map(k => [k, text(f[k])])));
     out.publicSources = (item.publicSources ?? []).map(s => {
       const url = new URL(text(s.url));
-      if (url.protocol !== 'https:' || url.username || url.password || !["www.stb.gov", "stb.gov", "www.csx.com", "csx.com", "www.cpc.ncep.noaa.gov", "www.ers.usda.gov", "noaa-gfs-bdp-pds.s3.amazonaws.com", "www.ncei.noaa.gov", "www.eia.gov", "www.bls.gov", "calmainefoods.gcs-web.com", "data.cms.gov", "opendata.usac.org", "croplandcros.scinet.usda.gov", "www.nass.usda.gov"].includes(url.hostname)) fail();
+      if (url.protocol !== 'https:' || url.username || url.password || !["www.stb.gov", "stb.gov", "www.csx.com", "csx.com", "www.cpc.ncep.noaa.gov", "www.ers.usda.gov", "noaa-gfs-bdp-pds.s3.amazonaws.com", "www.ncei.noaa.gov", "www.eia.gov", "www.bls.gov", "calmainefoods.gcs-web.com", "data.cms.gov", "opendata.usac.org", "croplandcros.scinet.usda.gov", "www.nass.usda.gov", "api.weather.gov"].includes(url.hostname)) fail();
       const source = {title: text(s.title), url: url.href};
       if (s.sha256 !== undefined) {
         if (!/^[a-f0-9]{64}$/.test(s.sha256)) fail();

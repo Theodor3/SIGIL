@@ -1,0 +1,21 @@
+# Bounded local Sigil notebook retrieval
+
+Implemented in swarm/notebook.py with explicit controller CLI swarm/notebook_cli.py. This is a manual local-review stage, not a new model tool, automatic worker prompt, cloud export, persistent vault index or scheduler. No runtime restart/integration or credential access was needed.
+
+Example (explicitly select the approved Sigil Notebook folder):
+
+    python -m swarm.notebook_cli --notebook "<approved Sigil Notebook directory>" --query "weather forecasts LSTM baselines"
+
+Only flat, numbered NN - Name.md notes are candidates. No recursive scan, external links or Obsidian link expansion. Max128 directory entries,64notes,128KiB/file,1MiB reserved reads including rejected secret/invalid/raced files,6excerpts,2000characters/excerpt,12000excerptcharacters,32KiBserializedpacket. Errors are fixed safe messages; oversized directories/scans fail closed. Results have explicit excluded counts and truncation, source note ID/full-raw-file SHA256, source line range, heading, mtime and retrieval timestamp. Mtime/retrieval are not historical publication dates. Original notes are not changed.
+
+Selection rejects traversal, absolute paths, backslash/ADS names, private filenames, nonregular/symlink/junction/reparse/hardlinked leaves and root escapes. Reads compare path/handle identity, size, modification and same-API change timestamps before/after. Windows stat and fstat ctime values differ even for unchanged files, so they are compared only within the same API. This is best-effort protection for an owner-controlled directory, not a sandbox against an adversarial concurrent filesystem. A note can never choose the approved root.
+
+Secret detection and local-path redaction are heuristics, not a completeness guarantee. Every excerpt stays untrusted_context with no dispatch authority and no cloud-export approval. Renderer validates exact packet schema/privacy flags, metadata types/limits, hashes, line bounds and final serialized size. JSON quotes note text rather than treating it as a system prompt. Injection fixtures prove structural data separation; they do NOT prove a model will resist all semantic prompt injection. Controller review remains required. Never feed a generated packet to a cloud worker merely because retrieval succeeded.
+
+Validation:30synthetic pytest cases passed in trusted restricted Docker: networknone/read-only/capdropALL/nonroot/no-new-privileges/resourcecaps/tmpfs and readonly source mount. No host synthetic Python execution. Real read of existing17Sigilnotes returned6excerpts/5814characters,75341byte reserved-readupperbound,0excluded; originals preserved, no cloud export. Local packet outside Git: notebook-retrieval-local-packet.json in the task workspace. Runtime/private records/real packet are not in this commit.
+
+Independent guidance008_review found and helped correct scan accounting, packet timestamp/bounds, link/type checks and renderer boundaries. The real Windows read discovered the ctime compatibility issue; a synthetic regression now covers it. The final renderer metadata/type hardening passes30tests. No semantic-injection or adversarial-FS guarantee claimed.
+
+Supervised local mission NOTEBOOK-CODE-001/m_765227ae66254478 actually ran: sigil-local engineering plus same-model separate-context critique,2localcalls,$0modelAPI. Worker code artifact art_fc2c3117841045bf SHA256 d4cd18242747abafd37f9702365ea4688ba8cda4f41a52e3bde79109a4c250f0 was separately tested in restrictedDocker:13passed1failed. Missing-field fixture actually has allfields; staticreview also found uncaughtTypeErrorforNone/listinput. Same-modelcriticmissedthefailure. Coordinator and independentreviewer rejected the draft asready; reviewresolution saved through normalUI. Bothoriginalartifacts/executionhistorypreserved; nocodeapplied/noretry/fallback. Notebookretrieval is coordinator-written, not falsely attributed to that worker.
+
+Manual CLI ready; automatic runtime context attachment remains unimplemented, deliberately keeping per-packet controller review. Next step is a reviewed explicit per-mission local-only packet handoff, not vault-wide access or arbitrary model-selected paths. Idle automation stays off. No paidAPIcall, trade, push or deployment.
