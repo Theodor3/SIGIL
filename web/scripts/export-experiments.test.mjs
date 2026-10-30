@@ -11,7 +11,7 @@ test('publication excludes private paths, missions and dispatch permissions', ()
   const raw = JSON.stringify(out);
   for (const key of ['evidenceReport', 'evidenceManifest', 'runtimeDispatchEnabled', 'missionIds', 'paperTrial', 'not-for-publication', 'C:/Users']) assert.ok(!raw.includes(key));
   assert.equal(out.publicationMode, 'reviewed_snapshot');
-  assert.equal(out.experiments[0].predictiveResultsAvailable, false);
+  assert.equal(out.experiments[0].predictiveResultsAvailable, input.experiments[0].predictiveResultsAvailable);
 });
 test('content fingerprint changes when public evidence changes', () => {
   const input = fixture();
@@ -43,14 +43,16 @@ test('reviewed overnight records retain outcomes and source boundaries', () => {
   }
 });
 
-test('paper forecast remains frozen, unresolved and explicitly uncalibrated', () => {
+test('paper forecast stays frozen with one descriptive scored outcome', () => {
   const out = projectRegistry(fixture(), '2026-10-30');
   const card = out.experiments.find(x => x.id === 'DSM-TEMP-PAPER-001');
-  assert.equal(card.status, 'awaiting_outcome');
+  assert.equal(card.status, 'resolved_single_case');
   assert.equal(card.sourceSamples, 1);
-  assert.equal(card.predictiveResultsAvailable, false);
+  assert.equal(card.predictiveResultsAvailable, true);
   assert.equal(card.originalPublicationTimesVerified, false);
   assert.match(card.findings.find(x => x.id === 'FROZEN').summary, /2026-10-29T21:48:45/);
+  assert.match(card.findings.find(x => x.id === 'OBSERVED_OUTCOME').summary, /21:54 UTC/);
+  assert.match(card.findings.find(x => x.id === 'PROBABILITY_SCORES').summary, /0.328854198975/);
   assert.match(card.findings.find(x => x.id === 'COMPARISON').summary, /uncalibrated/);
   assert.match(card.findings.find(x => x.id === 'LIMITS').summary, /not a live outcome feed/);
   assert.ok(card.publicSources.every(x => new URL(x.url).hostname === 'api.weather.gov'));
