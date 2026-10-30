@@ -13,6 +13,12 @@ from fastapi.testclient import TestClient
 from swarm.app import create_app
 
 
+@pytest.fixture(autouse=True)
+def historical_authorization_clock(monkeypatch):
+    # Historical authorization fixture must not depend on today's calendar date.
+    monkeypatch.setattr("swarm.store.local_day", lambda: "2026-09-29")
+
+
 def test_renewal_preserves_usage_identity_and_survives_restart(tmp_path):
     store = Store(tmp_path)
     identity = store.runtime_identity()["store_id"]
