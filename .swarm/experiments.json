@@ -411,17 +411,17 @@
     {
       "type": "research_protocol",
       "ticker": "UNMAPPED / NO POSITIONS",
-      "stage": "feasibility",
-      "status": "data_audit_required",
+      "stage": "prospective_capture",
+      "status": "blocked_duration_labels",
       "hypothesisVersion": "draft-1",
       "createdAt": "2026-10-30",
       "originalPublicationTimesVerified": false,
       "predictiveResultsAvailable": false,
-      "sourceSamples": 0,
+      "sourceSamples": 5,
       "id": "DRUG-SUPPLY-DURATION-001",
       "title": "Drug supply: duration until competing capacity returns",
       "hypothesis": "Do documented shortage duration and surviving capacity explain exposed suppliers operating outcomes beyond shortage status alone?",
-      "nextAction": "Audit a small predefined set of archived FDA vintages; quantify coverage and parent mapping before selecting issuers or scoring duration.",
+      "nextAction": "Continue manual source captures; obtain a bounded historical-vintage sample with verified onset/follow-up and competing-supply dates before estimating duration.",
       "findings": [
         {
           "id": "DATA_GATE",
@@ -437,6 +437,16 @@
           "id": "FROZEN_TEST",
           "status": "protocol_not_result",
           "summary": "Before outcomes: finite inception cohort including resolutions/negative cases; predict duration to independently documented competing-supply restoration. Compare status-only and historical-duration baseline; chronological holdout and censoring-aware scoring. Only then assess company margins or delayed benchmark-relative returns with costs."
+        },
+        {
+          "id": "PILOT_CODE",
+          "status": "implemented_not_predictive",
+          "summary": "Manual Python CLI now captures immutable raw responses, verifies receipt/content hashes and records current-version availability. Repeated imports are idempotent; source dates never become historical first-seen timestamps. Duration/conversion baselines refuse absent verified labels. No schedule or trading hook."
+        },
+        {
+          "id": "CURRENT_CAPTURE",
+          "status": "current_state_not_historical",
+          "summary": "Captured 2026-10-30T19:38:06.699975+00:00; 8815 bytes; source SHA-256 f456cbd7e1e3a99af221e30816a72838ec20f0ae62c845993687ad6ff3732912. Five records from a reported population of 1,614; Current and Available can coexist. One reported Resolved row has no verified resolution time, so episode/censoring status remains unknown. No historical duration or capacity label inferred."
         }
       ],
       "publicSources": [
@@ -447,23 +457,28 @@
         {
           "title": "HHS historical shortage reconstruction lead (direct retrieval blocked; not audited here)",
           "url": "https://www.ncbi.nlm.nih.gov/books/NBK611681/"
+        },
+        {
+          "title": "Actual bounded openFDA current-state query; not historical vintage",
+          "url": "https://api.fda.gov/drug/shortages.json?limit=5",
+          "sha256": "f456cbd7e1e3a99af221e30816a72838ec20f0ae62c845993687ad6ff3732912"
         }
       ]
     },
     {
       "type": "research_protocol",
       "ticker": "UNMAPPED / NO POSITIONS",
-      "stage": "feasibility",
-      "status": "data_audit_required",
+      "stage": "prospective_capture",
+      "status": "blocked_entity_and_revenue_labels",
       "hypothesisVersion": "draft-1",
       "createdAt": "2026-10-30",
       "originalPublicationTimesVerified": false,
       "predictiveResultsAvailable": false,
-      "sourceSamples": 0,
+      "sourceSamples": 5,
       "id": "PROCUREMENT-REVENUE-001",
       "title": "Procurement: funded work into reported revenue",
       "hypothesis": "Do first-observed funded awards improve forecasts of company revenue versus prior guidance/backlog, conditional on contract type and customer?",
-      "nextAction": "Audit issuer segment/customer exposure and a bounded first-seen award cohort; establish amendment/timing coverage before fitting conversion rates.",
+      "nextAction": "Verify legal-entity identifiers and historical ICF parent ownership; obtain dated incremental obligation transactions and matched revenue/guidance labels before conversion modeling.",
       "findings": [
         {
           "id": "DATA_GATE",
@@ -479,6 +494,16 @@
           "id": "TEST",
           "status": "protocol_not_result",
           "summary": "Predeclare revenue conversion windows and customer/contract strata. Baseline issuer guidance and funded backlog available at decision; hold out later quarters and compare forecast error before asset returns. Cancellations and contract losses stay in cohort; funded work is not guaranteed revenue."
+        },
+        {
+          "id": "PILOT_CODE",
+          "status": "implemented_not_predictive",
+          "summary": "Manual Python CLI now captures immutable raw responses, verifies receipt/content hashes and records current-version availability. Repeated imports are idempotent; source dates never become historical first-seen timestamps. Duration/conversion baselines refuse absent verified labels. No schedule or trading hook."
+        },
+        {
+          "id": "CURRENT_CAPTURE",
+          "status": "current_state_not_historical",
+          "summary": "Captured 2026-10-30T19:38:44.135875+00:00; 2435 bytes; source SHA-256 b76b9d9320455603515bc0dd5010b5db25323fa064ff09de66659f6715770206. Five top award-search results, including FAMILY ENDEAVORS as an unrelated-name keyword hit. All five issuer mappings remain unverified/ineligible. Current cumulative amounts are not new obligations or revenue; no issuer totals or conversion fit."
         }
       ],
       "publicSources": [
@@ -489,23 +514,27 @@
         {
           "title": "USAspending official source, not a first-public timestamp guarantee",
           "url": "https://www.usaspending.gov/"
+        },
+        {
+          "title": "USAspending public API documentation; actual capture used POST award search",
+          "url": "https://api.usaspending.gov/docs/endpoints"
         }
       ]
     },
     {
       "type": "research_protocol",
       "ticker": "UNMAPPED / NO POSITIONS",
-      "stage": "feasibility",
-      "status": "data_audit_required",
+      "stage": "baseline_scaffold",
+      "status": "blocked_missing_labels",
       "hypothesisVersion": "draft-1",
       "createdAt": "2026-10-30",
       "originalPublicationTimesVerified": false,
       "predictiveResultsAvailable": false,
-      "sourceSamples": 0,
+      "sourceSamples": 1,
       "id": "LOCATION-DEMAND-LSTM-001",
       "title": "Location demand: geographic baselines before an LSTM",
       "hypothesis": "Can point-in-time location features improve held-out company demand forecasts beyond seasonality and linear models, without confusing redistribution with organic growth?",
-      "nextAction": "Inventory existing authorized locations/labels with acquisition dates; freeze one geographic aggregation and label before downloading models or fitting any network.",
+      "nextAction": "Supply verified point-in-time location/traffic labels and historical comparable-store membership; run persistence, seasonal and fixed-ridge baselines first. No LSTM is fitted or feed purchased.",
       "findings": [
         {
           "id": "LABEL_GATE",
@@ -521,6 +550,16 @@
           "id": "MODEL_PLAN",
           "status": "protocol_not_result",
           "summary": "Start fixed geographic exposure, seasonality/no-change and regularized linear baselines. Block geography and chronological holdouts; model/scaler/training-data hashes and availability cutoffs. A multi-horizon LSTM only after sufficient independent labels/coverage; quarterly aggregate labels limit effective sample and store inference."
+        },
+        {
+          "id": "BASELINE_CODE",
+          "status": "implemented_no_real_fit",
+          "summary": "Python persistence, same-month seasonal and fixed-ridge linear baselines enforce independent feature/label availability, historical feature-decision checks, training-only scaling and separate fixture/real evidence. Tests use synthetic data only. No real store-level demand labels or model performance."
+        },
+        {
+          "id": "ISSUER_LABEL_AUDIT",
+          "status": "aggregate_only",
+          "summary": "One actual issuer release captured 2026-10-30T19:46:03.141950+00:00 (702276 bytes, SHA-256 c609c16bb8677164f0032bf21e2460a80fbc55b25d72e3ad70609379f016aaec); reported October 29, 2025, quarter ended September 28, 2025. Comparable transactions are aggregate rates, not historical store-level demand. Store counts/closures also affect membership. This is one document sample and zero store labels; original-publication instant unverified."
         }
       ],
       "publicSources": [
@@ -531,6 +570,11 @@
         {
           "title": "Advan dictionary, vintage/coverage audit lead only; no purchase",
           "url": "https://docs.advanresearch.com/"
+        },
+        {
+          "title": "Starbucks Q4 FY2025 issuer aggregate release; current-retained bytes",
+          "url": "https://investor.starbucks.com/news/financial-releases/news-details/2025/Starbucks-Reports-Q4-and-Full-Fiscal-Year-2025-Results/",
+          "sha256": "c609c16bb8677164f0032bf21e2460a80fbc55b25d72e3ad70609379f016aaec"
         }
       ]
     }

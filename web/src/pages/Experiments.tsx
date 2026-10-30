@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import "./Experiments.css";
 
-const sourceHosts = ["www.stb.gov", "stb.gov", "www.csx.com", "csx.com", "www.cpc.ncep.noaa.gov", "www.ers.usda.gov", "noaa-gfs-bdp-pds.s3.amazonaws.com", "www.ncei.noaa.gov", "www.eia.gov", "www.bls.gov", "calmainefoods.gcs-web.com", "data.cms.gov", "opendata.usac.org", "croplandcros.scinet.usda.gov", "www.nass.usda.gov", "api.weather.gov", "www.fda.gov", "open.fda.gov", "www.ncbi.nlm.nih.gov", "www.usaspending.gov", "www.sec.gov", "investor.starbucks.com", "docs.advanresearch.com"];
+const sourceHosts = ["www.stb.gov", "stb.gov", "www.csx.com", "csx.com", "www.cpc.ncep.noaa.gov", "www.ers.usda.gov", "noaa-gfs-bdp-pds.s3.amazonaws.com", "www.ncei.noaa.gov", "www.eia.gov", "www.bls.gov", "calmainefoods.gcs-web.com", "data.cms.gov", "opendata.usac.org", "croplandcros.scinet.usda.gov", "www.nass.usda.gov", "api.weather.gov", "api.fda.gov", "api.usaspending.gov", "www.fda.gov", "open.fda.gov", "www.ncbi.nlm.nih.gov", "www.usaspending.gov", "www.sec.gov", "investor.starbucks.com", "docs.advanresearch.com"];
 function safeSource(value: string) { try { const u = new URL(value); return u.protocol === "https:" && !u.username && !u.password && sourceHosts.includes(u.hostname); } catch { return false; } }
 
 function validRegistryDate(value: string) {

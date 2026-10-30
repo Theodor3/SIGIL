@@ -73,9 +73,9 @@ test('timestamps retain precision and reject invalid or naive instants', () => {
   const bad=fixture();bad.experiments[0].targetAt=bad.experiments[0].decisionAt;
   assert.throws(()=>projectRegistry(bad,'2026-10-30'));
 });
-test('new tracks are plans not fabricated results',()=>{
+test('pilot captures are not fabricated historical/model results',()=>{
  const out=projectRegistry(fixture(),'2026-10-30');
  for(const id of ['DRUG-SUPPLY-DURATION-001','PROCUREMENT-REVENUE-001','LOCATION-DEMAND-LSTM-001']) {
-  const x=out.experiments.find(x=>x.id===id);assert.equal(x.sourceSamples,0);assert.equal(x.predictiveResultsAvailable,false);assert.equal(x.originalPublicationTimesVerified,false);
+  const x=out.experiments.find(x=>x.id===id);assert.equal(x.sourceSamples,id==='LOCATION-DEMAND-LSTM-001'?1:5);assert.equal(x.predictiveResultsAvailable,false);assert.equal(x.originalPublicationTimesVerified,false);
  }
 });

@@ -1,0 +1,17 @@
+{
+  "description": "Synthetic empty-data template. Not a Starbucks forecast or acquired location dataset.",
+  "decision_at": "2026-10-30T20:00:00+00:00",
+  "observations": [],
+  "target": {
+    "unit_id": "SYNTHETIC-TEMPLATE-ZONE",
+    "period_end": "2027-01-28",
+    "features_available_at": "2026-10-30T19:00:00+00:00",
+    "feature_names": ["fixture_fixed_geographic_exposure"],
+    "features": [0],
+    "label_definition": "synthetic_monthly_visits",
+    "label_unit": "synthetic_count",
+    "geography_version": "synthetic_geo_v1",
+    "membership_version": "synthetic_cohort_v1",
+    "evidence_kind": "synthetic_fixture"
+  }
+}
