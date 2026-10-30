@@ -1,5 +1,5 @@
 import asyncio
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -10,8 +10,8 @@ from api.research import backtester as bt
 DAY = date(2026, 9, 21)
 
 
-def series(start=100, end=110, days=(0, 5)):
-    return ([DAY + timedelta(days=d) for d in days], [start, end])
+def series(start=100, end=110, days=(1, 4, 7)):
+    return ([DAY + timedelta(days=d) for d in days], [start] + [end] * (len(days)-1))
 
 
 @pytest.fixture
@@ -24,11 +24,12 @@ def replay(monkeypatch):
     monkeypatch.setattr(bt, 'date', Clock)
     monkeypatch.setattr(bt, 'list_snapshot_dates', lambda: [DAY])
     monkeypatch.setattr(bt, 'load_context', lambda _: object())
+    monkeypatch.setattr(bt, 'context_receipt', lambda d: {'captured_at': f'{d.isoformat()}T20:00:00+00:00'})
 
     def run(history, scores=(('ABC', .8),), **kwargs):
         async def compute(_):
             return [SimpleNamespace(ticker=t, score=s, confidence=1) for t, s in scores]
-        monkeypatch.setattr(bt, 'get_registry', lambda: {'test': SimpleNamespace(version='1', compute=compute)})
+        monkeypatch.setattr(bt, 'get_registry', lambda: {'test': SimpleNamespace(version='1', compute=compute, replay_safe=True)})
         monkeypatch.setattr(bt, '_download_history_sync', lambda *args: history)
         return asyncio.run(bt.backtest_signal('test', horizons=(5,), **kwargs))
     return run
@@ -46,7 +47,7 @@ def test_matched_long_short_cost_and_consistent_denominators(replay):
     assert result['methodology']['horizon_unit'] == 'calendar_days'
 
 
-@pytest.mark.parametrize('benchmark', [None, ([], []), ([DAY], [100]), series(days=(-1, 4)), series(start=0), series(end=float('nan'))])
+@pytest.mark.parametrize('benchmark', [None, ([], []), ([DAY], [100]), series(days=(-1, 3)), series(start=0), series(end=float('nan'))])
 def test_unmatched_benchmark_never_falls_back_to_raw_return(replay, benchmark):
     history = {'ABC': series()}
     if benchmark is not None:
@@ -61,7 +62,7 @@ def test_missing_stock_and_missing_benchmark_are_counted_separately(replay):
     r = replay({'ABC': series(), 'BAD': series(days=(1, 5)), 'SPY': series(end=104)},
                scores=(('ABC', .8), ('MISSING', .8), ('BAD', .8)))['horizons']['5d']
     assert r['eligible_calls'] == 3
-    assert r['n'] == 1 and r['skipped_stock_window'] == r['skipped_benchmark_window'] == 1
+    assert r['n'] == 1 and r['skipped_stock_window'] == 2 and r['skipped_benchmark_window'] == 0
     assert r['avg_alpha'] == .06 and r['hit_rate'] == 1
     assert r['estimated_net_alpha'] is None
 

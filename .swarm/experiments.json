@@ -59,7 +59,9 @@
           "url": "https://api.weather.gov/stations/KDSM/observations/latest",
           "sha256": "d878e4472984e56aa3d37a85ffd4c81911172484cf28ab94f36f5ca4cb85beef"
         }
-      ]
+      ],
+      "decisionAt": "2026-10-29T21:48:45.429293+00:00",
+      "targetAt": "2026-10-30T22:00:00+00:00"
     },
     {
       "id": "EXP-CSX-001",
@@ -403,6 +405,132 @@
         {
           "title": "USDA 2022 South Dakota crop-layer metadata",
           "url": "https://www.nass.usda.gov/Research_and_Science/Cropland/metadata/metadata_sd22.htm"
+        }
+      ]
+    },
+    {
+      "type": "research_protocol",
+      "ticker": "UNMAPPED / NO POSITIONS",
+      "stage": "feasibility",
+      "status": "data_audit_required",
+      "hypothesisVersion": "draft-1",
+      "createdAt": "2026-10-30",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 0,
+      "id": "DRUG-SUPPLY-DURATION-001",
+      "title": "Drug supply: duration until competing capacity returns",
+      "hypothesis": "Do documented shortage duration and surviving capacity explain exposed suppliers operating outcomes beyond shortage status alone?",
+      "nextAction": "Audit a small predefined set of archived FDA vintages; quantify coverage and parent mapping before selecting issuers or scoring duration.",
+      "findings": [
+        {
+          "id": "DATA_GATE",
+          "status": "protocol_not_result",
+          "summary": "Current FDA/openFDA files are revised state, not immutable event history. Reconstruct genuine archived captures and first-seen dates; unknown capture gaps remain interval-censored. No historical panel collected for this experiment."
+        },
+        {
+          "id": "MECHANISM",
+          "status": "protocol_not_result",
+          "summary": "Separate manufacturer/product/ingredient/NDC/parent mapping, competing capacity, contractual supply, actual restart versus announced expectation, and buyer substitution. Shortage does not establish an investable beneficiary."
+        },
+        {
+          "id": "FROZEN_TEST",
+          "status": "protocol_not_result",
+          "summary": "Before outcomes: finite inception cohort including resolutions/negative cases; predict duration to independently documented competing-supply restoration. Compare status-only and historical-duration baseline; chronological holdout and censoring-aware scoring. Only then assess company margins or delayed benchmark-relative returns with costs."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "FDA shortage data documentation",
+          "url": "https://open.fda.gov/apis/drug/shortages/"
+        },
+        {
+          "title": "HHS historical shortage reconstruction lead (direct retrieval blocked; not audited here)",
+          "url": "https://www.ncbi.nlm.nih.gov/books/NBK611681/"
+        }
+      ]
+    },
+    {
+      "type": "research_protocol",
+      "ticker": "UNMAPPED / NO POSITIONS",
+      "stage": "feasibility",
+      "status": "data_audit_required",
+      "hypothesisVersion": "draft-1",
+      "createdAt": "2026-10-30",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 0,
+      "id": "PROCUREMENT-REVENUE-001",
+      "title": "Procurement: funded work into reported revenue",
+      "hypothesis": "Do first-observed funded awards improve forecasts of company revenue versus prior guidance/backlog, conditional on contract type and customer?",
+      "nextAction": "Audit issuer segment/customer exposure and a bounded first-seen award cohort; establish amendment/timing coverage before fitting conversion rates.",
+      "findings": [
+        {
+          "id": "DATA_GATE",
+          "status": "protocol_not_result",
+          "summary": "Action dates are not public availability. Preserve as-first-seen USAspending/FPDS records and revisions, contract identifiers and modifications; delayed disclosures cannot be backdated. No award sample collected."
+        },
+        {
+          "id": "MAPPING",
+          "status": "protocol_not_result",
+          "summary": "Candidate ICF/HHS requires issuer-confirmed exposure and historical parent mapping; separate obligations, ceilings, options, task orders, funded/unfunded backlog, and cost-reimbursable/time-and-materials/fixed-price contracts. Avoid double counting award modifications."
+        },
+        {
+          "id": "TEST",
+          "status": "protocol_not_result",
+          "summary": "Predeclare revenue conversion windows and customer/contract strata. Baseline issuer guidance and funded backlog available at decision; hold out later quarters and compare forecast error before asset returns. Cancellations and contract losses stay in cohort; funded work is not guaranteed revenue."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "ICF 2025 annual report, exposure/backlog source",
+          "url": "https://www.sec.gov/Archives/edgar/data/1362004/000119312526082536/icfi-20251231.htm"
+        },
+        {
+          "title": "USAspending official source, not a first-public timestamp guarantee",
+          "url": "https://www.usaspending.gov/"
+        }
+      ]
+    },
+    {
+      "type": "research_protocol",
+      "ticker": "UNMAPPED / NO POSITIONS",
+      "stage": "feasibility",
+      "status": "data_audit_required",
+      "hypothesisVersion": "draft-1",
+      "createdAt": "2026-10-30",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 0,
+      "id": "LOCATION-DEMAND-LSTM-001",
+      "title": "Location demand: geographic baselines before an LSTM",
+      "hypothesis": "Can point-in-time location features improve held-out company demand forecasts beyond seasonality and linear models, without confusing redistribution with organic growth?",
+      "nextAction": "Inventory existing authorized locations/labels with acquisition dates; freeze one geographic aggregation and label before downloading models or fitting any network.",
+      "findings": [
+        {
+          "id": "LABEL_GATE",
+          "status": "protocol_not_result",
+          "summary": "Starbucks is an example, not a selected trade. Public comparable transactions are aggregate quarterly growth, not historical store-level demand labels. No licensed traffic feed, historical membership panel or store-level labels verified or acquired."
+        },
+        {
+          "id": "GEOGRAPHY",
+          "status": "protocol_not_result",
+          "summary": "Freeze historical stores/geofences, opening/closure dates and comparable-store membership. Separate local demand from shifts among nearby stores and net expansion; vendor backfills with newer POIs are not as-delivered historical vintages."
+        },
+        {
+          "id": "MODEL_PLAN",
+          "status": "protocol_not_result",
+          "summary": "Start fixed geographic exposure, seasonality/no-change and regularized linear baselines. Block geography and chronological holdouts; model/scaler/training-data hashes and availability cutoffs. A multi-horizon LSTM only after sufficient independent labels/coverage; quarterly aggregate labels limit effective sample and store inference."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "Starbucks issuer investor materials (planned evidence route)",
+          "url": "https://investor.starbucks.com/"
+        },
+        {
+          "title": "Advan dictionary, vintage/coverage audit lead only; no purchase",
+          "url": "https://docs.advanresearch.com/"
         }
       ]
     }

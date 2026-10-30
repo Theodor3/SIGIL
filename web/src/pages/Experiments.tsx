@@ -2,15 +2,23 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import "./Experiments.css";
 
-const sourceHosts = ["www.stb.gov", "stb.gov", "www.csx.com", "csx.com", "www.cpc.ncep.noaa.gov", "www.ers.usda.gov", "noaa-gfs-bdp-pds.s3.amazonaws.com", "www.ncei.noaa.gov", "www.eia.gov", "www.bls.gov", "calmainefoods.gcs-web.com", "data.cms.gov", "opendata.usac.org", "croplandcros.scinet.usda.gov", "www.nass.usda.gov", "api.weather.gov"];
+const sourceHosts = ["www.stb.gov", "stb.gov", "www.csx.com", "csx.com", "www.cpc.ncep.noaa.gov", "www.ers.usda.gov", "noaa-gfs-bdp-pds.s3.amazonaws.com", "www.ncei.noaa.gov", "www.eia.gov", "www.bls.gov", "calmainefoods.gcs-web.com", "data.cms.gov", "opendata.usac.org", "croplandcros.scinet.usda.gov", "www.nass.usda.gov", "api.weather.gov", "www.fda.gov", "open.fda.gov", "www.ncbi.nlm.nih.gov", "www.usaspending.gov", "www.sec.gov", "investor.starbucks.com", "docs.advanresearch.com"];
 function safeSource(value: string) { try { const u = new URL(value); return u.protocol === "https:" && !u.username && !u.password && sourceHosts.includes(u.hostname); } catch { return false; } }
+
+function validRegistryDate(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,10) === value;
+}
+function validRegistryInstant(value: string) {
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/.test(value)
+    && validRegistryDate(value.slice(0,10)) && +value.slice(11,13) < 24 && +value.slice(14,16) < 60 && +value.slice(17,19) < 60 && Number.isFinite(Date.parse(value));
+}
 
 type Finding = { id: string; status: string; summary: string };
 type Source = { title: string; url: string; sha256?: string };
 type Experiment = {
   status: string;
   id: string; title: string; ticker: string; stage: string; hypothesis: string;
-  hypothesisVersion: string; createdAt: string; nextAction: string; sourceSamples: number;
+  hypothesisVersion: string; createdAt: string; decisionAt?: string; targetAt?: string; nextAction: string; sourceSamples: number;
   originalPublicationTimesVerified: boolean; predictiveResultsAvailable: boolean;
   findings: Finding[]; publicSources: Source[];
 };
@@ -19,10 +27,14 @@ function validSnapshot(value: unknown): value is Snapshot {
   if (!value || typeof value !== "object") return false;
   const data = value as Snapshot;
   return data.schemaVersion === 1 && data.publicationMode === "reviewed_snapshot"
-    && typeof data.reviewedOn === "string" && /^\d{4}-\d{2}-\d{2}$/.test(data.reviewedOn)
+    && typeof data.reviewedOn === "string" && validRegistryDate(data.reviewedOn)
     && typeof data.contentSha256 === "string" && /^[a-f0-9]{64}$/.test(data.contentSha256)
     && Array.isArray(data.experiments) && data.experiments.every(item =>
       item && [item.id, item.title, item.ticker, item.stage, item.hypothesis, item.hypothesisVersion, item.createdAt, item.nextAction].every(v => typeof v === "string")
+      && (validRegistryDate(item.createdAt) || validRegistryInstant(item.createdAt))
+      && (item.decisionAt === undefined || validRegistryInstant(item.decisionAt))
+      && (item.targetAt === undefined || validRegistryInstant(item.targetAt))
+      && (!item.decisionAt || !item.targetAt || Date.parse(item.targetAt) > Date.parse(item.decisionAt))
       && typeof item.status === "string"
       && Number.isSafeInteger(item.sourceSamples) && item.sourceSamples >= 0
       && typeof item.originalPublicationTimesVerified === "boolean" && typeof item.predictiveResultsAvailable === "boolean"
@@ -81,7 +93,9 @@ export default function Experiments() {
                 <p className="research-kicker">{selected.ticker} / {selected.stage.replace(/_/g, " ")} / {selected.id}</p>
                 <p className="research-caption">Status: {selected.status.replace(/_/g, " ")}</p><h2>The question</h2><p className="research-large">{selected.hypothesis}</p>
                 <div className="research-tags"><span>{selected.predictiveResultsAvailable ? "Results recorded · review required" : "Predictive value untested"}</span><span>{selected.originalPublicationTimesVerified ? "Publication timing verified" : "Publication timing unresolved"}</span></div>
-                <p className="research-caption">Hypothesis {selected.hypothesisVersion} · Recorded {selected.createdAt}</p>
+                <p className="research-caption">Hypothesis {selected.hypothesisVersion} · Registry record: {selected.createdAt} {selected.createdAt.length === 10 ? "(date only; time unknown)" : "(explicit timezone)"}</p>
+                {selected.decisionAt && <p className="research-caption">Decision / freeze time: {selected.decisionAt} (explicit timezone; separate from registry date)</p>}
+                {selected.targetAt && <p className="research-caption">Target event time: {selected.targetAt}</p>}
               </section>
               <aside className="research-panel research-plan"><p className="research-kicker">NEXT USEFUL STEP</p><h2>Earn the next experiment.</h2><p>{selected.nextAction}</p><hr/><h3>Trading evidence</h3><p>No paper-trial or live trading performance is established by these research summaries.</p></aside>
             </div>

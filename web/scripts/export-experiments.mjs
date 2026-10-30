@@ -6,11 +6,27 @@ const strings = ['id', 'title', 'type', 'ticker', 'stage', 'status', 'hypothesis
 const bools = ['originalPublicationTimesVerified', 'predictiveResultsAvailable'];
 const fail = () => { throw new Error('Invalid experiment publication input'); };
 const text = (x) => typeof x === 'string' && x.length > 0 && x.length <= 12000 ? x : fail();
+export function validDate(value) {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+    && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,10) === value;
+}
+export function validInstant(value) {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/.test(value)
+    && validDate(value.slice(0,10)) && +value.slice(11,13) < 24 && +value.slice(14,16) < 60 && +value.slice(17,19) < 60 && Number.isFinite(Date.parse(value));
+}
 export function projectRegistry(data, reviewedOn) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(reviewedOn) || data.schemaVersion !== 1 || !Array.isArray(data.experiments)) fail();
+  if (!validDate(reviewedOn) || data.schemaVersion !== 1 || !Array.isArray(data.experiments)) fail();
   const ids = new Set();
   const experiments = data.experiments.map(item => {
     const out = Object.fromEntries(strings.map(key => [key, text(item[key])]));
+    if (!validDate(out.createdAt) && !validInstant(out.createdAt)) fail();
+    for (const key of ['decisionAt', 'targetAt']) {
+      if (item[key] !== undefined && item[key] !== null) {
+        if (!validInstant(item[key])) fail();
+        out[key] = item[key];
+      }
+    }
+    if (out.decisionAt && out.targetAt && Date.parse(out.targetAt) <= Date.parse(out.decisionAt)) fail();
     if (ids.has(out.id)) fail();
     ids.add(out.id);
     for (const key of bools) { if (typeof item[key] !== 'boolean') fail(); out[key] = item[key]; }
@@ -20,7 +36,7 @@ export function projectRegistry(data, reviewedOn) {
     out.findings = item.findings.map(f => Object.fromEntries(['id', 'status', 'summary'].map(k => [k, text(f[k])])));
     out.publicSources = (item.publicSources ?? []).map(s => {
       const url = new URL(text(s.url));
-      if (url.protocol !== 'https:' || url.username || url.password || !["www.stb.gov", "stb.gov", "www.csx.com", "csx.com", "www.cpc.ncep.noaa.gov", "www.ers.usda.gov", "noaa-gfs-bdp-pds.s3.amazonaws.com", "www.ncei.noaa.gov", "www.eia.gov", "www.bls.gov", "calmainefoods.gcs-web.com", "data.cms.gov", "opendata.usac.org", "croplandcros.scinet.usda.gov", "www.nass.usda.gov", "api.weather.gov"].includes(url.hostname)) fail();
+      if (url.protocol !== 'https:' || url.username || url.password || !["www.stb.gov", "stb.gov", "www.csx.com", "csx.com", "www.cpc.ncep.noaa.gov", "www.ers.usda.gov", "noaa-gfs-bdp-pds.s3.amazonaws.com", "www.ncei.noaa.gov", "www.eia.gov", "www.bls.gov", "calmainefoods.gcs-web.com", "data.cms.gov", "opendata.usac.org", "croplandcros.scinet.usda.gov", "www.nass.usda.gov", "api.weather.gov", "www.fda.gov", "open.fda.gov", "www.ncbi.nlm.nih.gov", "www.usaspending.gov", "www.sec.gov", "investor.starbucks.com", "docs.advanresearch.com"].includes(url.hostname)) fail();
       const source = {title: text(s.title), url: url.href};
       if (s.sha256 !== undefined) {
         if (!/^[a-f0-9]{64}$/.test(s.sha256)) fail();

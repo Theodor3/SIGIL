@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -418,9 +418,11 @@ async def run_pipeline(db: AsyncSession) -> dict:
 
         # Archive the context for signal backtesting — a future signal can
         # be replayed over exactly what today's pipeline saw
+        snapshot_provenance = None
         try:
-            from api.research.context_store import save_context
-            snap_path = save_context(ctx)
+            from api.research.context_store import save_context, snapshot_metadata
+            snap_path = save_context(ctx, run_id=run_id)
+            snapshot_provenance = snapshot_metadata(snap_path)
             print(f"[pipeline] Context snapshot: {snap_path.name} "
                   f"({snap_path.stat().st_size / 1024:.0f} KB)")
         except Exception as e:
@@ -492,7 +494,8 @@ async def run_pipeline(db: AsyncSession) -> dict:
             except Exception as e:
                 print(f"Signal llm_conviction failed: {e}")
 
-        # Phase 7: Store predictions
+        # Phase 7: Store predictions. Conservative decision time after every signal finished.
+        prediction_decision_at = datetime.now(timezone.utc).isoformat()
         for sig_name, outputs in signal_outputs.items():
             signal = registry[sig_name]
             for out in outputs:
@@ -504,7 +507,13 @@ async def run_pipeline(db: AsyncSession) -> dict:
                     ticker=out.ticker,
                     score=out.score,
                     confidence=out.confidence,
-                    metadata_=out.metadata,
+                    metadata_={**(out.metadata or {}), "_sigil_provenance": {
+                        "evaluation_protocol": "post_decision_daily_v1",
+                        "decision_at": prediction_decision_at,
+                        "input_available_at": snapshot_provenance.get("captured_at") if snapshot_provenance else None,
+                        "context_snapshot": snapshot_provenance,
+                        "result_kind": "directional_forecast_not_paper_execution",
+                    }},
                 )
                 db.add(pred)
 
