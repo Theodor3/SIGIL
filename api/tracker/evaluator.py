@@ -2,13 +2,18 @@
 from __future__ import annotations
 
 import asyncio
+import math
+import json
 from bisect import bisect_left, bisect_right
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.models import SignalEvaluation, SignalPrediction
+from api.research.context_store import verify_snapshot_reference
+from api.research.timing import prediction_decision, post_decision_window, completed_market_date
 
 BENCHMARK = "SPY"
 BATCH_LIMIT = 5000
@@ -102,24 +107,11 @@ def _price_on_or_before(
     return dates[i], closes[i]
 
 
-def _window_return(
-    series: tuple[list[date], list[float]], run_date: date, horizon_days: int
-) -> tuple[date, date, float] | None:
-    """Compute (entry_date, exit_date, return) for run_date → run_date + horizon."""
-    entry = _price_on_or_after(series, run_date)
-    if entry is None:
+def _window_return(series, run_date, horizon_days, *, decision_at=None):
+    """Compatibility entry point; date-only calls cannot establish availability."""
+    if decision_at is None:
         return None
-    entry_date, entry_px = entry
-    exit_ = _price_on_or_before(series, run_date + timedelta(days=horizon_days))
-    if exit_ is None:
-        return None
-    exit_date, exit_px = exit_
-    # Demand most of the horizon actually elapsed (thin/partial data guard)
-    if (exit_date - entry_date).days < max(2, int(horizon_days * 0.6)):
-        return None
-    if entry_px <= 0:
-        return None
-    return entry_date, exit_date, exit_px / entry_px - 1.0
+    return post_decision_window(series, decision_at, horizon_days)
 
 
 async def _purge_simulated_evaluations(db: AsyncSession) -> None:
@@ -164,8 +156,7 @@ async def _reclassify_neutral_evaluations(db: AsyncSession) -> None:
 
 async def evaluate_predictions(db: AsyncSession, horizon_days: int = 5) -> dict:
     """Grade all due predictions against real prices, draining in batches."""
-    await _purge_simulated_evaluations(db)
-    await _reclassify_neutral_evaluations(db)
+    # Historical records remain unchanged; no implicit deletion or regrading.
 
     totals = {"evaluated": 0, "skipped_no_data": 0, "marked_ungradable": 0,
               "horizon_days": horizon_days}
@@ -185,7 +176,8 @@ async def evaluate_predictions(db: AsyncSession, horizon_days: int = 5) -> dict:
 
 
 async def _evaluate_batch(db: AsyncSession, horizon_days: int) -> dict:
-    cutoff = date.today() - timedelta(days=horizon_days)
+    complete_through = completed_market_date()
+    cutoff = complete_through - timedelta(days=horizon_days)
 
     already_eval = select(SignalEvaluation.prediction_id).where(
         SignalEvaluation.horizon_days == horizon_days
@@ -193,6 +185,7 @@ async def _evaluate_batch(db: AsyncSession, horizon_days: int) -> dict:
     ungraded_q = await db.execute(
         select(SignalPrediction)
         .where(SignalPrediction.run_date <= cutoff)
+        .where(SignalPrediction.metadata_["_sigil_provenance"]["evaluation_protocol"].as_string() == "post_decision_daily_v1")
         .where(~SignalPrediction.id.in_(already_eval))
         # Newest first: no-data stragglers (delisted tickers awaiting the
         # stale grace period) sink to the tail instead of forming a block
@@ -209,36 +202,52 @@ async def _evaluate_batch(db: AsyncSession, horizon_days: int) -> dict:
     start = min(p.run_date for p in ungraded) - timedelta(days=7)
     loop = asyncio.get_running_loop()
     history = await loop.run_in_executor(
-        None, _download_history_sync, tickers + [BENCHMARK], start, date.today()
+        None, _download_history_sync, tickers + [BENCHMARK], start, complete_through
     )
     benchmark = history.get(BENCHMARK)
     if benchmark is None:
         # A missing benchmark aborts the whole batch, and bulk downloads
         # under rate pressure sometimes drop just SPY — one dedicated retry
         retry = await loop.run_in_executor(
-            None, _download_history_sync, [BENCHMARK], start, date.today()
+            None, _download_history_sync, [BENCHMARK], start, complete_through
         )
         benchmark = retry.get(BENCHMARK)
     if benchmark is None:
         print("[evaluator] No benchmark price data; skipping evaluation cycle")
         return {"evaluated": 0, "horizon_days": horizon_days, "error": "no benchmark data"}
 
-    stale_cutoff = date.today() - timedelta(days=horizon_days + STALE_GRACE_DAYS)
+    stale_cutoff = complete_through - timedelta(days=horizon_days + STALE_GRACE_DAYS)
     window_cache: dict[tuple[str, date], tuple[date, date, float] | None] = {}
+    receipt_cache = {}
     now = datetime.utcnow()
     evaluated = skipped = ungradable = 0
 
     for pred in ungraded:
-        key = (pred.ticker, pred.run_date)
+        decision = prediction_decision(pred.metadata_,pred.run_id)
+        if decision is None:
+            skipped += 1
+            continue  # Unknown legacy timing is not eligible for this grading generation.
+        reference = pred.metadata_["_sigil_provenance"]["context_snapshot"]
+        receipt_key = json.dumps(reference, sort_keys=True)
+        if receipt_key not in receipt_cache:
+            receipt_cache[receipt_key] = verify_snapshot_reference(reference)
+        if not receipt_cache[receipt_key]:
+            skipped += 1
+            continue
+        decision_day = decision.astimezone(ZoneInfo('America/New_York')).date()
+        if decision_day > cutoff:
+            skipped += 1
+            continue
+        key = (pred.ticker, decision)
         if key not in window_cache:
             series = history.get(pred.ticker)
             window_cache[key] = (
-                _window_return(series, pred.run_date, horizon_days) if series else None
+                post_decision_window(series, decision, horizon_days, completed_through=complete_through, calendar_dates=benchmark[0]) if series else None
             )
         window = window_cache[key]
 
         if window is None:
-            if pred.run_date <= stale_cutoff:
+            if decision_day <= stale_cutoff:
                 # No prices long after the horizon passed — stop retrying
                 db.add(SignalEvaluation(
                     prediction_id=pred.id,
@@ -255,8 +264,13 @@ async def _evaluate_batch(db: AsyncSession, horizon_days: int) -> dict:
         alpha = None
         bench_entry = _price_on_or_before(benchmark, entry_date)
         bench_exit = _price_on_or_before(benchmark, exit_date)
-        if bench_entry and bench_exit and bench_entry[1] > 0 and bench_exit[0] > bench_entry[0]:
+        if (bench_entry and bench_exit and bench_entry[0] == entry_date and bench_exit[0] == exit_date
+                and all(math.isfinite(x) and x > 0 for x in (bench_entry[1], bench_exit[1]))):
             alpha = actual_return - (bench_exit[1] / bench_entry[1] - 1.0)
+
+        if alpha is None:
+            skipped += 1
+            continue  # No fallback to raw return for relative directional grading.
 
         # Scores are 0..1 with 0.5 neutral: above-neutral should beat the
         # benchmark, below-neutral should not. Neutral / zero-confidence
@@ -265,7 +279,7 @@ async def _evaluate_batch(db: AsyncSession, horizon_days: int) -> dict:
         if _is_neutral(pred.score, pred.confidence):
             signal_correct = None
         else:
-            signal_correct = (pred.score > 0.5) == (basis > 0)
+            signal_correct = (basis if pred.score > 0.5 else -basis) > 0
 
         db.add(SignalEvaluation(
             prediction_id=pred.id,
@@ -309,6 +323,7 @@ async def get_signal_stats(db: AsyncSession) -> dict[str, dict]:
             SignalEvaluation.alpha_vs_benchmark,
         )
         .join(SignalPrediction, SignalPrediction.id == SignalEvaluation.prediction_id)
+        .where(SignalPrediction.metadata_["_sigil_provenance"]["evaluation_protocol"].as_string() == "post_decision_daily_v1")
         .where(SignalEvaluation.actual_return.is_not(None))
         .where(SignalEvaluation.signal_correct.is_not(None))
     )
@@ -350,6 +365,8 @@ async def get_signal_stats(db: AsyncSession) -> dict[str, dict]:
 
         entry: dict = dict(_summarize(versions.get(current, {})))
         entry["current_version"] = current
+        entry["evaluation_protocol"] = "post_decision_daily_v1"
+        entry["result_kind"] = "directional_forecast_not_paper_execution"
 
         prior = {
             v: _summarize(horizons)

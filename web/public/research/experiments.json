@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "publicationMode": "reviewed_snapshot",
-  "reviewedOn": "2026-10-29",
-  "contentSha256": "fb57fa7775047e7b9c4657f2afafdcf4116c5a92e06846e9aa58d2918dfeece6",
+  "reviewedOn": "2026-10-30",
+  "contentSha256": "450a447e7d24b34d7f4a4379fff0cbc081bde4b10331e189e2c9714c8080fe46",
   "experiments": [
     {
       "id": "DSM-TEMP-PAPER-001",
@@ -10,19 +10,21 @@
       "type": "weather_verification",
       "ticker": "KDSM / WEATHER ONLY",
       "stage": "prospective_paper",
-      "status": "awaiting_outcome",
+      "status": "resolved_single_case",
       "hypothesisVersion": "frozen-1",
       "hypothesis": "Does the issued NWS hourly grid forecast outperform a current-temperature persistence baseline for one future airport-temperature event? This checks a forecasting workflow, not an investment signal.",
       "createdAt": "2026-10-29",
-      "nextAction": "After October 30, 2026 at 22:15 UTC, retrieve and preserve the qualifying KDSM observation, resolve both frozen forecasts against the same event, and compare Brier and absolute-temperature errors. No automatic collection or trading is scheduled.",
+      "nextAction": "Retain this single descriptive weather result and the immutable source/forecast records. Predeclare an independent event cohort and calibrated uncertainty before judging forecast skill; no commodity/equity/option return or trading signal was tested. Later source revisions must be documented separately.",
+      "decisionAt": "2026-10-29T21:48:45.429293+00:00",
+      "targetAt": "2026-10-30T22:00:00+00:00",
       "originalPublicationTimesVerified": false,
-      "predictiveResultsAvailable": false,
+      "predictiveResultsAvailable": true,
       "sourceSamples": 1,
       "findings": [
         {
           "id": "FROZEN",
           "status": "prospectively_recorded",
-          "summary": "Recorded locally at 2026-10-29T21:48:45.429293+00:00. Target: October 30, 2026 at 22:00 UTC. Event: KDSM air temperature is at least 15°C. Outcome remains unresolved; no score or forecast skill is established."
+          "summary": "Original registration-time note (preserved; see later resolution below): Recorded locally at 2026-10-29T21:48:45.429293+00:00. Target: October 30, 2026 at 22:00 UTC. Event: KDSM air temperature is at least 15°C. Outcome remains unresolved; no score or forecast skill is established."
         },
         {
           "id": "COMPARISON",
@@ -48,6 +50,26 @@
           "id": "IDENTITY",
           "status": "audit_fingerprint",
           "summary": "NWS forecast record 79092418003105195d5a880d8fbe15dd33737008d063cda52454fe9d20bf1d57; persistence record b0f03ba485d5f8aab01536dbfdc000a5cd67f93b9f82c82cc2e4225d7bffef50; plan SHA-256 b6424a2797d39ab8a5ae80ee5df75e29c7f530a7dadbc2c62fb0af74b10a875b. Raw inputs and the research SQLite database stay private and local."
+        },
+        {
+          "id": "OBSERVED_OUTCOME",
+          "status": "resolved_under_frozen_rule",
+          "summary": "Official KDSM temperature 15 C at October 30, 2026 21:54 UTC, QC V, was the unique nearest qualifying observation to 22:00 UTC (six minutes earlier). The >=15 C event is true. Historical-window pagination was enumerated; the official latest feed had advanced to22:40 UTC. Resolution was recorded locally at23:01:48.715784 UTC, using retained observations as of23:00:53.773393 UTC; later backfill/revisions remain possible."
+        },
+        {
+          "id": "PROBABILITY_SCORES",
+          "status": "single_case_descriptive",
+          "summary": "Frozen NWS-grid exceedance probability42.65418943%: Brier error0.328854198975. Frozen persistence probability90.87887803%: Brier error0.008319486604. Lower is better. The arbitrary sigma3 C conversion is uncalibrated, not an official NWS threshold probability."
+        },
+        {
+          "id": "POINT_SCORES",
+          "status": "single_case_descriptive",
+          "summary": "NWS point temperature14.444444 C had absolute error0.555556 C; persistence19 C had error4 C. Thus point error and this one binary probability score favor different forecasts. One event establishes neither calibrated weather skill nor investment alpha."
+        },
+        {
+          "id": "RESOLUTION_AUDIT",
+          "status": "independently_checked",
+          "summary": "Original forecast record hashes, decision/target times and plan SHA were verified unchanged. Astra independently checked retained source hashes, nearest-observation selection and score arithmetic. Two immutable outcome records were appended to the local research ledger; SQLite integrity passed. Local backup and raw receipts remain private, outside Git."
         }
       ],
       "publicSources": [
@@ -60,6 +82,11 @@
           "title": "NWS latest KDSM observation (current link; retained baseline vintage hash below)",
           "url": "https://api.weather.gov/stations/KDSM/observations/latest",
           "sha256": "d878e4472984e56aa3d37a85ffd4c81911172484cf28ab94f36f5ca4cb85beef"
+        },
+        {
+          "title": "Retained official KDSM historical observation window used for resolution (current link may later revise)",
+          "url": "https://api.weather.gov/stations/KDSM/observations?start=2026-10-30T21:40:00Z&end=2026-10-30T22:20:00Z",
+          "sha256": "914544fb30c18605d885e6a6421ee2656f031b90a50d05348bcf3d87b59c17b6"
         }
       ]
     },
@@ -400,6 +427,176 @@
         {
           "title": "USDA 2022 South Dakota crop-layer metadata",
           "url": "https://www.nass.usda.gov/Research_and_Science/Cropland/metadata/metadata_sd22.htm"
+        }
+      ]
+    },
+    {
+      "id": "DRUG-SUPPLY-DURATION-001",
+      "title": "Drug supply: duration until competing capacity returns",
+      "type": "research_protocol",
+      "ticker": "UNMAPPED / NO POSITIONS",
+      "stage": "prospective_capture",
+      "status": "blocked_duration_labels",
+      "hypothesisVersion": "draft-1",
+      "hypothesis": "Do documented shortage duration and surviving capacity explain exposed suppliers operating outcomes beyond shortage status alone?",
+      "createdAt": "2026-10-30",
+      "nextAction": "Continue manual source captures; obtain a bounded historical-vintage sample with verified onset/follow-up and competing-supply dates before estimating duration.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 5,
+      "findings": [
+        {
+          "id": "DATA_GATE",
+          "status": "protocol_not_result",
+          "summary": "Current FDA/openFDA files are revised state, not immutable event history. Reconstruct genuine archived captures and first-seen dates; unknown capture gaps remain interval-censored. No historical panel collected for this experiment."
+        },
+        {
+          "id": "MECHANISM",
+          "status": "protocol_not_result",
+          "summary": "Separate manufacturer/product/ingredient/NDC/parent mapping, competing capacity, contractual supply, actual restart versus announced expectation, and buyer substitution. Shortage does not establish an investable beneficiary."
+        },
+        {
+          "id": "FROZEN_TEST",
+          "status": "protocol_not_result",
+          "summary": "Before outcomes: finite inception cohort including resolutions/negative cases; predict duration to independently documented competing-supply restoration. Compare status-only and historical-duration baseline; chronological holdout and censoring-aware scoring. Only then assess company margins or delayed benchmark-relative returns with costs."
+        },
+        {
+          "id": "PILOT_CODE",
+          "status": "implemented_not_predictive",
+          "summary": "Manual Python CLI now captures immutable raw responses, verifies receipt/content hashes and records current-version availability. Repeated imports are idempotent; source dates never become historical first-seen timestamps. Duration/conversion baselines refuse absent verified labels. No schedule or trading hook."
+        },
+        {
+          "id": "CURRENT_CAPTURE",
+          "status": "current_state_not_historical",
+          "summary": "Captured 2026-10-30T19:38:06.699975+00:00; 8815 bytes; source SHA-256 f456cbd7e1e3a99af221e30816a72838ec20f0ae62c845993687ad6ff3732912. Five records from a reported population of 1,614; Current and Available can coexist. One reported Resolved row has no verified resolution time, so episode/censoring status remains unknown. No historical duration or capacity label inferred."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "FDA shortage data documentation",
+          "url": "https://open.fda.gov/apis/drug/shortages/"
+        },
+        {
+          "title": "HHS historical shortage reconstruction lead (direct retrieval blocked; not audited here)",
+          "url": "https://www.ncbi.nlm.nih.gov/books/NBK611681/"
+        },
+        {
+          "title": "Actual bounded openFDA current-state query; not historical vintage",
+          "url": "https://api.fda.gov/drug/shortages.json?limit=5",
+          "sha256": "f456cbd7e1e3a99af221e30816a72838ec20f0ae62c845993687ad6ff3732912"
+        }
+      ]
+    },
+    {
+      "id": "PROCUREMENT-REVENUE-001",
+      "title": "Procurement: funded work into reported revenue",
+      "type": "research_protocol",
+      "ticker": "UNMAPPED / NO POSITIONS",
+      "stage": "prospective_capture",
+      "status": "blocked_entity_and_revenue_labels",
+      "hypothesisVersion": "draft-1",
+      "hypothesis": "Do first-observed funded awards improve forecasts of company revenue versus prior guidance/backlog, conditional on contract type and customer?",
+      "createdAt": "2026-10-30",
+      "nextAction": "Verify legal-entity identifiers and historical ICF parent ownership; obtain dated incremental obligation transactions and matched revenue/guidance labels before conversion modeling.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 5,
+      "findings": [
+        {
+          "id": "DATA_GATE",
+          "status": "protocol_not_result",
+          "summary": "Action dates are not public availability. Preserve as-first-seen USAspending/FPDS records and revisions, contract identifiers and modifications; delayed disclosures cannot be backdated. No award sample collected."
+        },
+        {
+          "id": "MAPPING",
+          "status": "protocol_not_result",
+          "summary": "Candidate ICF/HHS requires issuer-confirmed exposure and historical parent mapping; separate obligations, ceilings, options, task orders, funded/unfunded backlog, and cost-reimbursable/time-and-materials/fixed-price contracts. Avoid double counting award modifications."
+        },
+        {
+          "id": "TEST",
+          "status": "protocol_not_result",
+          "summary": "Predeclare revenue conversion windows and customer/contract strata. Baseline issuer guidance and funded backlog available at decision; hold out later quarters and compare forecast error before asset returns. Cancellations and contract losses stay in cohort; funded work is not guaranteed revenue."
+        },
+        {
+          "id": "PILOT_CODE",
+          "status": "implemented_not_predictive",
+          "summary": "Manual Python CLI now captures immutable raw responses, verifies receipt/content hashes and records current-version availability. Repeated imports are idempotent; source dates never become historical first-seen timestamps. Duration/conversion baselines refuse absent verified labels. No schedule or trading hook."
+        },
+        {
+          "id": "CURRENT_CAPTURE",
+          "status": "current_state_not_historical",
+          "summary": "Captured 2026-10-30T19:38:44.135875+00:00; 2435 bytes; source SHA-256 b76b9d9320455603515bc0dd5010b5db25323fa064ff09de66659f6715770206. Five top award-search results, including FAMILY ENDEAVORS as an unrelated-name keyword hit. All five issuer mappings remain unverified/ineligible. Current cumulative amounts are not new obligations or revenue; no issuer totals or conversion fit."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "ICF 2025 annual report, exposure/backlog source",
+          "url": "https://www.sec.gov/Archives/edgar/data/1362004/000119312526082536/icfi-20251231.htm"
+        },
+        {
+          "title": "USAspending official source, not a first-public timestamp guarantee",
+          "url": "https://www.usaspending.gov/"
+        },
+        {
+          "title": "USAspending public API documentation; actual capture used POST award search",
+          "url": "https://api.usaspending.gov/docs/endpoints"
+        }
+      ]
+    },
+    {
+      "id": "LOCATION-DEMAND-LSTM-001",
+      "title": "Location demand: geographic baselines before an LSTM",
+      "type": "research_protocol",
+      "ticker": "UNMAPPED / NO POSITIONS",
+      "stage": "baseline_scaffold",
+      "status": "blocked_missing_labels",
+      "hypothesisVersion": "draft-1",
+      "hypothesis": "Can point-in-time location features improve held-out company demand forecasts beyond seasonality and linear models, without confusing redistribution with organic growth?",
+      "createdAt": "2026-10-30",
+      "nextAction": "Supply verified point-in-time location/traffic labels and historical comparable-store membership; run persistence, seasonal and fixed-ridge baselines first. No LSTM is fitted or feed purchased.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 1,
+      "findings": [
+        {
+          "id": "LABEL_GATE",
+          "status": "protocol_not_result",
+          "summary": "Starbucks is an example, not a selected trade. Public comparable transactions are aggregate quarterly growth, not historical store-level demand labels. No licensed traffic feed, historical membership panel or store-level labels verified or acquired."
+        },
+        {
+          "id": "GEOGRAPHY",
+          "status": "protocol_not_result",
+          "summary": "Freeze historical stores/geofences, opening/closure dates and comparable-store membership. Separate local demand from shifts among nearby stores and net expansion; vendor backfills with newer POIs are not as-delivered historical vintages."
+        },
+        {
+          "id": "MODEL_PLAN",
+          "status": "protocol_not_result",
+          "summary": "Start fixed geographic exposure, seasonality/no-change and regularized linear baselines. Block geography and chronological holdouts; model/scaler/training-data hashes and availability cutoffs. A multi-horizon LSTM only after sufficient independent labels/coverage; quarterly aggregate labels limit effective sample and store inference."
+        },
+        {
+          "id": "BASELINE_CODE",
+          "status": "implemented_no_real_fit",
+          "summary": "Python persistence, same-month seasonal and fixed-ridge linear baselines enforce independent feature/label availability, historical feature-decision checks, training-only scaling and separate fixture/real evidence. Tests use synthetic data only. No real store-level demand labels or model performance."
+        },
+        {
+          "id": "ISSUER_LABEL_AUDIT",
+          "status": "aggregate_only",
+          "summary": "One actual issuer release captured 2026-10-30T19:46:03.141950+00:00 (702276 bytes, SHA-256 c609c16bb8677164f0032bf21e2460a80fbc55b25d72e3ad70609379f016aaec); reported October 29, 2025, quarter ended September 28, 2025. Comparable transactions are aggregate rates, not historical store-level demand. Store counts/closures also affect membership. This is one document sample and zero store labels; original-publication instant unverified."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "Starbucks issuer investor materials (planned evidence route)",
+          "url": "https://investor.starbucks.com/"
+        },
+        {
+          "title": "Advan dictionary, vintage/coverage audit lead only; no purchase",
+          "url": "https://docs.advanresearch.com/"
+        },
+        {
+          "title": "Starbucks Q4 FY2025 issuer aggregate release; current-retained bytes",
+          "url": "https://investor.starbucks.com/news/financial-releases/news-details/2025/Starbucks-Reports-Q4-and-Full-Fiscal-Year-2025-Results/",
+          "sha256": "c609c16bb8677164f0032bf21e2460a80fbc55b25d72e3ad70609379f016aaec"
         }
       ]
     }

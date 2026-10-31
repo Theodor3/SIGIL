@@ -66,3 +66,14 @@ def test_reads_updates_and_accepts_explicit_empty_registry(tmp_path):
     assert read_experiments(tmp_path)["experiments"]
     path.write_text('{"schemaVersion":1,"experiments":[]}')
     assert read_experiments(tmp_path)["experiments"] == []
+
+@pytest.mark.parametrize("value", ["nonsense", "2026-02-30", "2026-10-30T12:00:00", "2026-10-30T24:00:00Z"])
+def test_registry_timestamp_rejects_invalid_and_naive(tmp_path,value):
+    registry(tmp_path,createdAt=value)
+    with pytest.raises(ValueError):read_experiments(tmp_path)
+
+def test_registry_preserves_date_precision_and_decision(tmp_path):
+    registry(tmp_path,decisionAt="2026-10-29T21:48:45.429293+00:00")
+    x=read_experiments(tmp_path)["experiments"][0]
+    assert x["createdAt"]=="2026-10-04"
+    assert x["decisionAt"]=="2026-10-29T21:48:45.429293+00:00"

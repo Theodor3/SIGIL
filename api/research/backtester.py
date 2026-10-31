@@ -12,8 +12,9 @@ import asyncio
 import math
 from datetime import date, timedelta
 
-from api.research.context_store import list_snapshot_dates, load_context
+from api.research.context_store import list_snapshot_dates, load_context, context_receipt
 from api.signals.registry import get_registry
+from api.research.timing import aware_time, post_decision_window, completed_market_date
 from api.tracker.evaluator import (
     BENCHMARK,
     _download_history_sync,
@@ -43,6 +44,8 @@ async def backtest_signal(
     if signal is None:
         return {"error": f"unknown signal: {signal_name}"}
 
+    if getattr(signal, "replay_safe", False) is not True:
+        return {"error": "Signal is not certified deterministic and context-only; replay disabled", "result_kind": "directional_forecast_not_paper_execution"}
     all_dates = list_snapshot_dates()
     min_horizon = min(horizons)
     usable = [d for d in all_dates if d <= date.today() - timedelta(days=min_horizon)]
@@ -62,7 +65,12 @@ async def backtest_signal(
     calls: list[tuple[date, str, float]] = []  # (as_of, ticker, score)
     replayed = 0
     for d in usable:
-        ctx = load_context(d)
+        try:
+            receipt = context_receipt(d)
+            captured = aware_time(receipt["captured_at"])
+            ctx = load_context(d)
+        except (ValueError, KeyError):
+            continue
         if ctx is None:
             continue
         try:
@@ -74,7 +82,7 @@ async def backtest_signal(
         for out in outputs:
             if out.confidence <= 0 or abs(out.score - 0.5) <= NEUTRAL_EPSILON:
                 continue
-            calls.append((d, out.ticker, out.score))
+            calls.append((captured, out.ticker, out.score))
 
     if not calls:
         return {
@@ -87,10 +95,10 @@ async def backtest_signal(
 
     # Phase 2: one batched price download covering every call window
     tickers = sorted({t for _, t, _ in calls})
-    start = min(d for d, _, _ in calls) - timedelta(days=7)
+    start = min(d.date() for d, _, _ in calls) - timedelta(days=7)
     loop = asyncio.get_running_loop()
     history = await loop.run_in_executor(
-        None, _download_history_sync, tickers + [BENCHMARK], start, date.today()
+        None, _download_history_sync, tickers + [BENCHMARK], start, completed_market_date()
     )
     benchmark = history.get(BENCHMARK)
 
@@ -102,14 +110,21 @@ async def backtest_signal(
         eligible = missing_stock = missing_benchmark = 0
         window_cache: dict[tuple[str, date], tuple | None] = {}
         for d, ticker, score in calls:
-            if d > cutoff:
+            if d.date() > cutoff:
                 continue
             eligible += 1
+            if not history.get(ticker):
+                missing_stock += 1
+                continue
+            benchmark_window = post_decision_window(benchmark, d, horizon, calendar_dates=benchmark[0]) if benchmark else None
+            if benchmark_window is None:
+                missing_benchmark += 1
+                continue
             key = (ticker, d)
             if key not in window_cache:
                 series = history.get(ticker)
                 window_cache[key] = (
-                    _window_return(series, d, horizon) if series else None
+                    post_decision_window(series, d, horizon, calendar_dates=benchmark[0] if benchmark else None) if series else None
                 )
             window = window_cache[key]
             if window is None or not math.isfinite(window[2]):
@@ -157,11 +172,13 @@ async def backtest_signal(
         "schema_version": 2,
         "methodology": {
             "horizon_unit": "calendar_days",
+            "evaluation_protocol": "post_decision_daily_v1",
+            "result_kind": "directional_forecast_not_paper_execution",
             "hit_basis": "strictly_positive_SPY_relative_directional_alpha",
             "benchmark_policy": "exact_stock_entry_and_exit_dates",
             "round_trip_cost_bps": round_trip_cost_bps,
             "cost_scope": "Flat assumed round-trip cost per forecast, including any assumed fees, spread, slippage and borrow. Not measured execution or portfolio returns.",
-            "timing_limit": "Date-only snapshots do not establish intraday availability. Overlapping calls are not independent observations.",
+            "timing_limit": "Only uniquely selected immutable local receipts and explicitly deterministic context-only signals replay. First close strictly after receipt NY date; publisher first-public time still unknown. Overlapping calls are not independent.",
         },
         "signal": signal_name,
         "version": signal.version,
