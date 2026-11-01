@@ -1,6 +1,6 @@
 # Weather research status — November 1, 2026
 
-These are research feasibility results, not production signals or demonstrated alpha. They do not change signal weights, portfolios, execution settings or the production pipeline. Raw public datasets, per-cell outputs, local experiment environments, immutable receipts and notebook records remain outside this release. Synthetic runtime tests are fixtures; they are separate from the real public-source research described here.
+These are research feasibility results, not production signals or demonstrated alpha. They do not change signal weights, portfolios, execution settings or the production pipeline. Raw public datasets, per-cell outputs, local experiment environments, immutable receipts and notebook records remain outside this release. Results were reproduced locally; this release is a summary, not a complete reproduction package. Synthetic runtime tests are fixtures; they are separate from the real public-source research described here.
 
 ## Fieldwork windows and fertilizer exposure
 
@@ -8,7 +8,7 @@ A small reproducible Iowa example matches original [CPC 8–14-day outlook archi
 
 The fixed spatial proxy uses 65 half-degree centers within a generalized [Census 2020-reference Iowa boundary](https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/State_County/MapServer/64?f=pjson), with cosine-latitude weights. Its approximate spherical area is 2.3806% above the published land-plus-water total. This approximates state area, not crop acres, survey weights or company exposure. Independent raw-file reconstruction matched the mask, all 260 cell/product assignments and four aggregates.
 
-The weather index is the fixed weighted mean of `sign(category) * native_Prob / 100`: Above +1, Below −1, Normal 0. Native values are percent contour labels, qualified by original XML and the current [NOAA renderer](https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/cpc_8_14_day_outlk/MapServer/1?f=pjson). The result is a signed favored-contour-label index, not calibrated point probabilities, rainfall amounts or predicted suitable days. Different target weeks are forecast levels, not revisions.
+The weather index is the fixed weighted mean of `sign(category) * native_Prob / 100`: Above +1, Below −1, Normal 0. Scientific-notation native values such as 33/40 and the current [NOAA renderer](https://mapservices.weather.noaa.gov/vector/rest/services/outlooks/cpc_8_14_day_outlk/MapServer/1?f=pjson) support a qualified percent-contour-label interpretation; the archived XML leaves units blank. The result is a signed favored-contour-label index, not calibrated point probabilities, rainfall amounts or predicted suitable days. Different target weeks are forecast levels, not revisions.
 
 | Target week, 2024 | Precipitation index | Temperature index | Prior suitable days | Actual suitable days |
 | --- | ---: | ---: | ---: | ---: |
@@ -25,7 +25,7 @@ A separate design proposes training on 2021–2023, excluding the seen developme
 
 ## Other research remains qualified
 
-- The location/ridership GPU LSTM experiment did not beat its chronological ridge comparator. A transit proxy does not establish a company-return signal.
+- The location/ridership GPU LSTM experiment did not beat its chronological ridge comparator on the primary, reused 2024-Q4 retrospective MAE benchmark; pooled validation was essentially tied, with slightly lower LSTM error. A transit proxy does not establish a company-return signal.
 - The expanded ERCOT comparison covers five autumn origins and 120 hourly outcomes. Operator MAE was 793.35 versus 2,394.41 for weekly persistence and 1,924.32 for lag-48 persistence. Native interval/unit lineage is qualified as MW-equivalent; the raw report's literal unit annotation and original public-release timing are not certified. This is a reconstructed baseline, not a validated trading test or multi-season result.
 - A daylight-saving publication-offset anomaly affected historical ERCOT timing interpretation. Raw payloads and original scores were preserved; date-specific filename/Central-time eligibility remains conditional, distinct from proven first-public availability.
 - Six river stage forecasts and one forward grid-error direction were frozen before their future outcomes. No outcomes are scored in this release. River targets are November 2, 4 and 8; the conservative first manual grid-label check is November 2 at 12:00 UTC. No watcher, automatic outcome request or future trading action was added.
