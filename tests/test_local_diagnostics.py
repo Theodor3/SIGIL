@@ -3,7 +3,7 @@ import json
 import httpx
 import pytest
 
-from swarm.local import LocalProvider
+from swarm.local import LOCAL_MAX_OUTPUT_TOKENS, LocalProvider
 from swarm.models import Report
 from swarm.providers import ProviderFailure
 
@@ -24,7 +24,8 @@ def test_local_contract_and_private_failure_details(monkeypatch, fault, expected
         seen.append(request)
         payload = json.loads(request.content)
         assert payload['reasoning_effort'] == 'none'
-        assert payload['max_tokens'] == 4000
+        assert LOCAL_MAX_OUTPUT_TOKENS == 8192
+        assert payload['max_tokens'] == LOCAL_MAX_OUTPUT_TOKENS
         assert payload['response_format']['json_schema']['strict'] is True
         data = dict(model='sigil-local', choices=[dict(finish_reason='stop',
                     message=dict(content=json.dumps(report)))],
@@ -42,6 +43,7 @@ def test_local_contract_and_private_failure_details(monkeypatch, fault, expected
     def client(**kwargs):
         assert kwargs['trust_env'] is False
         assert kwargs['follow_redirects'] is False
+        assert kwargs['timeout'] == 480
         return real_client(transport=httpx.MockTransport(handle), **kwargs)
 
     monkeypatch.setattr('swarm.local.httpx.Client', client)

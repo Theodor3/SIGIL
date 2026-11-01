@@ -824,22 +824,25 @@ def test_failed_model_lookup_stops_before_paid_planning(store):
 
 
 def test_local_api_guards_and_secret_redaction(tmp_path):
+    # Synthetic redaction sentinels, never actual provider credentials.
+    fixture_provider_value_1 = 'secret-fixture-key'
+    fixture_provider_value_2 = 'sk-secret-fixture-'
     providers = Providers()
     providers.keys = {"gemini": "", "openai": ""}
     app = create_app(tmp_path, providers=providers)
     with TestClient(app) as client:
-        assert client.post("/api/providers", json={"gemini_api_key": "secret-fixture-key"}).status_code == 403
+        assert client.post("/api/providers", json={"gemini_api_key": fixture_provider_value_1}).status_code == 403
         client.headers["Origin"] = "http://testserver"
-        response = client.post("/api/providers", json={"gemini_api_key": "secret-fixture-key"}, headers={"Origin": "https://evil.invalid"})
+        response = client.post("/api/providers", json={"gemini_api_key": fixture_provider_value_1}, headers={"Origin": "https://evil.invalid"})
         assert response.status_code == 403
-        response = client.post("/api/providers", json={"gemini_api_key": "secret-fixture-key"})
+        response = client.post("/api/providers", json={"gemini_api_key": fixture_provider_value_1})
         assert response.status_code == 200
-        assert "secret-fixture-key" not in response.text
-        response = client.post("/api/providers", json={"openai_api_key": "sk-secret-fixture-" * 100})
+        assert fixture_provider_value_1 not in response.text
+        response = client.post("/api/providers", json={"openai_api_key": fixture_provider_value_2 * 100})
         assert response.status_code == 422
         assert "sk-secret" not in response.text
         state = client.get("/api/state")
-        assert "secret-fixture-key" not in state.text
+        assert fixture_provider_value_1 not in state.text
         assert not state.json()["providers"]["gemini"]["verified"]
         mission = client.post("/api/missions", json={"prompt": "An API task", "mode": "live"}).json()
         assert client.post(f"/api/missions/{mission['id']}/run", json={}).status_code == 400
