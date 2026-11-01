@@ -5,7 +5,7 @@ import openai
 import pytest
 
 from swarm.engine import Engine
-from swarm.models import Assignment, Report, Source, ToolRequest
+from swarm.models import Assignment, GEMINI_FLASH_MODEL, Report, Source, ToolRequest
 from swarm.providers import Providers, ProviderFailure
 from swarm.search import SEARCH_MODEL, SEARCH_RESERVATION, web_search
 from swarm.store import Store
@@ -20,8 +20,9 @@ class StudioFixture:
 
 def test_worker_receives_actual_tool_result_before_finishing(tmp_path):
     class ToolProvider(FakeProviders):
-        def run(self, provider, system, prompt, schema):
-            result = super().run(provider, system, prompt, schema)
+        def run(self, provider, system, prompt, schema, *, model=None):
+            assert model == GEMINI_FLASH_MODEL
+            result = super().run(provider, system, prompt, schema, model=model)
             context = json.loads(prompt)
             report = json.loads(result.text)
             if not context["your_recent_tool_results"]:

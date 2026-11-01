@@ -10,7 +10,7 @@ from swarm.providers import ProviderFailure
 from swarm.store import Store
 
 
-def payload(body_len=14000, summary_len=5000):
+def payload(body_len=30000, summary_len=5000):
     return dict(summary='s'*summary_len, artifact_title='Synthetic longer report',
                 artifact_body='b'*body_len, messages=[], sources=[], source_requests=[],
                 tool_requests=[], studio_claims=[])
@@ -32,7 +32,7 @@ def test_long_report_survives_validation_and_store_roundtrip(tmp_path):
         store.close()
 
 
-@pytest.mark.parametrize('field,limit', [('artifact_body',16000),('summary',6000)])
+@pytest.mark.parametrize('field,limit', [('artifact_body',32000),('summary',6000)])
 def test_report_exact_boundary_and_overflow(field,limit):
     data=payload(100,100)
     data[field]='x'*limit
@@ -44,14 +44,14 @@ def test_report_exact_boundary_and_overflow(field,limit):
 @pytest.mark.parametrize('overflow',[False,True])
 def test_local_wire_budget_and_redacted_overflow(monkeypatch,overflow):
     real_client=httpx.Client
-    data=payload(16001 if overflow else 14000,5000)
+    data=payload(32001 if overflow else 30000,5000)
     if overflow: data['artifact_body']='PRIVATE_SYNTHETIC_MARKER'+data['artifact_body']
     def handle(request):
         wire=json.loads(request.content)
         assert wire['max_tokens']==LOCAL_MAX_OUTPUT_TOKENS==8192
         assert wire['response_format']['json_schema']['strict'] is True
         schema=wire['response_format']['json_schema']['schema']
-        assert schema['properties']['artifact_body']['maxLength']==16000
+        assert schema['properties']['artifact_body']['maxLength']==32000
         return httpx.Response(200,json={'model':LOCAL_MODEL,'choices':[{'finish_reason':'stop','message':{'content':json.dumps(data)}}],
                                        'usage':{'prompt_tokens':100,'completion_tokens':5000}})
     monkeypatch.setattr('swarm.local.httpx.Client',lambda **kw:real_client(transport=httpx.MockTransport(handle),**kw))
@@ -82,7 +82,7 @@ def test_local_larger_schema_retains_evidence_and_role_restrictions():
                  allowed_tools=['read_file'],allowed_recipients=['coordinator'],
                  mission_mode='local',independent_critique=True)
     schema=response_schema(LocalReport,json.dumps(context))
-    assert schema['properties']['artifact_body']['maxLength']==16000
+    assert schema['properties']['artifact_body']['maxLength']==32000
     assert schema['properties']['messages']['maxItems']==0
     assert schema['properties']['source_requests']['maxItems']==0
     assert schema['$defs']['ToolRequest']['properties']['tool']['enum']==['read_file']
@@ -93,10 +93,11 @@ def test_engine_local_selects_larger_schema_only_after_worker_rules(tmp_path):
     from swarm.engine import Engine
     from swarm.providers import Providers,ProviderResult
     class Fixture(Providers):
-        def run(self,provider,system,prompt,schema):
+        def run(self,provider,system,prompt,schema,*,model=None):
             assert provider=='local'
+            assert model==LOCAL_MODEL
             assert schema is LocalReport
-            assert '6000 characters' in system and '16000 characters' in system
+            assert '6000 characters' in system and '32000 characters' in system
             assert 'For each claim based on Studio reads' in system
             return ProviderResult(json.dumps(payload()),100,5000,LOCAL_MODEL)
     store=Store(tmp_path)
@@ -104,6 +105,6 @@ def test_engine_local_selects_larger_schema_only_after_worker_rules(tmp_path):
         mid=store.create('Synthetic large local report','local')['id']
         engine=Engine(store,Fixture())
         report,_=engine._call(mid,'engineering','Synthetic test',Report)
-        assert isinstance(report,LocalReport) and len(report.artifact_body)==14000
+        assert isinstance(report,LocalReport) and len(report.artifact_body)==30000
     finally:
         store.close()

@@ -7,14 +7,14 @@ from google.genai import types
 import openai
 import pytest
 
-from swarm.models import GEMINI_MODEL, OPENAI_MODEL, Plan, Report
+from swarm.models import GEMINI_FLASH_MODEL, GEMINI_MODEL, OPENAI_MODEL, Plan, Report
 from swarm.providers import ProviderResult, ProviderFailure, Providers, provider_failure
 from swarm.response_contract import response_schema
 
 
 def test_openai_sdk_request_and_usage(monkeypatch):
     requests = []
-    payload = {"message": "Plan", "assignments": [{"agent_id": "data", "task": "Check sources"}]}
+    payload = {"message": "Plan", "assignments": [{"agent_id": "data", "task": "Check sources", "complexity": "auto"}]}
     def respond(request):
         requests.append(json.loads(request.content))
         return httpx2.Response(200, json={
@@ -43,16 +43,19 @@ def test_openai_sdk_request_and_usage(monkeypatch):
 
 
 @pytest.mark.parametrize('contextual', [False, True])
-def test_gemini_sdk_request_and_thinking_usage(monkeypatch, contextual):
+@pytest.mark.parametrize('model', [GEMINI_MODEL, GEMINI_FLASH_MODEL])
+def test_gemini_sdk_request_and_thinking_usage(monkeypatch, contextual, model):
     requests = []
+    request_paths = []
     payload = {"summary": "Fixture", "artifact_title": "Fixture", "artifact_body": "Fixture",
                "messages": [], "sources": [], "source_requests": []}
     def respond(request):
         requests.append(json.loads(request.content))
+        request_paths.append(request.url.path)
         return httpx.Response(200, json={
             "candidates": [{"content": {"role": "model", "parts": [{"text": json.dumps(payload)}]}, "finishReason": "STOP"}],
             "usageMetadata": {"promptTokenCount": 100, "candidatesTokenCount": 120, "thoughtsTokenCount": 30, "totalTokenCount": 250},
-            "modelVersion": GEMINI_MODEL, "responseId": "gemini-fixture",
+            "modelVersion": model, "responseId": "gemini-fixture",
         })
     actual_client = genai.Client
     def client(**kwargs):
@@ -66,10 +69,11 @@ def test_gemini_sdk_request_and_thinking_usage(monkeypatch, contextual):
     prompt = json.dumps({'your_current_source_evidence': [
         {'id': 'tool_0123456789abcdef', 'text': 'fixture', 'text_truncated': False}],
         'allowed_tools': ['read_file'], 'allowed_recipients': ['coordinator']}) if contextual else 'Task'
-    result = providers.run("gemini", "System", prompt, Report)
+    result = providers.run("gemini", "System", prompt, Report, model=model)
     assert Report.model_validate_json(result.text).summary == "Fixture"
     assert (result.input_tokens, result.output_tokens) == (100, 150)
-    assert result.returned_model == GEMINI_MODEL
+    assert result.returned_model == model
+    assert request_paths == ["/v1beta/models/" + model + ":generateContent"]
     assert requests[0]["generationConfig"]["responseMimeType"] == "application/json"
     generation = requests[0]["generationConfig"]
     assert generation["maxOutputTokens"] == 8192
@@ -97,7 +101,9 @@ def test_gemini_model_lookup_uses_metadata_only(monkeypatch):
     requests = []
     def respond(request):
         requests.append((request.method, request.url.path))
-        return httpx.Response(200, json={"name": "models/" + GEMINI_MODEL,
+        requested_model = request.url.path.rsplit("/", 1)[-1]
+        assert requested_model in (GEMINI_MODEL, GEMINI_FLASH_MODEL)
+        return httpx.Response(200, json={"name": "models/" + requested_model,
             "supportedGenerationMethods": ["generateContent"], "outputTokenLimit": 65536})
     actual_client = genai.Client
     def client(**kwargs):
@@ -107,7 +113,8 @@ def test_gemini_model_lookup_uses_metadata_only(monkeypatch):
     providers = Providers()
     providers.configure(gemini_api_key="fixture-only")
     providers.check_gemini_model()
-    assert requests == [("GET", "/v1beta/models/" + GEMINI_MODEL)]
+    assert requests == [("GET", "/v1beta/models/" + model)
+                        for model in (GEMINI_MODEL, GEMINI_FLASH_MODEL)]
     assert not providers.public_status()["gemini"]["verified"]
 
 
@@ -126,10 +133,13 @@ def test_gemini_400_errors_are_specific_and_redacted(message, expected):
     assert result.definitely_unbilled
 
 
-def test_pro_pricing_reserve_covers_full_output_and_rejects_large_context():
+@pytest.mark.parametrize('model,input_rate,output_rate', [
+    (GEMINI_MODEL, 2.0, 12.0), (GEMINI_FLASH_MODEL, 0.25, 1.5),
+])
+def test_model_pricing_reserve_covers_full_output_and_rejects_large_context(model, input_rate, output_rate):
     providers = Providers()
-    reserve = providers.reservation("gemini", "System", "Task", Report)
-    assert reserve > 65536 * 12 / 1_000_000
-    assert ProviderResult("", 1000, 1000, GEMINI_MODEL).cost("gemini") == 0.014
+    reserve = providers.reservation("gemini", "System", "Task", Report, model=model)
+    assert reserve > 65536 * output_rate / 1_000_000
+    assert ProviderResult("", 1000, 1000, model).cost("gemini", model=model) == (input_rate + output_rate) / 1000
     with pytest.raises(ValueError, match="too large"):
-        providers.reservation("gemini", "System", "x" * 200000, Report)
+        providers.reservation("gemini", "System", "x" * 200000, Report, model=model)
