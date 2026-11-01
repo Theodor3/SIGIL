@@ -21,7 +21,9 @@ MAX_READ_CHARS = 8_000
 MAX_DRAFTS = 24
 MAX_DIFF_BYTES = 24_000
 MAX_OUTPUT_BYTES = 32_000
-TEST_IMAGE = "sigil-swarm-tests:pilot"
+# The mutable local tag has repeatedly failed lookup. Pin the already audited
+# restricted-runner image; changing this ID requires deliberate image review.
+TEST_IMAGE = "sha256:c2ddeeec7f32f1717584654d6a4cbc20ee2b454cad49a2fefd911d2cff8bed9d"
 DOCKER_ENDPOINT = "npipe:////./pipe/dockerDesktopLinuxEngine" if os.name == "nt" else "unix:///var/run/docker.sock"
 ROOT_FILES = {
     "AGENTS.md", "README.md", "README.txt", "Dockerfile", "Dockerfile.api",

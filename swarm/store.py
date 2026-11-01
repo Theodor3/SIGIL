@@ -1,6 +1,7 @@
 import copy
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
@@ -8,6 +9,7 @@ import sqlite3
 import threading
 import uuid
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal, ROUND_CEILING
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -19,6 +21,10 @@ RENEWAL_ID = "2026-09-28-development"
 RENEWAL_TOTAL = 100.0
 RENEWAL_DAILY = 20.0
 RENEWAL_EXPIRY = "2026-10-28"
+OVERNIGHT_ID = "2026-10-27-market-ripple-lab"
+OVERNIGHT_START = "2026-10-27T00:00:00-04:00"
+OVERNIGHT_STOP = "2026-10-28T08:00:00-04:00"
+OVERNIGHT_LIMIT = 20.0
 
 
 def now():
@@ -325,6 +331,9 @@ class Store:
                 for task in data["tasks"]:
                     if task["status"] in ("running", "queued"):
                         task["status"] = "interrupted"
+                for call in data.get('subscription_calls', []):
+                    if call['status'] == 'running':
+                        call.update(status='interrupted', quota_usage='unknown', finished_at=now())
                 changed_missions.append(data)
         if changed_calls or changed_missions:
             with self._db:
@@ -424,6 +433,8 @@ class Store:
             data["calls"] = copy.deepcopy([x for x in self.ledger if x["mission_id"] == mission_id])
             data["mission"]["spent_usd"] = round(sum(x.get("cost_usd", 0) for x in data["calls"]), 6)
             data["mission"]["cost_kind"] = "estimate"
+            if data['mission']['mode'] == 'subscription':
+                data['mission'].update(spent_usd=None, cost_kind='subscription_quota_not_api_ledger')
             data.setdefault("tool_results", [])
             data.setdefault("drafts", [])
             return data
@@ -466,14 +477,17 @@ class Store:
             )]
 
     def create(self, prompt, mode, *, max_revisions=MAX_ROUNDS - 1,
-               specialist_execution="parallel", local_role="data", requires_tests=False):
-        if mode not in ("demo", "live", "local"):
+               specialist_execution="parallel", local_role="data", requires_tests=False, max_cost_usd=None):
+        if max_cost_usd is not None and (type(max_cost_usd) not in (int, float) or not math.isfinite(max_cost_usd) or not 0 < max_cost_usd <= 20):
+            raise ValueError("Mission cap must be positive, finite and at most $20.")
+        if mode not in ("demo", "live", "local", "subscription"):
             raise ValueError("Unknown mission mode.")
         if local_role not in ("data", "engineering", "quant", "product-ops"):
             raise ValueError("Unknown local worker role.")
-        if mode == "local":
-            if len(prompt) > 2000:
-                raise ValueError("Keep a local assignment within 2,000 characters.")
+        if mode in ("local", "subscription"):
+            limit = 6000 if mode == "local" else 2000
+            if len(prompt) > limit:
+                raise ValueError(f"Keep this {mode} assignment within {limit:,} characters.")
             max_revisions, specialist_execution = 0, "sequential"
         prompt = prompt.strip()
         if not prompt:
@@ -499,6 +513,8 @@ class Store:
                 "pending_assignments": [], "sources": [],
                 "tool_results": [], "drafts": [], "studio": None,
             }
+            if mode == "live" and max_cost_usd is not None:
+                data["mission"]["max_cost_usd"] = max_cost_usd
             self.missions[mission_id] = data
             message = dict(
                 id=uid("msg"), sender="user", recipient="coordinator", text=prompt,
@@ -705,22 +721,124 @@ class Store:
             self.settings = updated
             return self.budget()
 
+    def authorize_overnight_budget(self):
+        """Record the one-night additional cap without resetting historical usage."""
+        with self.lock:
+            existing = self.settings.get("overnight")
+            if existing:
+                if existing.get("authorization_id") != OVERNIGHT_ID:
+                    raise BudgetError("A different overnight authorization already exists.")
+                return self.budget()
+            current = datetime.fromisoformat(now())
+            if not datetime.fromisoformat(OVERNIGHT_START) <= current < datetime.fromisoformat(OVERNIGHT_STOP):
+                raise BudgetError("This overnight authorization is outside its fixed time window.")
+            if any(c["status"] in ("reserved", "uncertain") for c in self.ledger):
+                raise BudgetError("Settle outstanding calls before authorizing overnight work.")
+            if self.settings.get("authorization_id") != RENEWAL_ID:
+                raise BudgetError("The existing development authorization is required; no cumulative limit is increased.")
+            overnight = dict(authorization_id=OVERNIGHT_ID, authorized_at=now(),
+                             stops_at=OVERNIGHT_STOP, limit_usd=OVERNIGHT_LIMIT,
+                             prior_call_ids=[c["id"] for c in self.ledger])
+            updated = {**self.settings, "overnight": overnight}
+            with self._db:
+                self._insert_event({"id": uid("evt"), "at": now(),
+                    "type": "overnight_budget_authorization", "authorization_id": OVERNIGHT_ID,
+                    "limit_usd": OVERNIGHT_LIMIT, "stops_at": OVERNIGHT_STOP,
+                    "note": "Additional $20 cap through October 28 08:00 Eastern; existing daily and cumulative limits remain in force."})
+                self._db.execute("UPDATE metadata SET value = ? WHERE key = 'pilot_settings'",
+                                 (self._json(updated),))
+            self.settings = updated
+            return self.budget()
+
+    def authorize_research_allowance(self):
+        """Owner-approved $20 new usage, no expiry. Idempotent; never clears history."""
+        with self.lock:
+            existing = self.settings.get("api_allowance")
+            if existing:
+                if existing.get("authorization_id") != "2026-10-29-research-20-no-expiry":
+                    raise BudgetError("A different API allowance already exists.")
+                return self.budget()
+            if any(c["status"] in ("reserved", "uncertain") for c in self.ledger):
+                raise BudgetError("Settle outstanding calls before activating the allowance.")
+            previous = copy.deepcopy(self.settings)
+            allowance = dict(authorization_id="2026-10-29-research-20-no-expiry",
+                authorized_at=now(), limit_usd=20.0, expires_at=None,
+                prior_call_ids=[c["id"] for c in self.ledger])
+            updated = {**previous, "api_allowance": allowance}
+            with self._db:
+                self._insert_event({"id": uid("evt"), "at": now(),
+                    "type": "api_allowance_authorization", "previous": previous,
+                    "updated": updated, "note": "Owner authorized $20 NEW API allowance with no expiry. Historical spend retained; no automatic refill."})
+                self._db.execute("UPDATE metadata SET value = ? WHERE key = 'pilot_settings'", (self._json(updated),))
+            self.settings = updated
+            return self.budget()
+
+    def _allowance_budget(self):
+        a = self.settings["api_allowance"]
+        if (a.get("authorization_id") != "2026-10-29-research-20-no-expiry"
+                or a.get("limit_usd") != 20.0 or a.get("expires_at", "missing") is not None
+                or not isinstance(a.get("prior_call_ids"), list)):
+            raise BudgetError("Invalid allowance settings; paid work blocked.")
+        prior = set(a["prior_call_ids"])
+        paid = [c for c in self.ledger if c["provider"] != "local"]
+        calls = [c for c in paid if c["id"] not in prior]
+        history = sum(c.get("cost_usd", 0) for c in paid if c["id"] in prior)
+        used = sum(c.get("cost_usd", 0) for c in calls)
+        held = sum(c["reservation_usd"] for c in calls if c["status"] in ("reserved", "uncertain"))
+        remaining = max(0, 20.0 - used - held)
+        day = local_day()
+        today = sum(c.get("cost_usd", 0) for c in paid if c["day"] == day)
+        daily = self.settings["daily_limit_usd"]
+        return dict(daily_limit_usd=daily, pilot_limit_usd=round(history + 20.0, 6),
+            today_usd=round(today, 6), pilot_usd=round(history + used, 6),
+            historical_spend_usd=round(history, 6), reserved_usd=round(held, 6),
+            remaining_today_usd=round(min(remaining, max(0, daily - today - held)), 6),
+            remaining_pilot_usd=round(remaining, 6), expires_on=None,
+            timezone="America/New_York", expired=False, overnight=None,
+            allowance={**{k:a[k] for k in ("authorization_id", "authorized_at", "limit_usd", "expires_at")},
+                "used_usd":round(used, 6), "reserved_usd":round(held, 6), "remaining_usd":round(remaining, 6)},
+            uncertain=any(c["status"] == "uncertain" for c in paid), cost_kind="estimate",
+            by_provider={p:{"today_usd":round(sum(c.get("cost_usd", 0) for c in paid if c["provider"] == p and c["day"] == day), 6),
+                "pilot_usd":round(sum(c.get("cost_usd", 0) for c in paid if c["provider"] == p), 6)} for p in ("gemini", "openai")})
+
     def budget(self):
         with self.lock:
+            if self.settings.get("api_allowance"):
+                return self._allowance_budget()
             day = local_day()
             daily_limit = self.settings["daily_limit_usd"]
             pilot_limit = self.settings["pilot_limit_usd"]
             today = sum(x.get("cost_usd", 0) for x in self.ledger if x["day"] == day)
             total = sum(x.get("cost_usd", 0) for x in self.ledger)
             held = sum(x["reservation_usd"] for x in self.ledger if x["status"] in ("reserved", "uncertain"))
+            overnight = self.settings.get("overnight")
+            night_remaining = float("inf")
+            night_expired = False
+            night_active = False
+            night_usage = 0
+            if overnight:
+                previous = set(overnight["prior_call_ids"])
+                night_calls = [c for c in self.ledger if c["id"] not in previous]
+                night_usage = sum(c.get("cost_usd", 0) + (
+                    c["reservation_usd"] if c["status"] in ("reserved", "uncertain") else 0
+                ) for c in night_calls)
+                night_remaining = max(0, min(OVERNIGHT_LIMIT, overnight["limit_usd"]) - night_usage)
+                night_expired = datetime.fromisoformat(now()) >= datetime.fromisoformat(OVERNIGHT_STOP)
+                night_active = (overnight.get("authorization_id") == OVERNIGHT_ID
+                    and self.settings.get("authorization_id") == RENEWAL_ID
+                    and datetime.fromisoformat(OVERNIGHT_START) <= datetime.fromisoformat(now())
+                    < datetime.fromisoformat(OVERNIGHT_STOP))
             return dict(
                 daily_limit_usd=daily_limit, pilot_limit_usd=pilot_limit,
                 today_usd=round(today, 6), pilot_usd=round(total, 6),
                 reserved_usd=round(held, 6),
-                remaining_today_usd=round(max(0, daily_limit - today - held), 6),
-                remaining_pilot_usd=round(max(0, pilot_limit - total - held), 6),
+                remaining_today_usd=round(min(night_remaining, max(0, daily_limit - today - held)), 6),
+                remaining_pilot_usd=round(min(night_remaining, max(0, pilot_limit - total - held)), 6),
                 expires_on=self.settings["expires_on"], timezone="America/New_York",
-                expired=day >= self.settings["expires_on"],
+                expired=(day >= self.settings["expires_on"] and not night_active) or night_expired,
+                overnight=(dict(authorization_id=OVERNIGHT_ID, limit_usd=OVERNIGHT_LIMIT,
+                    used_and_reserved_usd=round(night_usage, 6), remaining_usd=round(night_remaining, 6),
+                    stops_at=OVERNIGHT_STOP, expired=night_expired) if overnight else None),
                 uncertain=any(x["status"] == "uncertain" and x["provider"] != "local" for x in self.ledger),
                 cost_kind="estimate",
                 by_provider={provider: {
@@ -735,7 +853,11 @@ class Store:
 
     def reserve(self, mission_id, agent_id, provider, model, amount, *, task_id=None, request_profile=None):
         with self.lock:
+            if type(amount) not in (int, float) or not math.isfinite(amount):
+                raise BudgetError("Reservation must be finite.")
             mission = self.get(mission_id)["mission"]
+            if mission['mode'] == 'subscription' or provider == 'claude_code_subscription':
+                raise BudgetError('Subscription calls use separate quota receipts, never the API ledger.')
             local = provider == "local"
             if local != (mission["mode"] == "local"):
                 raise BudgetError("Local missions cannot dispatch paid providers, and paid missions cannot relabel calls as local.")
@@ -746,14 +868,21 @@ class Store:
                 raise BudgetError("The API authorization has expired. Its budget needs renewal before another API mission.")
             if not local and budget["uncertain"]:
                 raise BudgetError("A previous API call has uncertain billing. Live work is paused until it is reconciled.")
-            if not local and (amount <= 0 or amount > min(
-                budget["remaining_today_usd"], budget["remaining_pilot_usd"]
-            ) + 1e-9):
+            # Compare rounded-up reservations in integer micro-dollars, including at zero.
+            reservation_units = int((Decimal(str(amount)) * 1_000_000).to_integral_value(rounding=ROUND_CEILING))
+            remaining_units = int(Decimal(str(min(budget["remaining_today_usd"], budget["remaining_pilot_usd"]))) * 1_000_000)
+            if not local and (amount <= 0 or reservation_units > remaining_units):
                 raise BudgetError("The next call would exceed the remaining budget. Work has stopped before dispatch.")
+            if not local and mission.get("max_cost_usd") is not None:
+                mission_used = sum(c.get("cost_usd", 0) for c in self.ledger if c["mission_id"] == mission_id)
+                mission_held = sum(c["reservation_usd"] for c in self.ledger if c["mission_id"] == mission_id and c["status"] in ("reserved", "uncertain"))
+                remaining_mission_units = int((Decimal(str(mission["max_cost_usd"])) - Decimal(str(mission_used)) - Decimal(str(mission_held))) * 1_000_000)
+                if reservation_units > remaining_mission_units:
+                    raise BudgetError("The next call would exceed this mission's API cap.")
             call = dict(
                 id=uid("call"), mission_id=mission_id, agent_id=agent_id, provider=provider,
                 task_id=task_id, model=model, status="reserved", created_at=now(), day=local_day(),
-                reservation_usd=round(amount, 6), cost_usd=0,
+                reservation_usd=reservation_units / 1_000_000, cost_usd=0,
             )
             if request_profile is not None:
                 call["request_profile"] = copy.deepcopy(request_profile)
@@ -764,6 +893,8 @@ class Store:
 
     def settle(self, call_id, cost=None, usage=None, returned_model=None, response_id=None, error=None):
         with self.lock:
+            if cost is not None and (type(cost) not in (int, float) or not math.isfinite(cost) or cost < 0):
+                raise BudgetError("Settlement must be finite and nonnegative.")
             call = next((item for item in self.ledger if item["id"] == call_id), None)
             if call is None:
                 raise KeyError("Call not found")

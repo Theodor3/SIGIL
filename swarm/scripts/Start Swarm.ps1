@@ -75,6 +75,33 @@ if (-not (Test-Path -LiteralPath $swarmPython)) {
     throw 'The SIGIL Python environment is missing. Ask Codex to restore the dashboard environment.'
 }
 
+# Opt-in startup access. Only existing provider keys enter the child process;
+# values are never persisted by this launcher or placed in command arguments.
+function Get-SwarmStartupEnvironment {
+    $enabled = [Environment]::GetEnvironmentVariable('SIGIL_SWARM_ALLOW_ENV_KEYS', 'Process')
+    if (-not $enabled) { $enabled = [Environment]::GetEnvironmentVariable('SIGIL_SWARM_ALLOW_ENV_KEYS', 'User') }
+    if ($enabled -ne '1') { return @{} }
+    $source = [Environment]::GetEnvironmentVariable('SIGIL_SWARM_ENV_FILE', 'Process')
+    if (-not $source) { $source = [Environment]::GetEnvironmentVariable('SIGIL_SWARM_ENV_FILE', 'User') }
+    $keys = @{ SIGIL_SWARM_ALLOW_ENV_KEYS = '1' }
+    if ($source) {
+        if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw 'The configured provider-key source is unavailable; no restart performed.' }
+        foreach ($line in [IO.File]::ReadLines($source)) {
+            if ($line -match '^\s*(?:export\s+)?(OPENAI_API_KEY|GEMINI_API_KEY)\s*=\s*(.*?)\s*$') {
+                $name = $Matches[1]
+                if ($keys.ContainsKey($name)) { throw 'Duplicate provider-key entries; no restart performed.' }
+                $value = $Matches[2].Trim().Trim('"').Trim("'")
+                if ([string]::IsNullOrWhiteSpace($value) -or $value -match '\s') { throw 'Invalid provider-key entry; values withheld. No restart performed.' }
+                $keys[$name] = $value
+            }
+        }
+        if (-not $keys.ContainsKey('OPENAI_API_KEY') -or -not $keys.ContainsKey('GEMINI_API_KEY')) { throw 'Both existing provider keys are required; no restart performed.' }
+    }
+    return $keys
+}
+$swarmStartupEnvironment = @{}
+if (-not $Status) { $swarmStartupEnvironment = Get-SwarmStartupEnvironment }
+
 $swarmHealth = Get-SwarmHealth
 if ($swarmHealth) {
     Assert-SwarmIdentity $swarmHealth
@@ -124,7 +151,20 @@ $stdoutLog = Join-Path $swarmRuntime 'server.out.log'
 $stderrLog = Join-Path $swarmRuntime 'server.err.log'
 Rotate-SwarmLog $stdoutLog
 Rotate-SwarmLog $stderrLog
-$swarmProcess = Start-Process -FilePath $swarmPython -ArgumentList '-m','swarm.server','--port','8765','--data-dir',$swarmRuntime -WorkingDirectory $swarmCheckout -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
+$swarmPreviousProcessEnvironment = @{}
+try {
+    foreach ($name in $swarmStartupEnvironment.Keys) {
+        $swarmPreviousProcessEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+        [Environment]::SetEnvironmentVariable($name, [string]$swarmStartupEnvironment[$name], 'Process')
+    }
+    $swarmProcess = Start-Process -FilePath $swarmPython -ArgumentList '-m','swarm.server','--port','8765','--data-dir',$swarmRuntime -WorkingDirectory $swarmCheckout -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
+} finally {
+    foreach ($name in $swarmPreviousProcessEnvironment.Keys) {
+        [Environment]::SetEnvironmentVariable($name, $swarmPreviousProcessEnvironment[$name], 'Process')
+    }
+    $swarmStartupEnvironment.Clear()
+    $swarmPreviousProcessEnvironment.Clear()
+}
 $processRecord = [ordered]@{
     pid = $swarmProcess.Id
     started_at = [DateTimeOffset]::UtcNow.ToString('o')
@@ -153,4 +193,4 @@ if (-not $swarmHealth) {
 
 Write-Output "SIGIL Swarm is ready at $swarmUrl"
 Write-Output ("Version {0} - Studio commit {1}" -f $swarmHealth.version, ([string]$swarmHealth.studio_commit).Substring(0, 10))
-Write-Output 'Pasted API keys stay in this server session. Starting or restarting never starts a paid mission.'
+Write-Output 'Provider startup access follows the explicit environment opt-in. Starting or restarting never starts a paid mission.'

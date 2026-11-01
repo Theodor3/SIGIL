@@ -11,6 +11,21 @@ from .models import Report
 def response_schema(schema, prompt, *, provider=None):
     result = schema.model_json_schema()
     if not issubclass(schema, Report):
+        if provider == 'openai':
+            # Runtime defaults support old records; strict wire outputs must
+            # explicitly choose every field, including assignment complexity.
+            def strict_objects(node):
+                if isinstance(node, dict):
+                    node.pop('default', None)
+                    if 'properties' in node:
+                        node['required'] = list(node['properties'])
+                        node['additionalProperties'] = False
+                    for value in node.values():
+                        strict_objects(value)
+                elif isinstance(node, list):
+                    for value in node:
+                        strict_objects(value)
+            strict_objects(result)
         return result
     try:
         context = json.loads(prompt)

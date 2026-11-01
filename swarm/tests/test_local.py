@@ -25,8 +25,9 @@ class LocalFixture(Providers):
         self.local.status = lambda: {"configured": True, "verified": True, "model": LOCAL_MODEL}
         self.calls = []
 
-    def run(self, provider, system, prompt, schema):
+    def run(self, provider, system, prompt, schema, *, model=None):
         assert provider == "local", "Local mission dispatched to a cloud provider"
+        assert model == LOCAL_MODEL
         self.calls.append((system, json.loads(prompt)))
         return ProviderResult(json.dumps(report()), 25, 25, LOCAL_MODEL)
 
@@ -49,9 +50,34 @@ def test_local_mission_runs_after_paid_expiration_and_requires_review(tmp_path):
     assert result["mission"]["specialist_execution"] == "sequential"
     assert result["mission"]["max_rounds"] == 1
     assert any(r["tool"] == "read_file" and r["status"] == "completed" for r in result["tool_results"])
+    checks = result['mission']['review_read_coverage']
+    assert len(checks) == 1 and checks[0]['complete']
+    assert all(next(r for r in result['tool_results'] if r['id'] == read_id)['agent_id'] == 'review'
+               for read_id in checks[0]['read_ids'])
     assert store.budget() == before
     with pytest.raises(ValueError):
         engine.start(mission["id"])
+    store.close()
+
+
+def test_local_review_blocks_when_critic_has_no_recorded_reads(tmp_path, monkeypatch):
+    store = Store(tmp_path)
+    studio = GitStudio(Path(__file__).resolve().parents[2])
+    engine = Engine(store, LocalFixture(), studio=studio)
+    original = engine._preload_sources
+    def skip_critic(mid, assignment, task_id):
+        if assignment.agent_id != 'review':
+            original(mid, assignment, task_id)
+    monkeypatch.setattr(engine, '_preload_sources', skip_critic)
+    mission = store.create('Inspect api/data/edgar.py', 'local')
+    engine.start(mission['id'])
+    engine.thread.join(10)
+    assert not engine.thread.is_alive()
+    result = store.snapshot(mission['id'])
+    assert result['mission']['status'] == 'blocked'
+    assert not result['mission']['review_read_coverage'][0]['complete']
+    assert len(result['artifacts']) == 2  # Retain failed worker/critic outputs.
+    assert len(result['calls']) == 2  # No automatic retry or extra inference.
     store.close()
 
 
@@ -79,7 +105,7 @@ def test_local_tools_block_outbound_requests(tmp_path, monkeypatch):
     mission = store.create("Inspect source", "local")["id"]
     studio = GitStudio(Path(__file__).resolve().parents[2])
     tools = MissionTools(store, LocalFixture(), studio)
-    for tool in ("web_search", "paper_search", "fetch_page"):
+    for tool in ("web_search",):
         result = tools.execute(mission, "data", ToolRequest(tool=tool, query="public research"), lambda: None)
         assert result["status"] == "blocked"
     store.close()

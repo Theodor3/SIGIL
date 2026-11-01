@@ -9,3 +9,8 @@ web/dist/
 *.tsbuildinfo
 .venv-swarm/
 .swarm/runtime/
+
+# Generated bounded-queue board recovery files
+.swarm/.queue-board.lock
+.swarm/.queue-board-backup-*.json
+.swarm/.queue-board-*.tmp

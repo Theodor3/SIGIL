@@ -4,6 +4,11 @@ import json
 import pytest
 
 from swarm.store import BudgetError, Store
+
+@pytest.fixture(autouse=True)
+def historical_authorization_day(monkeypatch):
+    # This suite exercises the September authorization, independent of wall clock.
+    monkeypatch.setattr("swarm.store.local_day", lambda: "2026-09-28")
 from fastapi.testclient import TestClient
 from swarm.app import create_app
 

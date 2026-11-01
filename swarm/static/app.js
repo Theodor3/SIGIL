@@ -204,9 +204,13 @@ function renderBudget() {
   meter.setAttribute("aria-valuenow", String(Math.round(usedPercent + reservedPercent)));
   meter.setAttribute("aria-valuetext", `Estimated ${money(used)} spent and ${money(reserved)} reserved of ${money(limit)}`);
   $("budget-detail").textContent = `${money(budget.remaining_today_usd)} available · ${money(reserved)} reserved`;
-  $("pilot-budget").textContent = `${money(budget.pilot_usd)} / ${money(budget.pilot_limit_usd || 7)}`;
+  $("pilot-budget").textContent = budget.allowance ? `${money(budget.allowance.used_usd)} / ${money(budget.allowance.limit_usd)}` : `${money(budget.pilot_usd)} / ${money(budget.pilot_limit_usd || 7)}`;
+  $("authorize-research-allowance").hidden = Boolean(budget.allowance);
+  $("authorize-research-allowance").disabled = Boolean(state?.active_mission_id);
+  $("allowance-history").hidden = !budget.allowance;
+  $("allowance-history").textContent = budget.allowance ? `Historical API estimate: ${money(budget.historical_spend_usd)}. New allowance remaining: ${money(budget.allowance.remaining_usd)}; no automatic refill.` : "";
   const expiration = formatDateOnly(budget.expires_on);
-  $("pilot-expiration").textContent = expiration ? `Total estimate / limit · closes ${expiration}` : "Total estimate / limit";
+  $("pilot-expiration").textContent = budget.allowance ? "New API allowance - no expiry" : (expiration ? `Total estimate / limit - closes ${expiration}` : "Total estimate / limit");
   const budgetConcern = budget.expired ? "The API authorization has expired. Paid work is paused." : budget.uncertain ? "A provider call has an uncertain final cost. Review the call ledger before more API research." : "";
   $("budget-alert").textContent = budgetConcern;
   $("budget-alert").hidden = !budgetConcern;
@@ -229,7 +233,7 @@ function renderProviders() {
     const label = $(`${id}-connection-status`);
     label.textContent = provider.verified ? "Access verified" : provider.configured ? "Configured · unverified" : "Not connected";
     label.className = `pill ${provider.verified ? "verified" : "neutral"}`;
-    $(`${id}-model`).textContent = provider.model ? `Configured model: ${provider.model}` : "Model has not been configured.";
+    $(`${id}-model`).textContent = provider.configured_models?.length ? `Configured models: ${provider.configured_models.join(" / ")}` : provider.model ? `Configured model: ${provider.model}` : "Model has not been configured.";
     document.querySelector(`[data-provider="${id}"]`).hidden = !provider.configured;
     $(`${id}-key`).placeholder = provider.configured ? "Enter a key only to replace it" : "Paste key for this session";
   }
@@ -264,7 +268,7 @@ function renderCompanyStatus() {
   statusCard.className = `company-status ${tone}`;
   $("company-status-kicker").textContent = attention ? `COMPANY STATUS · ${attention} NEED${attention === 1 ? "" : "S"} ATTENTION` : "COMPANY STATUS";
   const cadence = Number(runtime.cadence_minutes || 60);
-  $("company-cadence").textContent = runtime.scheduler_enabled === false ? "Supervised runs are paused" : `Supervised every ${cadence === 60 ? "hour" : `${cadence} minutes`}`;
+  $("company-cadence").textContent = runtime.queue?.enabled ? `Bounded queue: ${runtime.queue.state}` : "Manual runs / bounded queue available";
   $("company-last-run").textContent = runtime.last_mission_at ? `Last mission ${formatDate(runtime.last_mission_at)}` : "No mission activity yet";
   $("company-key-policy").textContent = runtime.credentials_persist ? "Provider keys available" : "Keys reset with the local server";
 
@@ -283,7 +287,7 @@ function renderCompanyStatus() {
 function renderModeNote() {
   const local = $("local-mode-input").checked;
   $("local-role").disabled = !local;
-  $("new-mission-input").maxLength = local ? 2000 : 6000;
+  $("new-mission-input").maxLength = 6000;
   if (local) {
     $("mission-mode-note").textContent = localAvailable() ? "One local worker, then a separate-context critique with the same model. Results wait for coordinator review. No paid calls or automatic edits." : "Local worker unavailable: load sigil-local and start the LM Studio server on localhost port 1234. Finish any active mission first.";
     return;
@@ -372,7 +376,7 @@ function renderMissions() {
     const content = element("div", "mission-list-content");
     content.append(element("h3", "", mission.title || "Untitled mission"), element("p", "", `${formatDate(mission.updated_at)} · Round ${mission.round || 0} of ${mission.max_rounds || 5} · ${mission.mode === "demo" ? "No API spending" : `${estimatedMoney(mission.spent_usd)} estimated model cost`}`));
     const meta = element("div", "mission-list-meta");
-    meta.append(element("span", `pill ${mission.mode === "demo" ? "sample" : "live"}`, mission.mode === "demo" ? "Sample" : mission.mode === "local" ? "Local" : "API"), missionStatusPill(mission), icon("arrow"));
+    meta.append(element("span", `pill ${mission.mode === "demo" ? "sample" : "live"}`, mission.mode === "subscription" ? "Pro quota" : mission.mode === "demo" ? "Sample" : mission.mode === "local" ? "Local" : "API"), missionStatusPill(mission), icon("arrow"));
     button.append(graphic, content, meta);
     return button;
   });
@@ -386,11 +390,11 @@ function renderMissionHeader() {
   const roundLimit = hasMission && !isRunning(mission) && Number(mission.round || 0) >= Number(mission.max_rounds || 5);
   $("conversation-heading").textContent = mission?.title || "Give good ideas a place to grow.";
   $("mission-eyebrow").textContent = hasMission ? "THE SHARED CONVERSATION" : "YOUR NEXT QUESTION STARTS HERE";
-  $("mission-mode").textContent = mission?.mode === "local" ? "Local worker" : mission?.mode === "live" ? "API research" : "Sample mode";
+  $("mission-mode").textContent = mission?.mode === "subscription" ? "Claude Pro quota" : mission?.mode === "local" ? "Local worker" : mission?.mode === "live" ? "API research" : "Sample mode";
   $("mission-mode").className = `pill ${mission?.mode === "live" ? "live" : "sample"}`;
   $("sample-banner").hidden = mission?.mode !== "demo";
   $("mission-toolbar").hidden = !hasMission;
-  const canCompose = hasMission && mission.mode !== "local" && !busy && !roundLimit;
+  const canCompose = hasMission && !["local", "subscription"].includes(mission.mode) && !busy && !roundLimit;
   $("message-input").disabled = !canCompose;
   $("recipient-select").disabled = !canCompose;
   $("send-message").disabled = !canCompose || !$("message-input").value.trim();
@@ -400,10 +404,10 @@ function renderMissionHeader() {
     $("mission-status").textContent = mission.review_resolution ? `${statuses[mission.status] || mission.status} · Review recorded: ${mission.review_resolution.disposition}` : statuses[mission.status] || "Unknown status";
     $("mission-status").className = `status-pill ${Object.hasOwn(statuses, mission.status) ? mission.status : "ready"}`;
     $("mission-round").textContent = `Round ${mission.round || 0} of ${mission.max_rounds || 5}`;
-    $("mission-cost").textContent = `Est. ${estimatedMoney(mission.spent_usd)}`;
+    $("mission-cost").textContent = mission.mode === "subscription" ? "Subscription quota · remaining unknown" : `Est. ${estimatedMoney(mission.spent_usd)}`;
     $("stop-mission").hidden = !isRunning(mission);
     $("stop-mission").disabled = busy || mission.status === "stopping";
-    $("resume-mission").hidden = isRunning(mission) || ["completed", "needs_review", "blocked"].includes(mission.status) || roundLimit;
+    $("resume-mission").hidden = mission.mode === "subscription" || isRunning(mission) || ["completed", "needs_review", "blocked"].includes(mission.status) || roundLimit;
     $("resume-mission").disabled = busy || (mission.mode === "live" && !liveAvailable());
     $("export-mission").href = `/api/missions/${encodeURIComponent(mission.id)}/export`;
     $("export-mission").setAttribute("download", "");
@@ -861,7 +865,8 @@ function performMissionAction() {
 }
 
 async function createAndRun(prompt, mode) {
-  const mission = await post("/api/missions", { prompt, mode, local_role: $("local-role").value });
+  const mission = await post("/api/missions", { prompt, mode, local_role: $("local-role").value, max_cost_usd: 2 });
+  if (mode === "live" && mission.max_cost_usd !== 2) throw new Error("The saved mission cap was not verified; no run was started.");
   selectedMissionId = mission.id;
   detail = { mission, messages: [], tasks: [], artifacts: [], calls: [] };
   selectedDetailSignature = "";
@@ -1144,4 +1149,15 @@ $("review-resolution-form").addEventListener("submit", async event => {
     toast("Administrative review saved. Execution history preserved.");
   } catch(error) { showError(error, "resolution-error"); }
   finally { busy = false; $("save-resolution").disabled = false; }
+});
+
+$("authorize-research-allowance").addEventListener("click", async () => {
+  if (busy) return;
+  busy = true;
+  try {
+    await api("/api/budget/authorize-research-allowance", {method:"POST", body:"{}"});
+    await refresh();
+    toast("Approved $20 new allowance active; no expiry, no automatic refill. No mission started.");
+  } catch (error) { toast(error.message || "Allowance activation failed."); }
+  finally { busy = false; }
 });

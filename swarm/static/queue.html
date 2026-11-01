@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#202720">
+  <title>SIGIL - Mission queue</title>
+  <link rel="stylesheet" href="/static/queue.css">
+  <script src="/static/queue.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#queue-main">Skip to mission queue</a>
+  <main id="queue-main">
+    <header class="page-header">
+      <div><a class="back-link" href="/">Back to swarm workspace</a><p class="kicker">SIGIL / SUPERVISED WORK</p><h1>Mission queue<span>.</span></h1><p>Prepare focused work, select its order, and run a finite session.</p></div>
+      <a class="quiet-link" href="/static/usage.html">Usage &amp; costs</a>
+    </header>
+
+    <section class="session-card" aria-labelledby="session-heading">
+      <div class="section-top"><div><p class="kicker">CURRENT SESSION</p><h2 id="session-heading">Loading status</h2></div><span id="session-badge" class="badge">Unknown</span></div>
+      <p id="session-reason">Reading existing local status. No work has been started.</p>
+      <dl class="facts"><div><dt>Session provider</dt><dd id="session-provider">None</dd></div><div><dt>Stops by</dt><dd id="session-deadline">—</dd></div><div><dt>Owned mission</dt><dd id="session-owned">None</dd></div><div><dt>Dispatched / selected</dt><dd id="session-progress">—</dd></div><div><dt>API allowance remaining</dt><dd id="budget-remaining">Unknown</dd></div></dl>
+      <p id="budget-note" class="small">Controller estimate only. This page cannot verify account billing or credits.</p>
+      <div class="status-actions"><button id="refresh" class="secondary" type="button">Refresh status</button><button id="stop-session" class="danger" type="button" disabled>Stop this session</button><span id="freshness" class="small" role="status">No snapshot loaded</span></div>
+      <p class="small">Stop prevents further dispatch and stops only this session’s active mission. A call already sent may finish. Sessions do not resume after a server restart.</p>
+    </section>
+
+    <div id="page-error" class="notice error" role="alert" hidden></div>
+    <div id="action-result" class="notice" role="status" hidden></div>
+
+    <div class="workspace-grid">
+      <section class="queue-panel" aria-labelledby="ready-heading">
+        <div class="section-top"><div><p class="kicker">EXPLICIT READY WORK</p><h2 id="ready-heading">Choose up to three missions</h2></div><span id="ready-count" class="badge">0 ready</span></div>
+        <p class="small">Only ready missions linked to ready board tasks can run. Completed or failed work is never replayed.</p>
+        <form id="session-form">
+          <fieldset class="mode-field"><legend>Session provider</legend><label><input type="radio" name="session-mode" value="local" checked> Local model</label><label><input type="radio" name="session-mode" value="live"> API providers</label></fieldset>
+          <p id="mode-note" class="small">Local inference uses no model API fee. No paid fallback.</p>
+          <div id="queue-reasons" class="notice" hidden></div>
+          <div id="mission-list" class="mission-list"><p class="empty">Loading ready missions…</p></div>
+          <div class="selection-strip"><strong id="selection-label">Selected order</strong><ol id="selection-order"><li>No missions selected</li></ol></div>
+          <div class="field-pair"><label>Session limit <span class="unit">minutes</span><input id="session-minutes" type="number" min="1" max="60" step="1" value="30" required></label><label>Minimum interval <span class="unit">minutes</span><input id="cadence-minutes" type="number" min="1" max="60" step="1" value="5" required></label></div>
+          <label id="paid-confirmation-row" class="check-row paid-row" hidden><input id="paid-confirmed" type="checkbox"><span>I explicitly choose API calls within the existing allowance. Budget settings stay unchanged.</span></label>
+          <p class="small">Each mission keeps its existing 20-minute bound. The session ends within 60 minutes or after its selected work. External review is required before the next mission; no tasks are invented or refilled.</p>
+          <button id="start-session" type="submit" disabled>Start bounded session</button>
+        </form>
+      </section>
+
+      <aside class="prepare-panel">
+        <section aria-labelledby="prepare-heading">
+          <p class="kicker">ADD ONE FOCUSED TASK</p><h2 id="prepare-heading">Prepare a mission</h2><p class="small">Preparing records an explicit ready board task and mission. It does not start a worker.</p>
+          <form id="prepare-form">
+            <label for="prepare-prompt">Assignment and acceptance criteria</label><textarea id="prepare-prompt" maxlength="6000" rows="7" required placeholder="Name the source, the exact question, and what would count as a useful result."></textarea>
+            <div class="field-pair"><label>Provider<select id="prepare-mode"><option value="local">Local model</option><option value="live">API providers</option></select></label><label>Local role<select id="prepare-role"><option value="data">Data inspection</option><option value="engineering">Engineering</option><option value="quant">Quantitative analysis</option><option value="product-ops">Documentation / operations</option></select></label></div>
+            <label id="mission-cap-row" hidden>Mission API cap <span class="unit">USD estimate</span><input id="mission-cap" type="number" min="0.01" max="20" step="0.01" value="2.00"></label>
+            <label class="check-row"><input id="requires-tests" type="checkbox"><span>Require isolated test capability before dispatch</span></label>
+            <p class="small">For coding, name the exact test target in the assignment. This checkbox checks container availability; it does not invent tests or accept a draft.</p>
+            <button id="prepare-mission" type="submit" class="secondary">Prepare only</button>
+          </form>
+        </section>
+        <section class="board-panel" aria-labelledby="board-heading"><p class="kicker">CANONICAL BOARD</p><h2 id="board-heading">Why work is waiting</h2><div id="board-counts" class="board-counts"></div><p id="board-note" class="small">Loading board inventory…</p><ul id="blocked-list" class="blocked-list"></ul></section>
+      </aside>
+    </div>
+    <footer>Runs are opt-in and finite. No OS autostart, background refill, provider switching, automatic acceptance, deployment, or trading. Refresh and polling use read-only requests.</footer>
+  </main>
+</body>
+</html>

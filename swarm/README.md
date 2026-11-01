@@ -4,7 +4,7 @@
 
 The owner renewed paid development with a $100 total ceiling. The one-time `POST /api/budget/authorize-development` action records this authorization and retains every prior call and charge. Historical usage counts toward the ceiling; a $20 daily throttle and October 28 expiry further bound work. Repeating this action never resets usage or extends the expiry. These are application estimates, not account-wide provider billing limits.
 
-Docker Desktop now runs the trusted `sigil-swarm-tests:pilot` image. A real Studio test passed under the worker restrictions: non-root identity, read-only root, no API-key environment variables, no host/socket mount, and no outbound connection. See `.swarm/reports/2026-09-28-container-probe.json`. The image includes Python, pytest and httpx for the EDGAR unit tests; other dependencies require deliberate image maintenance.
+Docker execution uses the deliberately audited local image ID pinned in `swarm/studio.py`. The runner remains non-root, without host/socket mounts or network, with a read-only root and resource bounds. Read the isolated-test section before restoring or replacing the image. Capability is checked on this machine; historical verification is not a guarantee of current availability.
 
 The paid coordinator already delegates bounded assignments to at most two specialist roles plus a reviewer. It cannot create unlimited recursive workers. The paused local heartbeat is not a paid scheduler; paid jobs are currently supervised. Bionic integration remains unverified.
 
@@ -12,11 +12,11 @@ The paid coordinator already delegates bounded assignments to at most two specia
 
 Local worker mode runs one selected data, engineering, quant, or operations role on this PC, followed by a separate-context critique using the same model. It ends in `needs_review`; a human or Codex coordinator must assess the evidence. Drafts are never applied automatically. This is a separate mode from the expired paid pilot documented below.
 
-Start the existing runtime with `lms server start --bind 127.0.0.1 --port 1234`, then load the downloaded model with `lms load google/gemma-4-26b-a4b-qat --context-length 32768 --parallel 1 --identifier sigil-local --yes`. Start the dashboard with the checked launcher. Choose **Local worker**, select a role, and submit an assignment of at most 2,000 characters. State the exact source files and acceptance criteria.
+Start the existing runtime with `lms server start --bind 127.0.0.1 --port 1234`, then load the downloaded model with `lms load google/gemma-4-26b-a4b-qat --context-length 32768 --parallel 1 --identifier sigil-local --yes`. Start the dashboard with the checked launcher. Choose **Local worker**, select a role, and submit an assignment of at most 6,000 characters. State the exact source files and acceptance criteria.
 
-Only the localhost endpoint is used; proxy inheritance, redirects, cloud fallback and automatic retries are disabled. Each mission is limited to one specialist plus critique, two tool rounds per role, twelve recorded calls, and twenty minutes. Public search/page retrieval is disabled in local missions. The paid budget, expiration and ledger remain intact. Zero API cost excludes electricity. Model identity, usage, tool records and report provenance are retained in the same store.
+Only the localhost endpoint is used; proxy inheritance, redirects, cloud fallback and automatic retries are disabled. Each mission is limited to one specialist plus critique, two tool rounds per role, twelve recorded calls, and twenty minutes. Local missions can use free Crossref paper search (four attempts) and approved public HTTPS page retrieval (six attempts), including STB and CSX. Paid general web search remains disabled. After private source access, outbound research is blocked; page text is untrusted evidence, not instructions. Reports retain fetched URLs, timestamps and hashes and require external review. The paid budget, expiration and ledger remain intact. Zero API cost excludes electricity. Model identity, usage, tool records and report provenance are retained in the same store.
 
-The dashboard itself does not schedule work. A separate coordinator may process explicit ready board items after a successful real local test. Closing the server or sleeping the computer stops availability; interrupted missions are preserved and never automatically replayed. Bionic can use local models interactively, but this integration dispatches through LM Studio's API rather than automating Bionic chats.
+The dashboard offers explicitly started finite queue sessions over one to three ready missions. Sessions remain off after every restart and wait for external review between missions. See [QUEUE.md](QUEUE.md); no work is created or refilled automatically. Closing the server or sleeping the computer stops availability; interrupted missions are preserved and never automatically replayed. Bionic can use local models interactively, but this integration dispatches through LM Studio's API rather than automating Bionic chats.
 
 Historical pilot notes below describe the earlier cloud run, including its old scheduler and spending snapshot; `.swarm/company.json` and the runtime ledger contain the later pilot closure.
 
@@ -57,13 +57,18 @@ Snapshots are fixed when the service starts. Commit reviewed changes and restart
 
 Tests use a pinned local image ID, no network or host mounts, a read-only root filesystem, a non-root user, dropped capabilities, and bounded resources, output and time. Sanitized source and draft text enter through standard input. There is no unrestricted shell, broker or deployment tool. A branch alone is not execution isolation.
 
-Docker was unavailable during installation. Windows denied starting its service, so actual agent code execution is blocked. Read/search/draft/syntax work independently. Once the owner starts Docker Desktop with Linux containers, prepare the trusted image from this checkout:
+Start Docker Desktop with Linux containers and inspect the exact `TEST_IMAGE` ID from `swarm/studio.py`. The runtime never builds or pulls automatically. A missing image keeps Python execution unavailable; do not substitute host execution.
+
+For a deliberate image-maintenance change, build a candidate from the pinned recipe, inspect its resulting immutable local ID and review the dependency set:
 
 ```powershell
-docker --context desktop-linux build -f swarm/Dockerfile.tests -t sigil-swarm-tests:pilot .
+docker --context desktop-linux build -f swarm/Dockerfile.tests -t sigil-swarm-tests:candidate .
+docker --context desktop-linux image inspect sigil-swarm-tests:candidate --format '{{.Id}}'
 ```
 
-The image installs only Python and pytest. Tests needing other dependencies fail explicitly. Agents cannot install packages or access live services. The runner never builds/pulls images automatically; it checks local image availability when requested. Container behavior has mock-based tests; an actual run still needs verification once Docker is available.
+A rebuilt tag normally has a different local image ID. It does not automatically satisfy the existing pin. After the candidate image and dependencies are reviewed, update `TEST_IMAGE` to that exact inspected ID in a reviewed source change and run the isolated runner tests plus a real restricted-container probe. Record the source commit, image ID, results and restrictions before accepting the replacement. Do not weaken isolation or silently switch to a mutable tag. To keep the existing pin, transfer the identical audited image through an approved artifact workflow; a source rebuild alone is not guaranteed to reproduce its local ID.
+
+The recipe declares the available test dependencies. Missing dependencies fail explicitly and require deliberate image maintenance. Agents cannot install packages or access live services. Tests and supplied packets use synthetic fixtures; passing them does not establish a trading signal or historical data availability.
 
 ## Budget and persistence
 
@@ -90,3 +95,10 @@ The September 5 S006 cycle exposed missing read evidence and an unenforced prose
 Gemini workers now request gemini-3.1-pro-preview with low thinking and an 8192-token generation limit. Reservations retain the full 65536-token output allowance. Standard text rates are $2/M input and $12/M output including thinking, for prompts below 200k tokens; the controller input bound remains below that tier. Source: https://ai.google.dev/gemini-api/docs/pricing (checked September 29). Historical ledger costs are retained.
 
 Small changes can use `draft_edit` with one exact, unique source fragment. Coding missions can require Docker readiness with `requires_tests`. After a safe restart, `python -m swarm.connect_session --env-file <owner-env-file>` connects only the two provider keys to the verified, idle loopback dashboard without logging or copying them. Unattended dispatch remains paused pending successful coding acceptance.
+
+
+## Current finite authorization controls
+
+[CLAUDE-WINDOWS.md](CLAUDE-WINDOWS.md) documents read-only auth diagnostics and explicit per-run launch/stop timestamps. Login does not prove billing settings or renew a generation window. Subscription receipts stay separate from API-dollar estimates.
+
+The owner-approved research allowance is an idempotent $20 new-usage authorization with no automatic refill; activation retains historical spend, reservations and the existing daily throttle. New API missions default to a $2 estimate cap, which counts held and settled calls from both providers. Local remains the default queue mode and cannot fall back to paid providers. Role/complexity routing and the selected model/rate are recorded on each API call. Starting the server or preparing a mission does not dispatch a paid call.

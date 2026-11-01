@@ -32,7 +32,7 @@ class FakeProviders(Providers):
         self.peer_request = peer_request
         self.hook = None
 
-    def reservation(self, provider, system, prompt, schema):
+    def reservation(self, provider, system, prompt, schema, *, model=None):
         # Protocol fixtures use bounded synthetic token counts; use a small reserve
         # so worker concurrency tests do not depend on production model prices.
         return 0.05
@@ -40,7 +40,7 @@ class FakeProviders(Providers):
     def check_gemini_model(self):
         pass
 
-    def run(self, provider, system, prompt, schema):
+    def run(self, provider, system, prompt, schema, *, model=None):
         context = json.loads(prompt)
         agent = next(a["id"] for a in AGENT_MAP.values() if "Your role: " + a["role"] in system)
         with self.lock:
@@ -63,7 +63,7 @@ class FakeProviders(Providers):
         else:
             payload = {"message": "Fixture review; no real signal was tested.", "outcome": "ready_for_user", "assignments": []}
         return ProviderResult(json.dumps(payload), 100, 100,
-                              OPENAI_MODEL if provider == "openai" else GEMINI_MODEL, "fixture-response")
+                              model or (OPENAI_MODEL if provider == "openai" else GEMINI_MODEL), "fixture-response")
 
 
 def join(engine):
@@ -150,8 +150,8 @@ def test_peer_question_reaches_the_addressed_worker(store):
 
 def test_controller_enforces_two_specialist_membership(store):
     class OverstaffedPlan(FakeProviders):
-        def run(self, provider, system, prompt, schema):
-            result = super().run(provider, system, prompt, schema)
+        def run(self, provider, system, prompt, schema, *, model=None):
+            result = super().run(provider, system, prompt, schema, model=model)
             if schema is Plan:
                 payload = {
                     "message": "Use every role",
@@ -177,8 +177,8 @@ def test_controller_enforces_two_specialist_membership(store):
 
 def test_structured_revision_limit_prevents_an_extra_batch(store):
     class AlwaysRevise(FakeProviders):
-        def run(self, provider, system, prompt, schema):
-            result = super().run(provider, system, prompt, schema)
+        def run(self, provider, system, prompt, schema, *, model=None):
+            result = super().run(provider, system, prompt, schema, model=model)
             if schema is Verdict:
                 result.text = json.dumps({
                     "message": "One more revision would help.",
@@ -207,8 +207,8 @@ def test_sequential_specialists_receive_prior_peer_handoff(store):
     observed = []
 
     class SequentialHandoff(FakeProviders):
-        def run(self, provider, system, prompt, schema):
-            result = super().run(provider, system, prompt, schema)
+        def run(self, provider, system, prompt, schema, *, model=None):
+            result = super().run(provider, system, prompt, schema, model=model)
             context = json.loads(prompt)
             agent = next(a["id"] for a in AGENT_MAP.values() if "Your role: " + a["role"] in system)
             if schema is Plan:
@@ -269,8 +269,8 @@ def test_api_validates_structured_mission_controls(tmp_path):
 
 def test_out_of_scope_peer_request_forces_review_instead_of_disappearing(store):
     class OutOfScopeRequest(FakeProviders):
-        def run(self, provider, system, prompt, schema):
-            result = super().run(provider, system, prompt, schema)
+        def run(self, provider, system, prompt, schema, *, model=None):
+            result = super().run(provider, system, prompt, schema, model=model)
             context = json.loads(prompt)
             if schema is Report and "Define the idea" in context["your_task"]:
                 payload = json.loads(result.text)
@@ -521,8 +521,8 @@ def test_initial_reviewer_does_not_preload_specialist_conclusions(store):
     leaked = []
 
     class ReviewerIsolation(FakeProviders):
-        def run(self, provider, system, prompt, schema):
-            result = super().run(provider, system, prompt, schema)
+        def run(self, provider, system, prompt, schema, *, model=None):
+            result = super().run(provider, system, prompt, schema, model=model)
             context = json.loads(prompt)
             agent = next(a["id"] for a in AGENT_MAP.values() if "Your role: " + a["role"] in system)
             if schema is Report and agent == "review" and not context["relevant_artifacts"]:
@@ -703,7 +703,7 @@ def test_legacy_page_request_is_blocked_after_project_source_access(store, monke
 
 def test_unexpected_model_retains_billing_reservation(store):
     providers = FakeProviders()
-    providers.run = lambda *args: ProviderResult('{"message":"x","assignments":[]}', 100, 100, "unexpected-expensive-model", "response-42")
+    providers.run = lambda *args, **kwargs: ProviderResult('{"message":"x","assignments":[]}', 100, 100, "unexpected-expensive-model", "response-42")
     mid = store.create("A mission", "live")["id"]
     with pytest.raises(ProviderFailure, match="different"):
         Engine(store, providers)._call(mid, "coordinator", "Plan", Plan)
@@ -716,7 +716,7 @@ def test_unexpected_model_retains_billing_reservation(store):
 
 def test_invalid_json_still_records_provider_usage(store):
     providers = FakeProviders()
-    providers.run = lambda *args: ProviderResult("truncated", 100, 100, OPENAI_MODEL)
+    providers.run = lambda *args, **kwargs: ProviderResult("truncated", 100, 100, OPENAI_MODEL)
     mid = store.create("A mission", "live")["id"]
     with pytest.raises(ValueError, match="incomplete"):
         Engine(store, providers)._call(mid, "coordinator", "Plan", Plan)
@@ -726,7 +726,7 @@ def test_invalid_json_still_records_provider_usage(store):
 
 def test_output_limit_is_reported_after_usage_is_settled(store):
     providers = FakeProviders()
-    providers.run = lambda *args: ProviderResult('{', 100, 2400, GEMINI_MODEL, finish_reason='MAX_TOKENS')
+    providers.run = lambda *args, **kwargs: ProviderResult('{', 100, 2400, GEMINI_MODEL, finish_reason='MAX_TOKENS')
     mid = store.create('Synthetic output limit', 'live')['id']
     with pytest.raises(ValueError, match='output limit'):
         Engine(store, providers)._call(mid, 'engineering', 'Draft', Report)
@@ -738,7 +738,7 @@ def test_output_limit_is_reported_after_usage_is_settled(store):
 def test_provider_failure_stops_without_retry(store):
     providers = FakeProviders()
     attempts = []
-    def fail(*args):
+    def fail(*args, **kwargs):
         attempts.append(1)
         raise ProviderFailure("Network result unknown")
     providers.run = fail
@@ -790,15 +790,21 @@ def test_terminal_live_mission_cannot_be_replayed(store):
 
 
 def test_mission_deadline_stops_further_dispatch(store, monkeypatch):
-    monkeypatch.setattr("swarm.engine.MAX_MISSION_SECONDS", 0)
+    monkeypatch.setattr("swarm.engine.MAX_MISSION_SECONDS", 1)
     providers = FakeProviders()
     mid = store.create("Bound unattended work", "live")["id"]
     engine = Engine(store, providers)
+    run = engine._run
+    def expire_before_dispatch(identity):
+        # A valid positive session expires before its first provider dispatch.
+        engine.deadline -= 2
+        run(identity)
+    engine._run = expire_before_dispatch
     engine.start(mid)
     join(engine)
     mission = store.snapshot(mid)["mission"]
     assert mission["status"] == "needs_review"
-    assert mission["max_runtime_minutes"] == 0
+    assert mission["max_runtime_minutes"] == 1 / 60
     assert providers.calls == []
     assert engine.deadline is None
 

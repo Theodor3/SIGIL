@@ -15,8 +15,10 @@ from . import __version__
 from .engine import Engine
 from .experiments import read_experiments
 from .models import AGENTS, Disconnect, LocalReview, NewMission, ProviderKeys, UserMessage
-from .models import ReviewResolution
+from .models import SubscriptionMission, SubscriptionRun, QueueSession, QueuePrepare
+from .models import ReviewResolution, ResearchAllowanceAuthorization
 from .review_status import review_flags
+from .queue import BoundedQueue
 from .providers import Providers
 from .store import Store, now
 from .studio import GitStudio
@@ -24,16 +26,19 @@ from .studio import GitStudio
 ROOT = Path(__file__).resolve().parent
 
 
-def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
+def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None, subscription_adapter=None, queue_root=None):
     store = Store(Path(data_dir or os.environ.get("SIGIL_SWARM_DATA_DIR", ROOT.parent / ".swarm" / "runtime")))
     provider_manager = providers or Providers()
     studio = studio or GitStudio(ROOT.parent)
-    engine = Engine(store, provider_manager, demo_delay=demo_delay, studio=studio)
+    engine = Engine(store, provider_manager, demo_delay=demo_delay, studio=studio,
+                    subscription_adapter=subscription_adapter)
+    queue = BoundedQueue(engine, store, Path(queue_root or ROOT.parent))
     started_at = now()
 
     @asynccontextmanager
     async def lifespan(app):
         yield
+        queue.shutdown()
         stopped = engine.shutdown()
         if stopped:
             for provider in ("gemini", "openai"):
@@ -44,6 +49,7 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
     app.state.store = store
     app.state.engine = engine
     app.state.providers = provider_manager
+    app.state.queue = queue
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "testserver"])
 
     @app.middleware("http")
@@ -109,6 +115,7 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
         elif min(budget["remaining_today_usd"], budget["remaining_pilot_usd"]) <= 0:
             blockers.append({"code": "budget_exhausted", "message": "The current API allowance is exhausted.", "action": "review_budget"})
 
+        queue_status = queue.status()
         warnings = []
         unverified = [name for name, value in providers_status.items() if value["configured"] and not value["verified"]]
         if unverified:
@@ -137,8 +144,15 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
         return {
             "status": status, "label": label, "can_start_live": not blockers,
             "can_start_local": not active_id and manifest.get("is_current", True) and provider_manager.local.status()["configured"],
+            "can_start_subscription": False,
+            "subscription": {**engine.subscription_adapter.status(),
+                "dispatch": "Explicit per-mission run confirmation required; no automatic dispatch",
+                "max_window_minutes": 30,
+                "authorization": "Supply explicit future per-mission launch/stop bounds; existing owner-confirmed credits-off assertion is reaffirmed at dispatch."},
             "blockers": blockers, "warnings": warnings,
-            "scheduler_enabled": False, "scheduler_mode": "manual",
+            "scheduler_enabled": queue_status["enabled"],
+            "scheduler_mode": "bounded_queue" if queue_status["enabled"] else "manual",
+            "queue": queue_status,
             "cadence_minutes": 1440, "max_mission_minutes": 20, "credentials_persist": False,
             "attention_count": attention_count, "review_count": review_count,
             "raw_review_count": sum(m['status'] == 'needs_review' for m in summaries),
@@ -162,14 +176,14 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
         elif status == "completed":
             result["required_action"] = "review_evidence"
         elif status == "blocked":
-            if result.get("mode") == "local":
+            if result.get("mode") in ("local", "subscription"):
                 result["required_action"] = "review_evidence"
             elif result.get("mode") == "live":
                 result["required_action"] = (runtime["blockers"][0]["action"] if runtime["blockers"] else "start_focused_followup")
             else:
                 result["required_action"] = "start_mission"
                 result["retryable"] = True
-        elif status == "stopped" and result.get("mode") in ("live", "local"):
+        elif status == "stopped" and result.get("mode") in ("live", "local", "subscription"):
             result["required_action"] = "start_focused_followup"
         else:
             result["required_action"] = "start_mission"
@@ -177,6 +191,8 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
             if result.get("mode") == "local":
                 result["retryable"] = status == "ready" and runtime["can_start_local"]
         result["evidence_status"] = "workflow_complete_unvalidated" if status == "completed" and result.get("mode") == "live" else "not_validated"
+        if result.get('mode') == 'subscription':
+            result['retryable'] = False
         if result.get('review_resolution'):
             result.update(required_action='review_evidence', retryable=False)
         return result
@@ -217,17 +233,24 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
         agents = []
         for original in AGENTS:
             agent = dict(original)
+            agent["model_selection"] = "role_default"
             use_local = (
                 active_id and active["mission"]["mode"] == "local" and agent["id"] in active.get("participants", [])
             ) or (
                 not active_id and local_status["configured"] and agent["id"] in ("data", "engineering", "quant", "product-ops", "review")
             )
-            if use_local:
+            if active_id and active['mission']['mode'] == 'subscription' and agent['id'] == 'data':
+                agent.update(provider='Claude Code (Pro subscription)', model='claude-sonnet-4-6', status='working')
+            elif use_local:
                 agent.update(provider="LM Studio (local)", model=local_status["model"])
                 if agent["id"] == "review":
                     agent.update(name="Local critic", role="Checks the local draft; final coordinator review is still required")
                 agent["status"] = "working" if agent["id"] in busy else "ready"
             else:
+                current_call = next((c for c in reversed(active.get("calls", []))
+                                     if c.get("agent_id") == agent["id"] and c.get("status") == "reserved"), None) if active_id else None
+                if current_call:
+                    agent.update(model=current_call["model"], model_selection="active_call")
                 connection = providers_status["openai" if agent["id"] == "coordinator" else "gemini"]
                 agent["status"] = "working" if agent["id"] in busy else "offline" if not connection["configured"] else "ready" if connection["verified"] else "unverified"
             agents.append(agent)
@@ -261,6 +284,20 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
                 raise ValueError("Wait for the current mission before changing the budget.")
             return store.renew_development_budget()
 
+    @app.post("/api/budget/authorize-overnight")
+    def authorize_overnight():
+        with engine.lock:
+            if engine.active_id:
+                raise ValueError("Wait for the current mission before changing the budget.")
+            return store.authorize_overnight_budget()
+
+    @app.post("/api/budget/authorize-research-allowance")
+    def authorize_research_allowance(payload: ResearchAllowanceAuthorization):
+        with engine.lock:
+            if engine.active_id:
+                raise ValueError("Wait for the active mission before changing the allowance.")
+            return store.authorize_research_allowance()
+
     @app.post("/api/providers")
     def configure(payload: ProviderKeys):
         with engine.lock:
@@ -275,6 +312,33 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
                 raise ValueError("Stop the current mission before disconnecting a provider.")
             return provider_manager.disconnect(payload.provider)
 
+    @app.get("/queue")
+    def queue_page():
+        return FileResponse(ROOT / "static" / "queue.html")
+
+    @app.get("/api/queue")
+    def queue_state():
+        inventory = queue.inventory()
+        if not inventory.get("missions"):
+            inventory.setdefault("reasons", []).append(
+                "No prepared ready missions. Prepare one focused task; nothing is created or dispatched automatically.")
+        return {"session": queue.status(), "inventory": inventory, "budget": store.budget()}
+
+    @app.post("/api/queue/prepare")
+    def queue_prepare(payload: QueuePrepare):
+        return queue.prepare(payload.model_dump())
+
+    @app.post("/api/queue/start")
+    def queue_start(payload: QueueSession):
+        return queue.start(payload.mission_ids, mode=payload.mode,
+                           duration_minutes=payload.duration_minutes,
+                           cadence_minutes=payload.cadence_minutes,
+                           paid_confirmed=payload.paid_confirmed)
+
+    @app.post("/api/queue/stop")
+    def queue_stop():
+        return queue.stop()
+
     @app.post("/api/missions")
     def create(payload: NewMission):
         return store.create(
@@ -282,7 +346,37 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
             specialist_execution=payload.specialist_execution,
             local_role=payload.local_role,
             requires_tests=payload.requires_tests,
+            max_cost_usd=payload.max_cost_usd,
         )
+
+    @app.post('/api/subscription/preflight')
+    def subscription_preflight():
+        from .claude_code import ClaudeCodeBlocked
+        if engine.active_id:
+            raise ValueError('Wait for the active mission before checking subscription auth.')
+        try:
+            return engine.subscription_adapter.check_auth()
+        except ClaudeCodeBlocked as exc:
+            raise ValueError(str(exc)) from None
+
+    @app.post('/api/subscription/missions')
+    def create_subscription(payload: SubscriptionMission):
+        from .subscription import packet_from_read
+        # Read-only validation first; the dispatched task creates its own durable receipt.
+        packet_from_read({'status': 'completed', 'result': studio.read(payload.packet_path)})
+        mission = store.create(payload.prompt, 'subscription', max_revisions=0)
+        with store.lock:
+            data = store.get(mission['id'])
+            data['mission'].update(packet_path=payload.packet_path, public_packet_confirmed=True,
+                                   replay_allowed=False, max_turns=payload.max_turns)
+            store.save(data)
+        return store.snapshot(mission['id'])['mission']
+
+    @app.post('/api/subscription/missions/{mission_id}/run')
+    def run_subscription(mission_id: str, payload: SubscriptionRun):
+        if store.snapshot(mission_id)['mission']['mode'] != 'subscription':
+            raise ValueError('This endpoint runs subscription packet missions only.')
+        return engine.start(mission_id, subscription_approval=payload.model_dump())
 
     @app.get("/api/missions/{mission_id}")
     def detail(mission_id: str):
@@ -315,7 +409,7 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
     def review_local(mission_id: str, payload: LocalReview):
         with engine.lock, store.lock:
             data = store.get(mission_id)
-            if engine.active_id == mission_id or data["mission"]["mode"] != "local" or data["mission"]["status"] != "needs_review":
+            if engine.active_id == mission_id or data["mission"]["mode"] not in ("local", "subscription") or data["mission"]["status"] != "needs_review":
                 raise ValueError("Only a finished local mission awaiting review can receive a coordinator decision.")
             if data["mission"].get("coordinator_review"):
                 raise ValueError("The coordinator decision is already recorded.")
@@ -334,7 +428,7 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
             data = store.get(mission_id)
             if data["mission"]["round"] >= data["mission"]["max_rounds"]:
                 raise ValueError("This mission reached its round limit. Start a new mission with your follow-up.")
-            if data["mission"]["mode"] in ("live", "local") and data["mission"]["status"] not in ("ready", "running", "stopping"):
+            if data["mission"]["mode"] in ("live", "local", "subscription") and data["mission"]["status"] not in ("ready", "running", "stopping"):
                 raise ValueError("Keep this run as an immutable record. Start a focused follow-up mission so prior API calls are not replayed.")
             result = store.message(mission_id, "user", payload.recipient, payload.text.strip(), "question")
             if data["mission"]["status"] not in ("running", "stopping"):
@@ -348,8 +442,8 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
         data = store.snapshot(mission_id)
         m = mission_view(data["mission"], runtime_status())
         lines = [
-            "# " + m["title"], "", "Mode: " + ({"demo": "SCRIPTED SAMPLE", "local": "Local model; coordinator review required", "live": "API research"}[m["mode"]]),
-            "Status: " + m["status"], "Estimated model/tool cost: $" + format(m["spent_usd"], ".6f"),
+            "# " + m["title"], "", "Mode: " + ({"demo": "SCRIPTED SAMPLE", "local": "Local model; coordinator review required", "live": "API research", "subscription": "Personal Claude Pro quota; external review required"}[m["mode"]]),
+            "Status: " + m["status"], ("Subscription quota: not measurable as API dollars" if m['mode'] == 'subscription' else "Estimated model/tool cost: $" + format(m["spent_usd"], ".6f")),
             "Evidence status: no trading signal was validated by this workflow.",
             "Research documents are unverified unless their evidence is independently checked.", "",
             "## Run record",
@@ -403,9 +497,12 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None):
             checked = result.get("result", {}).get("checked_drafts", [])
             for item in checked:
                 lines.append("Checked draft: " + item.get("id", "unknown") + " · " + item.get("path", "unknown") + " · SHA-256 " + item.get("sha256", "unknown"))
-        lines += ["", "## Provider call ledger"]
+        if data.get('subscription_calls'):
+            lines += ['', '## Subscription quota receipts (separate from API ledger)',
+                      json.dumps(data['subscription_calls'], indent=2)]
+        lines += ["", "## Provider call ledger (API/local only)"]
         if not data.get("calls"):
-            lines.append("No provider calls were recorded.")
+            lines.append("No API/local provider calls were recorded; subscription receipts are separate.")
         for call in data.get("calls", []):
             usage = json.dumps(call.get("usage"), sort_keys=True) if call.get("usage") is not None else "unavailable"
             lines += ["", "### " + call["id"],

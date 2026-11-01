@@ -4,11 +4,23 @@ import threading
 from datetime import datetime, timezone
 from dataclasses import dataclass
 
-from .models import GEMINI_MODEL, OPENAI_MODEL
+from .models import GEMINI_MODEL, GEMINI_FLASH_MODEL, OPENAI_MODEL
 from .response_contract import response_schema
 from .provider_diagnostics import error_detail, safe_error_hint
 
 RATES = {"gemini": (2.0, 12.0), "openai": (4.0, 20.0)}
+GEMINI_RATES = {GEMINI_MODEL: (2.0, 12.0), GEMINI_FLASH_MODEL: (0.25, 1.5)}
+RATE_VERSION = "google-standard-text-2026-10-30"
+
+
+def rates_for(provider, model=None):
+    if provider == "gemini":
+        if (model or GEMINI_MODEL) not in GEMINI_RATES:
+            raise ValueError("Unknown Gemini model rate; no call allowed.")
+        return GEMINI_RATES[model or GEMINI_MODEL]
+    if model is not None and provider == "openai" and model != OPENAI_MODEL:
+        raise ValueError("Unknown OpenAI model rate; no call allowed.")
+    return RATES[provider]
 MAX_OUTPUT = 2400
 GEMINI_MAX_OUTPUT = 8192
 # Reserve for the worker model's full documented output capacity, including
@@ -25,10 +37,10 @@ class ProviderResult:
     response_id: str | None = None
     finish_reason: str | None = None
 
-    def cost(self, provider):
+    def cost(self, provider, *, model=None):
         if provider == "local":
             return 0.0
-        inp, out = RATES[provider]
+        inp, out = rates_for(provider, model)
         return (self.input_tokens * inp + self.output_tokens * out) / 1_000_000
 
 
@@ -94,7 +106,8 @@ class Providers:
             return {
                 p: dict(configured=bool(self.keys[p]), verified=self.verified[p],
                         source=self.sources[p], verified_at=self.verified_at[p],
-                        model=GEMINI_MODEL if p == "gemini" else OPENAI_MODEL)
+                        model=GEMINI_MODEL if p == "gemini" else OPENAI_MODEL,
+                        configured_models=[GEMINI_FLASH_MODEL, GEMINI_MODEL] if p == "gemini" else [OPENAI_MODEL])
                 for p in self.keys
             }
 
@@ -133,18 +146,19 @@ class Providers:
                 base_url="https://generativelanguage.googleapis.com", timeout=10000,
                 retry_options=types.HttpRetryOptions(attempts=1),
             )) as client:
-                model = client.models.get(model=GEMINI_MODEL)
-            name = (model.name or "").removeprefix("models/")
-            if name != GEMINI_MODEL and not name.startswith(GEMINI_MODEL + "-"):
-                raise ProviderFailure("Gemini returned an unexpected model in its availability check. No generation calls were sent.", True)
-            if "generateContent" not in (model.supported_actions or []):
-                raise ProviderFailure("Gemini does not list text generation for this model. No generation calls were sent.", True)
+                for requested in (GEMINI_MODEL, GEMINI_FLASH_MODEL):
+                    model = client.models.get(model=requested)
+                    name = (model.name or "").removeprefix("models/")
+                    if name != requested and not name.startswith(requested + "-"):
+                        raise ProviderFailure("Gemini returned an unexpected model in its availability check. No generation calls were sent.", True)
+                    if "generateContent" not in (model.supported_actions or []):
+                        raise ProviderFailure("Gemini does not list text generation for this model. No generation calls were sent.", True)
         except ProviderFailure:
             raise
         except Exception as exc:
             raise provider_failure("gemini", exc, metadata_only=True) from None
 
-    def reservation(self, provider, system, prompt, schema):
+    def reservation(self, provider, system, prompt, schema, *, model=None):
         if provider == "local":
             return 0.0
         # One byte per input token is deliberately conservative for text-only
@@ -153,12 +167,14 @@ class Providers:
         if input_bound > 100000:
             raise ValueError("This task's context is too large. Start a narrower mission.")
         output_bound = GEMINI_BILLED_OUTPUT_RESERVE if provider == "gemini" else MAX_OUTPUT
-        inp, out = RATES[provider]
+        inp, out = rates_for(provider, model)
         return round((input_bound * inp + output_bound * out) / 1_000_000 + 0.002, 6)
 
-    def run(self, provider, system, prompt, schema):
+    def run(self, provider, system, prompt, schema, *, model=None):
         if provider == "local":
             return self.local.run(system, prompt, schema)
+        selected_model = model or (GEMINI_MODEL if provider == "gemini" else OPENAI_MODEL)
+        rates_for(provider, selected_model)  # Fail before dispatch for an unknown model.
         with self.lock:
             key = self.keys.get(provider)
         if not key:
@@ -172,7 +188,7 @@ class Providers:
                 with OpenAI(api_key=key, base_url="https://api.openai.com/v1",
                             max_retries=0, timeout=90.0) as client:
                     response = client.responses.create(
-                        model=OPENAI_MODEL, store=False, max_output_tokens=MAX_OUTPUT,
+                        model=selected_model, store=False, max_output_tokens=MAX_OUTPUT,
                         reasoning={"effort": "low"},
                         input=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
                         text={"format": {
@@ -200,7 +216,7 @@ class Providers:
                 )
                 try:
                     response = client.models.generate_content(
-                        model=GEMINI_MODEL, contents=prompt,
+                        model=selected_model, contents=prompt,
                         config=types.GenerateContentConfig(
                             system_instruction=system, candidate_count=1,
                             max_output_tokens=GEMINI_MAX_OUTPUT,
