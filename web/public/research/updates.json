@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "publicationMode": "reviewed_snapshot",
+  "coverage": "curated_partial",
+  "registryContentSha256": "450a447e7d24b34d7f4a4379fff0cbc081bde4b10331e189e2c9714c8080fe46",
+  "updates": [
+    {
+      "id": "CURATED-20261102-ERATE-DISTRICT-AUDIT-001",
+      "experimentId": "ERATE-DISTRICT-AUDIT-001",
+      "recordedAt": "2026-11-02T17:45:57.106Z",
+      "originalResultAt": null,
+      "category": "negative",
+      "availability": "published_dossier",
+      "review": "published_summary",
+      "summary": "All 15 raw brand-change candidates in the screened 68-district subset were audited: ten compared different equipment categories, four were aliases or the same product family, and one remained a different-brand purchase lead. Bensalem Aruba-to-Fortinet purchases do not prove replacement of installed equipment. Ten original PDFs support the five comparable-category cases; historical first-public timing is unverified. Zero verified installed replacements and zero public-timed investment observations. This subset is not representative of all districts.",
+      "timingNote": "Previously reviewed in the 2026-10-30 publication. Added to this reading list now; no claim that the research happened today.",
+      "sources": [
+        {
+          "title": "USAC Form 471 line items",
+          "url": "https://opendata.usac.org/resource/hbj5-2bpj.json"
+        }
+      ]
+    },
+    {
+      "id": "CURATED-20261102-CPC-CASH-MONTHLY-001",
+      "experimentId": "CPC-CASH-MONTHLY-001",
+      "recordedAt": "2026-11-02T17:45:57.106Z",
+      "originalResultAt": null,
+      "category": "negative",
+      "availability": "published_dossier",
+      "review": "published_summary",
+      "summary": "On 15 evaluation months in 2020-2024, baseline MAE was 8.3764 log percentage points; adding weather worsened it to 8.4623. A zero-change baseline was better than both at 8.2709. Training used 30 months in 2010-2019. Six-state categorical outlooks were equally weighted, not acreage weighted. The price target partly elapsed before the forecast; cash prices are revised current vintages, not futures returns. Earlier exposure to some data means this is chronological evaluation, not untouched confirmation.",
+      "timingNote": "Previously reviewed in the 2026-10-30 publication. Added to this reading list now; no claim that the research happened today.",
+      "sources": [
+        {
+          "title": "NOAA issued CPC discussion archive",
+          "url": "https://www.cpc.ncep.noaa.gov/products/archives/short_range/"
+        },
+        {
+          "title": "USDA ERS Feed Grains Database",
+          "url": "https://www.ers.usda.gov/data-products/feed-grains-database"
+        }
+      ]
+    },
+    {
+      "id": "CURATED-20261102-EGG-MARGIN-002",
+      "experimentId": "EGG-MARGIN-002",
+      "recordedAt": "2026-11-02T17:45:57.106Z",
+      "originalResultAt": null,
+      "category": "result",
+      "availability": "published_dossier",
+      "review": "published_summary",
+      "summary": "FY2024 Q3 versus FY2023 Q3: gross margin fell from 46.419% to 31.088% (-15.331 percentage points). Sold dozens rose while average selling price fell from $3.298 to $2.247 per dozen. Lower feed cost alone did not imply higher margins. Feed cost uses dozens produced; selling price uses dozens sold. Those denominators cannot be directly subtracted as an egg-margin measure. Kansas outbreak was within the quarter; the April 1 Texas outbreak followed the March 2 quarter end. Independently recomputed descriptive accounting; no event-return or predictive result.",
+      "timingNote": "Previously reviewed in the 2026-10-30 publication. Added to this reading list now; no claim that the research happened today.",
+      "sources": [
+        {
+          "title": "Cal-Maine issuer quarterly release",
+          "url": "https://calmainefoods.gcs-web.com/node/13601/pdf"
+        }
+      ]
+    },
+    {
+      "id": "LOCAL-20261102-DRUG-ARCHIVE",
+      "experimentId": "DRUG-SUPPLY-DURATION-001",
+      "recordedAt": "2026-11-02T17:45:57.106Z",
+      "originalResultAt": null,
+      "category": "blocked",
+      "availability": "local_only",
+      "review": "independently_reviewed_descriptive",
+      "summary": "Two archived FDA list vintages yielded 322 source rows and ten selected ingredient-status observations. This establishes partial historical list evidence, not manufacturer, NDC or facility mappings. Detail-page coverage remains unknown because the archive returned HTTP 429; no baseline or trading result was scored.",
+      "timingNote": "Archive captures: September 24, 2023 and September 6, 2024. The first precedes a Pfizer restart disclosure, not the tornado itself; the second precedes Helene but is 23 days old at the cutoff. Original result time was not recorded. Raw artifacts and newer notebook notes stay local and are not linked or served.",
+      "sources": [
+        {
+          "title": "Archived FDA list — September 24, 2023",
+          "url": "https://web.archive.org/web/20230924133956/https://www.accessdata.fda.gov/scripts/drugshortages/default.cfm"
+        },
+        {
+          "title": "Archived FDA list — September 6, 2024",
+          "url": "https://web.archive.org/web/20240906163654/https://www.accessdata.fda.gov/scripts/drugshortages/default.cfm"
+        }
+      ]
+    }
+  ]
+}
+

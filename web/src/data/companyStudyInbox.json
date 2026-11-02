@@ -1,0 +1,281 @@
+{
+  "schemaVersion": 1,
+  "publicationMode": "reviewed_snapshot",
+  "coverage": "three_preexisting_track_examples_not_statistically_representative_or_pipeline_selected",
+  "studies": [
+    {
+      "id": "CALM-DRIVERS-ARCHIVE-001",
+      "ticker": "CALM",
+      "issuer": "Cal-Maine Foods",
+      "title": "More dozens sold; lower prices and margins",
+      "reasonCodes": [
+        "price_volume_divergence",
+        "margin_compression",
+        "negative_case"
+      ],
+      "pipelineAppearances": null,
+      "firstObservedAppearanceAt": null,
+      "pipelineRecurrence": {
+        "appearances": null,
+        "firstObservedAt": null,
+        "distinctEvidenceVersions": null,
+        "newEvidenceObservations": null,
+        "coverage": "unavailable",
+        "independentConfirmations": null
+      },
+      "firstLocalReceiptAt": "2026-10-28T20:02:41.211Z",
+      "distinctSourceVintages": 1,
+      "reviewStatus": "independently_reviewed_descriptive",
+      "originalPublicationDate": "2024-04-02",
+      "publicationPrecision": "date_only_intraday_unverified",
+      "documentDate": "2024-04-02",
+      "source": {
+        "title": "Issuer FY2024 Q3 release, pages 2\u20133",
+        "url": "https://calmainefoods.gcs-web.com/node/13601/pdf",
+        "sha256": "a835e54e76143ddd561d7bc3670a59bebf1f37cf88e6a762ad62733c53b0b612"
+      },
+      "periods": [
+        "13 weeks ended 2024-03-02",
+        "13 weeks ended 2023-02-25"
+      ],
+      "metrics": {
+        "revenueChangePct": -29.515695849494684,
+        "dozensSoldChangePct": 3.212932714744565,
+        "realizedPriceChangePct": -31.867798665858103,
+        "grossMarginCurrentPct": 31.08796204108802,
+        "grossMarginPriorPct": 46.41897236371584
+      },
+      "metricItems": [
+        {
+          "label": "Dozens sold",
+          "value": "+3.2%"
+        },
+        {
+          "label": "Realized price per dozen",
+          "value": "-31.9%"
+        },
+        {
+          "label": "Company net sales",
+          "value": "-29.5%"
+        },
+        {
+          "label": "Gross margin",
+          "value": "31.1% vs 46.4%"
+        }
+      ],
+      "caseLabel": "Negative accounting case",
+      "whyHere": "Volume / price divergence and margin compression; not verified pipeline selection.",
+      "timingNote": "Printed publication date only; exact intraday dissemination is unverified.",
+      "sourceTimeline": [],
+      "finding": "Reported volume growth coexisted with lower realized prices, sales and gross margin. Volume alone would have missed deterioration; this is a retained counterexample to a simple growth narrative.",
+      "businessQuestion": "Does a matched volume/price decomposition improve next-reported-quarter gross-margin forecasts beyond last reported margin? Freeze a dated sample and rule before examining outcomes.",
+      "falsifier": "Reject added predictive value if the decomposition does not beat the same-date persistence baseline out of sample; record all negative cases.",
+      "reinvestmentPayback": null,
+      "incrementalInvestmentReturn": null,
+      "currentValuation": null,
+      "stockReturnEvidence": null,
+      "nextAction": "Obtain independently timed additional filings and outcome labels; preserve fiscal periods, egg-product mix, inventory and purchases before testing. No forecast or market-return test has run.",
+      "limitations": [
+        "Archived 2024 example, not a current company assessment or buy signal.",
+        "Pipeline recurrence and first appearance are unknown; repeated mentions are not independent confirmations.",
+        "One source vintage supplies both comparative columns, not two independent evidence events.",
+        "Sold and produced denominators differ; feed cost per produced dozen is not subtracted from selling price per sold dozen.",
+        "No cohort investment/payback, verified ROIC, forward valuation or shareholder-return result is supplied.",
+        "Publication is date-only; not eligible for an intraday historical signal test."
+      ]
+    },
+    {
+      "id": "ICFI-CUSTOMER-ARCHIVE-001",
+      "ticker": "ICFI",
+      "issuer": "ICF International",
+      "pipelineAppearances": null,
+      "firstObservedAppearanceAt": null,
+      "pipelineRecurrence": {
+        "appearances": null,
+        "firstObservedAt": null,
+        "distinctEvidenceVersions": null,
+        "newEvidenceObservations": null,
+        "coverage": "unavailable",
+        "independentConfirmations": null
+      },
+      "reviewStatus": "independently_reviewed_descriptive",
+      "reinvestmentPayback": null,
+      "incrementalInvestmentReturn": null,
+      "currentValuation": null,
+      "stockReturnEvidence": null,
+      "metrics": {},
+      "sourceTimeline": [
+        {
+          "title": "FY2024 10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1362004/000095017025029917/icfi-20241231.htm",
+          "documentDate": "2025-02-28",
+          "acceptedAt": "2025-02-28T20:19:14+00:00",
+          "firstPublicAt": null,
+          "evidenceKind": "retained_official_web_response_and_manual_labels_not_original_filing_bytes"
+        },
+        {
+          "title": "FY2025 10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1362004/000119312526082536/icfi-20251231.htm",
+          "documentDate": "2026-02-27",
+          "acceptedAt": "2026-02-27T21:06:38+00:00",
+          "firstPublicAt": null,
+          "evidenceKind": "retained_official_web_response_and_manual_labels_not_original_filing_bytes"
+        }
+      ],
+      "title": "Customer revenue fell despite a procurement-growth hypothesis",
+      "caseLabel": "Customer-revenue deterioration",
+      "reasonCodes": [
+        "customer_concentration",
+        "reported_revenue_decline",
+        "mapping_blocked"
+      ],
+      "firstLocalReceiptAt": "2026-10-31T08:28:51.282Z",
+      "distinctSourceVintages": 2,
+      "originalPublicationDate": null,
+      "documentDate": "2026-02-27",
+      "publicationPrecision": "acceptance_verified_first_public_unknown",
+      "source": {
+        "title": "Issuer FY2025 10-K: HHS revenue disclosure",
+        "url": "https://www.sec.gov/Archives/edgar/data/1362004/000119312526082536/icfi-20251231.htm",
+        "sha256": "7ec23cf773e964f9bf9b55e4894edf567d244ff56e2cece08af0b593524b3ca6",
+        "representation": "retained_manually_verified_label_packet_not_publisher_bytes"
+      },
+      "periods": [
+        "FY2025 and FY2024 as reported in the FY2025 filing"
+      ],
+      "metricItems": [
+        {
+          "label": "FY2023 HHS revenue",
+          "value": "$509.5m"
+        },
+        {
+          "label": "FY2024 HHS revenue",
+          "value": "$503.9m"
+        },
+        {
+          "label": "FY2025 HHS revenue",
+          "value": "$415.5m"
+        },
+        {
+          "label": "FY2025 vs FY2024",
+          "value": "-17.5%"
+        }
+      ],
+      "finding": "HHS customer revenue declined in the retained annual disclosure. These labels can test a business-revenue hypothesis, but selected prime award obligations are not the same population as issuer revenue, which includes subcontract activity.",
+      "whyHere": "A negative customer-revenue case and a check on procurement-to-revenue assumptions, not a verified recurring pipeline lead.",
+      "timingNote": "SEC acceptance instants are retained. The earlier analysis's acceptance-plus-24-hour cutoff is a convention, not verified first public dissemination. FY2024 dollar revenue here is known from the FY2025 vintage, not retroactively from the FY2024 filing.",
+      "businessQuestion": "Does a complete, time-stamped customer award cohort improve next-year customer-revenue forecasts beyond the last disclosed annual revenue? Resolve prime/subcontract scope before testing.",
+      "falsifier": "Reject the procurement hypothesis if matched, then-public obligations fail to beat same-date revenue persistence, or if issuer/entity and revenue scopes cannot be reconciled.",
+      "nextAction": "Resolve historical parent/UEI ownership and obtain original transaction-publication vintages and a complete customer cohort; no return test is justified by these selected labels.",
+      "limitations": [
+        "The three dollar observations are comparative columns from one later filing, not three contemporaneously available vintages.",
+        "Two inspected filings are not two independent confirmations or a complete history.",
+        "Current cumulative award amounts are not revenue or period obligation flows; parent identity and disclosure scope remain blockers.",
+        "Rounded annual revenue labels and unknown transaction first-public times do not support an intraday event backtest.",
+        "No reinvestment payback, current valuation or stock-return evidence is supplied."
+      ]
+    },
+    {
+      "id": "BAX-RECOVERY-ARCHIVE-001",
+      "ticker": "BAX",
+      "issuer": "Baxter International",
+      "pipelineAppearances": null,
+      "firstObservedAppearanceAt": null,
+      "pipelineRecurrence": {
+        "appearances": null,
+        "firstObservedAt": null,
+        "distinctEvidenceVersions": null,
+        "newEvidenceObservations": null,
+        "coverage": "unavailable",
+        "independentConfirmations": null
+      },
+      "reviewStatus": "independently_reviewed_descriptive",
+      "reinvestmentPayback": null,
+      "incrementalInvestmentReturn": null,
+      "currentValuation": null,
+      "stockReturnEvidence": null,
+      "metrics": {},
+      "sourceTimeline": [
+        {
+          "title": "Closure disclosure",
+          "url": "https://www.sec.gov/Archives/edgar/data/10456/000162828024041545/0001628280-24-041545-index.htm",
+          "documentDate": "2024-09-30",
+          "acceptedAt": "2024-09-30T12:31:34+00:00",
+          "firstPublicAt": null,
+          "evidenceKind": "SEC_metadata_time_binding_content_manually_reviewed"
+        },
+        {
+          "title": "Partial restart disclosure",
+          "url": "https://www.sec.gov/Archives/edgar/data/10456/000162828024046501/0001628280-24-046501-index.htm",
+          "documentDate": "2024-11-08",
+          "acceptedAt": "2024-11-08T12:18:38+00:00",
+          "firstPublicAt": null,
+          "evidenceKind": "SEC_metadata_time_binding_content_manually_reviewed"
+        },
+        {
+          "title": "Production level disclosure",
+          "url": "https://www.sec.gov/Archives/edgar/data/10456/000162828025006558/0001628280-25-006558-index.htm",
+          "documentDate": "2025-02-20",
+          "acceptedAt": "2025-02-20T12:18:24+00:00",
+          "firstPublicAt": null,
+          "evidenceKind": "SEC_metadata_time_binding_content_manually_reviewed"
+        }
+      ],
+      "title": "Operational recovery is not automatically business growth",
+      "caseLabel": "Recovery reported \u00b7 investment link untested",
+      "reasonCodes": [
+        "operational_recovery",
+        "earnings_confound",
+        "supply_recovery_not_growth"
+      ],
+      "firstLocalReceiptAt": "2026-11-01T23:39:21.087576+00:00",
+      "distinctSourceVintages": 3,
+      "originalPublicationDate": null,
+      "documentDate": "2025-02-20",
+      "publicationPrecision": "acceptance_verified_first_public_unknown",
+      "source": {
+        "title": "Issuer furnished production update in February 2025 filing",
+        "url": "https://www.sec.gov/Archives/edgar/data/10456/000162828025006558/bax-20250220xex991.htm",
+        "sha256": "abc1b69e2b5098e0d5e07d1f156b4eaee06fab557528f283a1447f1d17abf756",
+        "representation": "retained_SEC_submissions_metadata_not_original_exhibit_bytes"
+      },
+      "periods": [
+        "September 2024 closure disclosure through February 2025 production disclosure"
+      ],
+      "metricItems": [
+        {
+          "label": "Closure disclosure",
+          "value": "Sep 2024"
+        },
+        {
+          "label": "Partial restart reported",
+          "value": "Nov 2024"
+        },
+        {
+          "label": "Pre-hurricane production reported",
+          "value": "Feb 2025"
+        },
+        {
+          "label": "Episode count",
+          "value": "1 selected"
+        }
+      ],
+      "finding": "The selected disclosures progress from closure to partial restart to reported pre-hurricane production. This is a positive operational recovery case, not evidence of incremental growth, full supply restoration or profitable shareholder returns.",
+      "whyHere": "A contrasting recovery case. Three filings about one episode do not constitute independent confirmations or genuine pipeline recurrence.",
+      "timingNote": "The retained SEC metadata binds acceptance times to accessions. Original exhibit bytes and earliest public dissemination were not archived. The November update describes an already-announced restart; do not date the first physical restart from its filename or filing date.",
+      "businessQuestion": "Can source-timed changes in a disclosed recovery expectation improve an operational-state forecast beyond the last known state? First distinguish production, shipment and allocation normalization.",
+      "falsifier": "Reject added value if the dated expectation adds nothing beyond last reported state; exclude earnings-bundled price reactions until confounders and exposure are resolved.",
+      "nextAction": "Find earlier original dissemination vintages and comparable independent episodes; reconcile facility/product ownership and revenue exposure before any business-growth or market-return test.",
+      "limitations": [
+        "One selected episode, not a representative outage cohort.",
+        "Two disclosures are earnings-bundled; restart information was already public before the November filing.",
+        "SEC metadata verifies filing timestamps, not every content claim in a furnished exhibit.",
+        "Production recovery does not prove shipments or normalized customer allocations.",
+        "The January 2025 Kidney Care sale is an ownership/exposure confound; no automatic plant-to-revenue mapping.",
+        "No current valuation, incremental capital return or stock-return evidence is supplied."
+      ]
+    }
+  ],
+  "selectionRule": "Reuse the existing egg/accounting, procurement and facility-recovery tracks; retain negative and recovery cases, without selecting on subsequent stock returns. This is convenience coverage, not a frozen historical cohort."
+}
+
