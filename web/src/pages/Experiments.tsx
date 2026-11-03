@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import "./Experiments.css";
 import ResearchUpdates from "../components/ResearchUpdates";
 import CompanyStudies from "../components/CompanyStudies";
+import ResearchCheckpoint from "../components/ResearchCheckpoint";
 
 const sourceHosts = ["www.stb.gov", "stb.gov", "www.csx.com", "csx.com", "www.cpc.ncep.noaa.gov", "www.ers.usda.gov", "noaa-gfs-bdp-pds.s3.amazonaws.com", "www.ncei.noaa.gov", "www.eia.gov", "www.bls.gov", "calmainefoods.gcs-web.com", "data.cms.gov", "opendata.usac.org", "croplandcros.scinet.usda.gov", "www.nass.usda.gov", "api.weather.gov", "api.fda.gov", "api.usaspending.gov", "www.fda.gov", "open.fda.gov", "www.ncbi.nlm.nih.gov", "www.usaspending.gov", "www.sec.gov", "investor.starbucks.com", "docs.advanresearch.com"];
 function safeSource(value: string) { try { const u = new URL(value); return u.protocol === "https:" && !u.username && !u.password && sourceHosts.includes(u.hostname); } catch { return false; } }
@@ -72,6 +73,7 @@ export default function Experiments() {
       <h1>{selected ? selected.title : "Better questions. Measurable answers."}</h1>
       <p>{selected ? "A research dossier. Recorded results, limitations and next steps." : "A home for the ideas that haven’t earned their place in a strategy. Follow what we’re learning, what failed, and what comes next."}</p>
     </header>
+    {!experimentId && <ResearchCheckpoint />}
     {!experimentId && data && <ResearchUpdates registry={data} />}
       {!experimentId && data && <CompanyStudies />}
     {!experimentId && <section className="research-section" aria-label="Strategy experiments">

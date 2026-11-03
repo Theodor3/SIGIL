@@ -1,0 +1,270 @@
+{
+  "schemaVersion": 1,
+  "reviewedOn": "2026-11-03",
+  "coverage": "curated_local_checkpoint_not_live_swarm",
+  "items": [
+    {
+      "status": "qualified",
+      "limitation": "Two-item cash-flow sensitivity is not sustainable cash or project payback. One later filing vintage; no historical forecast test.",
+      "period": "FY2025 versus FY2024, both 52 weeks",
+      "comparisonMeaning": "Same periods; accounting sensitivity, not a forecast or investor return",
+      "ticker": "COST",
+      "source": {
+        "url": "https://www.sec.gov/Archives/edgar/data/909832/000090983225000101/cost-20250831.htm",
+        "title": "Costco FY2025 filing, cash-flow table",
+        "sha256": "103dabe172c479c54a84e5738822a70175f79482d978282e66638fe532b89908",
+        "representation": "Retained issuer web-reader representation"
+      },
+      "nextStep": "Obtain a dated warehouse cohort, maturity/cannibalization and capital/cash-contribution bridge. Do not infer returns from aggregate cash coverage.",
+      "finding": "Operating cash covered PPE spending 2.43× while capex rose $788m. Cash after PPE grew 18.22%; the fixed inventory/payable-neutral sensitivity grew 1.70%.",
+      "metrics": [
+        {
+          "value": 18.22295972243174,
+          "label": "Reported surplus growth"
+        },
+        {
+          "value": 1.701435123538985,
+          "label": "Two-item sensitivity"
+        }
+      ],
+      "artifactSha256": "b71b9de1eaa70046b860daf0f89cf71af0c3c5716e18ddaf89c8d9d63e5454cb",
+      "unit": "Growth, percent",
+      "id": "COST-WC",
+      "recordedAt": "2026-11-03T00:44:07.781085-05:00",
+      "title": "Investment funded; cash growth needs context"
+    },
+    {
+      "status": "inconclusive",
+      "limitation": "Issuer non-GAAP ROI is not after-tax ROIC or new-project cash payback. Restructuring comparisons affect operating growth. This is archived 2024 evidence.",
+      "period": "Archived TTM October 2023 versus October 2024",
+      "comparisonMeaning": "Two reported trailing-year ratios, not investment returns",
+      "ticker": "WMT",
+      "source": {
+        "url": "https://stock.walmart.com/sec-filings/all-sec-filings/content/0000104169-24-000170/earningsreleasefy25q3.htm",
+        "title": "Walmart FY2025 Q3 release, ROI reconciliation",
+        "sha256": "581a3db2891aecd3eaf29693ff14ac14dfe00ca69fb98ec9cb797cdfb6faaf95",
+        "representation": "Retained original issuer HTML"
+      },
+      "nextStep": "Obtain cohort capital, deployment and incremental cash contribution, with a legacy-business counterfactual.",
+      "finding": "Issuer ROI rose despite a 4.40% larger average capital base. Different legacy/new-capital allocations reproduce the same aggregates; the naive 37.68% incremental proxy is not project ROI.",
+      "metrics": [
+        {
+          "value": 14.145377497806281,
+          "label": "Prior TTM 2023"
+        },
+        {
+          "value": 15.136501862165579,
+          "label": "Current TTM 2024"
+        }
+      ],
+      "artifactSha256": "4f6782f7765dc341b51b5f607550a5a4981ab3e74ed9c3ae8bee1adb69a9bef9",
+      "unit": "Issuer-defined ROI, percent",
+      "id": "WMT-ROI",
+      "recordedAt": "2026-11-03T00:37:52.885047-05:00",
+      "title": "Average ROI rose; project return unidentified"
+    },
+    {
+      "status": "negative",
+      "limitation": "Negative for a chiefly operating-cash explanation, not for all improvement: Q3CFO/share rose 3.69%. The sensitivity is not a sustainable-cash estimate.",
+      "period": "Q3 2026 versus Q3 2025",
+      "comparisonMeaning": "Reported measure versus fixed-intensity sensitivity; no stock return",
+      "ticker": "NOW",
+      "source": {
+        "url": "https://investor.servicenow.com/news/news-details/2026/ServiceNow-Reports-Third-Quarter-2026-Financial-Results/default.aspx",
+        "title": "ServiceNow Q3 2026 release, cash-flow table",
+        "sha256": "070c83bd15aa8e24d3e2ead202080fe0875d903b42ca18261d8c759e47e87b01",
+        "representation": "Retained issuer web-reader representation"
+      },
+      "nextStep": "Check future original cash-flow releases under the frozen rule; keep billing, acquisition and capex-efficiency alternatives visible.",
+      "finding": "Cash after PPE per diluted share rose 30.03%, but lower capex supplied 84.71% of the dollar improvement. The fixed prior-year capex-intensity sensitivity falls 3.38% per share.",
+      "metrics": [
+        {
+          "value": 30.03214708702273,
+          "label": "Cash after PPE"
+        },
+        {
+          "value": -3.3822852390470004,
+          "label": "Capex-intensity sensitivity"
+        }
+      ],
+      "artifactSha256": "df8cbd5fab97d4fa9c25d15f423781f5ff4f4e078c8d28ee7bf97559884afb46",
+      "unit": "Per-share growth, percent",
+      "id": "NOW-CASH",
+      "recordedAt": "2026-11-03T00:28:38.874992-05:00",
+      "title": "Capex cuts dominate the cash-growth bridge"
+    },
+    {
+      "status": "pending",
+      "limitation": "One partly elapsed-quarter business forecast, no skill or alpha inference. Distinct from the unchanged operating-margin forecast; correlated company trials are not independent proof.",
+      "period": "Target October 1–December 31, 2026; partly elapsed at freeze",
+      "comparisonMeaning": "Predictions only; actual outcome unavailable here",
+      "ticker": "NOW",
+      "source": {
+        "url": "https://investor.servicenow.com/news/news-details/2026/ServiceNow-Reports-Third-Quarter-2026-Financial-Results/default.aspx",
+        "title": "ServiceNow retained Q3 2026 input release",
+        "sha256": "070c83bd15aa8e24d3e2ead202080fe0875d903b42ca18261d8c759e47e87b01",
+        "representation": "Retained issuer web-reader representation"
+      },
+      "nextStep": "By March 15, 2027, retain the first comparable official Q4 2026 quarterly CFO/revenue release after freeze and period end. Score absolute error; must beat BOTH baselines, ties fail. Conflicts remain unresolved.",
+      "finding": "Candidate 59.30% versus seasonal 62.72% and latest-quarter 20.43%. Outcome remains unscored in retained records. This is CFO divided by revenue, not profit margin.",
+      "metrics": [
+        {
+          "value": 59.3,
+          "label": "Frozen candidate"
+        },
+        {
+          "value": 62.72,
+          "label": "Seasonal baseline"
+        },
+        {
+          "value": 20.43,
+          "label": "Latest-quarter baseline"
+        }
+      ],
+      "artifactSha256": "df8cbd5fab97d4fa9c25d15f423781f5ff4f4e078c8d28ee7bf97559884afb46",
+      "unit": "Quarterly CFO / revenue, percent",
+      "id": "NOW-CFO-PENDING",
+      "recordedAt": "2026-11-03T00:28:38.874992-05:00",
+      "title": "Frozen cash-conversion forecast, not a result",
+      "outcomeDueAt": "2027-03-15T23:59:59Z",
+      "supportingSources": [
+        {
+          "title": "ServiceNow FY2025 release, seasonal cash-flow input",
+          "url": "https://investor.servicenow.com/news/news-details/2026/ServiceNow-Reports-Fourth-Quarter-and-Full-Year-2025-Financial-Results-Board-of-Directors-Authorizes-Additional-5B-for-Share-Repurchase-Program/default.aspx",
+          "sha256": "e879cb8a0862ea5ee31e8127aa2dc88469a9cd54dabb780a82bf59fcdb033d2d",
+          "representation": "Retained issuer web-reader representation"
+        }
+      ]
+    },
+    {
+      "status": "negative",
+      "limitation": "Previously exposed revised-vintage panel, assumed input lag and incomplete station coverage. Not fresh out-of-sample evidence, store demand or equity alpha. Exact analysis time unrecorded. Upstream link is contextual only: retained plan does not bind that URL to original source bytes; the hash verifies only the derived panel.",
+      "period": "Exposed 2025 Q4-2026 Q2 partial panel, four stations",
+      "comparisonMeaning": "Lower error is better; same eligible rows, not trading returns",
+      "ticker": "MTA proxy",
+      "source": {
+        "url": "https://data.ny.gov/resource/wujg-7c2s.json",
+        "title": "Official upstream MTA data; hash below identifies derived panel",
+        "sha256": "14426748eca37d923f1caddbbb56470c73bda735e0d92d1fbb0f9c53957f11a8",
+        "representation": "Retained derived model panel"
+      },
+      "nextStep": "Keep this failure and the annual baseline. Any new model needs genuinely untouched later data, source receipts and a separately locked protocol.",
+      "finding": "The fixed recent/annual blend had 1.08% worse primary normalized error than annual seasonality. Three station improvements do not override the failed primary metric.",
+      "metrics": [
+        {
+          "value": 1.1989226182532795,
+          "label": "Annual baseline"
+        },
+        {
+          "value": 1.2118323763641297,
+          "label": "Fixed blend"
+        }
+      ],
+      "artifactSha256": "0de16e0cc3db6836b09d3e18b8b93abda759520e51fac986898d40014bb783e3",
+      "unit": "Macro normalized MAE",
+      "id": "TRANSIT-BLEND",
+      "recordedAt": "2026-11-03",
+      "title": "Extra modeling failed the seasonal hurdle"
+    },
+    {
+      "id": "HYPERSCALER-CASH",
+      "ticker": "MSFT / GOOGL",
+      "title": "Cash after equipment spending: four matched quarters",
+      "recordedAt": "2026-11-03T10:09:31.500Z",
+      "period": "Calendar quarters ended December 2025–September 2026",
+      "status": "qualified",
+      "finding": "Microsoft cash residual recovered after December, then eased in September. Alphabet was negative in June and September. This is consolidated accounting, not AI-specific return or a trading signal.",
+      "limitation": "Current downloads are not authenticated historical vintages. Lease investment is not fully harmonized; working capital, taxes and business mix differ. Four quarters do not establish a persistent trend. Browser rendering unverified; server-render checks passed.",
+      "nextStep": "Reconcile original publication vintages and lease classifications before historical information-set analysis. No forecast or investment-performance test has been run.",
+      "unit": "USD billions",
+      "comparisonMeaning": "Operating cash minus cash PPE; paired issuers share one scale and zero. No separate lease adjustment.",
+      "metrics": [
+        {
+          "label": "MSFT 2025-12-31",
+          "value": 5.882
+        },
+        {
+          "label": "GOOGL 2025-12-31",
+          "value": 24.551
+        },
+        {
+          "label": "MSFT 2026-03-31",
+          "value": 15.803
+        },
+        {
+          "label": "GOOGL 2026-03-31",
+          "value": 10.116
+        },
+        {
+          "label": "MSFT 2026-06-30",
+          "value": 19.639
+        },
+        {
+          "label": "GOOGL 2026-06-30",
+          "value": -5.855
+        },
+        {
+          "label": "MSFT 2026-09-30",
+          "value": 18.633
+        },
+        {
+          "label": "GOOGL 2026-09-30",
+          "value": -9.065
+        }
+      ],
+      "source": {
+        "url": "https://www.microsoft.com/en-us/investor/earnings/fy-2026-q2/press-release-webcast",
+        "title": "MSFT 2025-12-31 release (2026-01-28)",
+        "sha256": "d123b82175cfd04e06f170fdc7b679e6a9a69e09ff58db53073ee15c34afc2dd",
+        "representation": "Retained issuer HTML"
+      },
+      "supportingSources": [
+        {
+          "url": "https://s206.q4cdn.com/479360582/files/doc_financials/2025/q4/2025q4-alphabet-earnings-release.pdf",
+          "title": "GOOGL 2025-12-31 release (2026-02-04)",
+          "sha256": "8bb2778772fc60c0290cfeac3b24d345a07b8918a7708ec8fcef7239243922f9",
+          "representation": "Retained issuer PDF"
+        },
+        {
+          "url": "https://www.microsoft.com/en-us/Investor/earnings/FY-2026-Q3/press-release-webcast",
+          "title": "MSFT 2026-03-31 release (2026-04-29)",
+          "sha256": "523edf0477344edb98dad54fd971b850dbc9416d29d5f1ef57b070a10edc771a",
+          "representation": "Retained issuer HTML"
+        },
+        {
+          "url": "https://s206.q4cdn.com/479360582/files/doc_financials/2026/q1/2026q1-alphabet-earnings-release.pdf",
+          "title": "GOOGL 2026-03-31 release (2026-04-29)",
+          "sha256": "a219b3b16dd2471faba3ab040154e29ee1ba61914de82ea82fb027038412d56b",
+          "representation": "Retained issuer PDF"
+        },
+        {
+          "url": "https://www.microsoft.com/en-us/investor/earnings/fy-2026-q4/press-release-webcast",
+          "title": "MSFT 2026-06-30 release (2026-07-29)",
+          "sha256": "71bf46a37addc9ebb00a3eb3660f7463f24a209c6a1f0820e149c618dcf6f8e4",
+          "representation": "Retained issuer HTML"
+        },
+        {
+          "url": "https://s206.q4cdn.com/479360582/files/doc_financials/2026/q2/2026q2-alphabet-earnings-release.pdf",
+          "title": "GOOGL 2026-06-30 release (2026-07-22)",
+          "sha256": "65f35a2e9c287112121f736321c7526d603ba8e0dae27acac56c7d7357602aa8",
+          "representation": "Retained issuer PDF"
+        },
+        {
+          "url": "https://www.microsoft.com/en-us/investor/earnings/fy-2027-q1/press-release-webcast",
+          "title": "MSFT 2026-09-30 release (2026-10-28)",
+          "sha256": "4cffc1cfa433acc0d8cb35fc9c6f0551fc533564e23b40fd24b67f973753a5ee",
+          "representation": "Retained issuer HTML"
+        },
+        {
+          "url": "https://s206.q4cdn.com/479360582/files/doc_news/2026/Oct/28/attachments/2026q3-alphabet-earnings-release.pdf",
+          "title": "GOOGL 2026-09-30 release (2026-10-28)",
+          "sha256": "2f9b94e9194ea4b462bf754c4b651615ab53518b314550f3402b27aabf0735e9",
+          "representation": "Retained issuer PDF"
+        }
+      ],
+      "artifactSha256": "58b9485ce32baaea50bd2a467de7381b29fe0feaef7f69e2fe34567f074df542"
+    }
+  ],
+  "evidenceCheckedAt": "2026-11-03T10:09:32.437Z",
+  "manifestSha256": "d32ec387bfec91c14fef5ca771ad8adb6c4977c8ae92b1f569336a4d25114bf4"
+}
