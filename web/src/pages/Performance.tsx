@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import EquityCurve from "../components/EquityCurve";
+import RecoveredDailyHistory from "../components/RecoveredDailyHistory";
 
 interface TradeRow {
   id: number;
@@ -253,6 +254,8 @@ export default function Performance() {
         Realized results — closed trades, live signal grades, pipeline history.
         For hypothetical replays of a signal over recorded history, see the Lab.
       </p>
+
+      <RecoveredDailyHistory />
 
       {!hasData ? (
         <div className="rounded-xl border border-sigil-border bg-sigil-surface p-8 text-center">

@@ -343,6 +343,9 @@ app.include_router(dashboard_router)
 app.include_router(pipeline_router)
 app.include_router(data_router)
 app.include_router(portfolio_router)
+from api.routes.recovered_daily import create_router as create_recovery_router
+from api.research.recovery_files import load_recovery
+app.include_router(create_recovery_router(source_loader=load_recovery))
 app.include_router(research_router)
 app.include_router(ws_router)
 
@@ -373,8 +376,9 @@ if DIST_DIR.is_dir():
 
     @app.get("/{path:path}")
     async def serve_spa(path: str):
-        file_path = DIST_DIR / path
-        if file_path.is_file():
+        from api.spa_files import public_file
+        file_path = public_file(DIST_DIR, path)
+        if file_path is not None:
             return FileResponse(str(file_path))
         return FileResponse(
             str(DIST_DIR / "index.html"),
