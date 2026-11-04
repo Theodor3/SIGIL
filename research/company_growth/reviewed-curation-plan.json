@@ -1,0 +1,92 @@
+[
+  {
+    "name": "q1-release",
+    "parent_capture_name": "boeing_2026q1_wire",
+    "reviewed_receipt": {
+      "url": "https://www.prnewswire.com/news-releases/boeing-reports-first-quarter-results-302750199.html",
+      "final_url": "https://www.prnewswire.com/news-releases/boeing-reports-first-quarter-results-302750199.html",
+      "started_at": "2026-11-04T13:59:26.302938+00:00",
+      "received_at": "2026-11-04T13:59:26.409061+00:00",
+      "status": 200,
+      "bytes": 324615,
+      "sha256": "b6b384e969507986a6cd21ccb21208aa51d9da912439bae980f26aedb3802b68",
+      "publication_time_reviewed": true,
+      "body_file": "sources/q1-release.bin",
+      "published_at": "2026-04-22T11:30:00Z",
+      "original_filer_cik": "0000012927",
+      "evidence_role": "issuer_quarter_data",
+      "source_version_kind": "current_received_input_vintage",
+      "review_limit": "Manual issuer/amount/calendar review; hash checks retained bytes, not authenticity or unchanged historical contents.",
+      "availability_basis": "reviewed_release_publication_and_actual_receipt"
+    }
+  },
+  {
+    "name": "q3-release",
+    "parent_capture_name": "boeing_2026q3_wire",
+    "reviewed_receipt": {
+      "url": "https://www.prnewswire.com/news-releases/boeing-reports-third-quarter-results-302920638.html",
+      "final_url": "https://www.prnewswire.com/news-releases/boeing-reports-third-quarter-results-302920638.html",
+      "started_at": "2026-11-04T13:59:26.410062+00:00",
+      "received_at": "2026-11-04T13:59:26.499305+00:00",
+      "status": 200,
+      "bytes": 391515,
+      "sha256": "42fe2de7ade87b3aa47d6250f5473ca78add096bef65ba303384ffc7e20aec48",
+      "publication_time_reviewed": true,
+      "body_file": "sources/q3-release.bin",
+      "published_at": "2026-10-27T11:30:00Z",
+      "original_filer_cik": "0000012927",
+      "evidence_role": "issuer_quarter_data",
+      "source_version_kind": "current_received_input_vintage",
+      "review_limit": "Manual issuer/amount/calendar review; hash checks retained bytes, not authenticity or unchanged historical contents.",
+      "availability_basis": "reviewed_release_publication_and_actual_receipt"
+    }
+  },
+  {
+    "name": "inventory",
+    "parent_capture_name": "boeing_sec_submission_inventory",
+    "reviewed_receipt": {
+      "url": "https://data.sec.gov/submissions/CIK0000012927.json",
+      "final_url": "https://data.sec.gov/submissions/CIK0000012927.json",
+      "started_at": "2026-11-04T14:06:43.433662+00:00",
+      "received_at": "2026-11-04T14:06:43.507813+00:00",
+      "status": 200,
+      "bytes": 147516,
+      "sha256": "d6f54c35b7f948949998175acf0903d8ae00a3a9b29907df78b6c49bfd57cd5a",
+      "publication_time_reviewed": false,
+      "body_file": "sources/inventory.bin",
+      "published_at": null,
+      "original_filer_cik": "0000012927",
+      "evidence_role": "issuer_filing_inventory",
+      "source_version_kind": "current_received_input_vintage",
+      "review_limit": "Manual issuer/amount/calendar review; hash checks retained bytes, not authenticity or unchanged historical contents.",
+      "availability_basis": "actual_receipt",
+      "inventory_reviewed": true
+    }
+  },
+  {
+    "name": "q1-filing",
+    "parent_capture_name": "boeing_2026q1_issuer_filing",
+    "reviewed_receipt": {
+      "url": "https://s2.q4cdn.com/661678649/files/doc_financials/2026/q1/10-Q.pdf",
+      "final_url": "https://s2.q4cdn.com/661678649/files/doc_financials/2026/q1/10-Q.pdf",
+      "started_at": "2026-11-04T14:06:43.509814+00:00",
+      "received_at": "2026-11-04T14:06:43.731145+00:00",
+      "status": 200,
+      "bytes": 1416442,
+      "sha256": "061370993532cf24dfd032d5d9d4b5adfa954f83de22a475f8609b36fb1beea5",
+      "publication_time_reviewed": false,
+      "body_file": "sources/q1-filing.bin",
+      "published_at": null,
+      "original_filer_cik": "0000012927",
+      "evidence_role": "issuer_filing_evidence",
+      "source_version_kind": "current_received_input_vintage",
+      "review_limit": "Manual issuer/amount/calendar review; hash checks retained bytes, not authenticity or unchanged historical contents.",
+      "availability_basis": "filing_acceptance_and_receipt",
+      "filing_accepted_at": "2026-04-22T16:38:40.000Z",
+      "filing_accession": "0001628280-26-026458",
+      "filing_report_date": "2026-03-31",
+      "filing_identity_reviewed": true,
+      "body_identity_limit": "Issuer-hosted report cover and fiscal period reviewed; not asserted identical SEC filing bytes or retrieved denied Q3 filing."
+    }
+  }
+]

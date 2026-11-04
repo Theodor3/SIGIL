@@ -1,0 +1,7 @@
+sources/
+artifacts/
+*.sqlite
+*.sqlite-*
+*.log
+__pycache__/
+index.html

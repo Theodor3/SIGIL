@@ -1,0 +1,295 @@
+{
+  "baseline": "Seasonal no-growth and latest-quarter YoY growth persistence with latest-quarter margin",
+  "code_sha256": "863a6e75bb20a25f1d835567cc7b50a55083d278fb484e3a7601979492b6e56d",
+  "cost_assumptions": "Offline forecast tool; manually retained free public sources. No paid model calls or orders.",
+  "data": [
+    {
+      "availability_basis": "Current received official fund holdings, not historical membership",
+      "id": "dia_holdings",
+      "sha256": "b73095ed71ddd8a3968f991c0280bcf7debe7b5c433b7a21e62869d368fe7297"
+    }
+  ],
+  "frozen_at": "2026-11-04T13:39:20.361419+00:00",
+  "full_candidate_universe": [
+    {
+      "name": "ALPHABET INC CL A",
+      "security_id": "02079K305",
+      "ticker": "GOOGL"
+    },
+    {
+      "name": "AMAZON.COM INC",
+      "security_id": "023135106",
+      "ticker": "AMZN"
+    },
+    {
+      "name": "AMERICAN EXPRESS CO",
+      "security_id": "025816109",
+      "ticker": "AXP"
+    },
+    {
+      "name": "AMGEN INC",
+      "security_id": "031162100",
+      "ticker": "AMGN"
+    },
+    {
+      "name": "APPLE INC",
+      "security_id": "037833100",
+      "ticker": "AAPL"
+    },
+    {
+      "name": "BOEING CO/THE",
+      "security_id": "097023105",
+      "ticker": "BA"
+    },
+    {
+      "name": "CATERPILLAR INC",
+      "security_id": "149123101",
+      "ticker": "CAT"
+    },
+    {
+      "name": "CHEVRON CORP",
+      "security_id": "166764100",
+      "ticker": "CVX"
+    },
+    {
+      "name": "CISCO SYSTEMS INC",
+      "security_id": "17275R102",
+      "ticker": "CSCO"
+    },
+    {
+      "name": "COCA COLA CO/THE",
+      "security_id": "191216100",
+      "ticker": "KO"
+    },
+    {
+      "name": "WALT DISNEY CO/THE",
+      "security_id": "254687106",
+      "ticker": "DIS"
+    },
+    {
+      "name": "GOLDMAN SACHS GROUP INC",
+      "security_id": "38141G104",
+      "ticker": "GS"
+    },
+    {
+      "name": "HOME DEPOT INC",
+      "security_id": "437076102",
+      "ticker": "HD"
+    },
+    {
+      "name": "HONEYWELL INTERNATIONAL INC",
+      "security_id": "438516205",
+      "ticker": "HON"
+    },
+    {
+      "name": "INTL BUSINESS MACHINES CORP",
+      "security_id": "459200101",
+      "ticker": "IBM"
+    },
+    {
+      "name": "JPMORGAN CHASE + CO",
+      "security_id": "46625H100",
+      "ticker": "JPM"
+    },
+    {
+      "name": "JOHNSON + JOHNSON",
+      "security_id": "478160104",
+      "ticker": "JNJ"
+    },
+    {
+      "name": "MCDONALD S CORP",
+      "security_id": "580135101",
+      "ticker": "MCD"
+    },
+    {
+      "name": "MERCK + CO. INC.",
+      "security_id": "58933Y105",
+      "ticker": "MRK"
+    },
+    {
+      "name": "MICROSOFT CORP",
+      "security_id": "594918104",
+      "ticker": "MSFT"
+    },
+    {
+      "name": "NIKE INC  CL B",
+      "security_id": "654106103",
+      "ticker": "NKE"
+    },
+    {
+      "name": "NVIDIA CORP",
+      "security_id": "67066G104",
+      "ticker": "NVDA"
+    },
+    {
+      "name": "PROCTER + GAMBLE CO/THE",
+      "security_id": "742718109",
+      "ticker": "PG"
+    },
+    {
+      "name": "SALESFORCE INC",
+      "security_id": "79466L302",
+      "ticker": "CRM"
+    },
+    {
+      "name": "SHERWIN WILLIAMS CO/THE",
+      "security_id": "824348106",
+      "ticker": "SHW"
+    },
+    {
+      "name": "3M CO",
+      "security_id": "88579Y101",
+      "ticker": "MMM"
+    },
+    {
+      "name": "TRAVELERS COS INC/THE",
+      "security_id": "89417E109",
+      "ticker": "TRV"
+    },
+    {
+      "name": "UNITEDHEALTH GROUP INC",
+      "security_id": "91324P102",
+      "ticker": "UNH"
+    },
+    {
+      "name": "VISA INC CLASS A SHARES",
+      "security_id": "92826C839",
+      "ticker": "V"
+    },
+    {
+      "name": "WALMART INC",
+      "security_id": "931142103",
+      "ticker": "WMT"
+    }
+  ],
+  "hypothesis": "Do reported revenue growth and operating margins persist into a fully future fiscal quarter?",
+  "issue_deadline": "2027-01-01T00:00:00Z",
+  "membership": [
+    {
+      "name": "WALT DISNEY CO/THE",
+      "security_id": "254687106",
+      "ticker": "DIS"
+    },
+    {
+      "name": "PROCTER + GAMBLE CO/THE",
+      "security_id": "742718109",
+      "ticker": "PG"
+    },
+    {
+      "name": "SALESFORCE INC",
+      "security_id": "79466L302",
+      "ticker": "CRM"
+    },
+    {
+      "name": "NVIDIA CORP",
+      "security_id": "67066G104",
+      "ticker": "NVDA"
+    },
+    {
+      "name": "MERCK + CO. INC.",
+      "security_id": "58933Y105",
+      "ticker": "MRK"
+    },
+    {
+      "name": "JOHNSON + JOHNSON",
+      "security_id": "478160104",
+      "ticker": "JNJ"
+    },
+    {
+      "name": "3M CO",
+      "security_id": "88579Y101",
+      "ticker": "MMM"
+    },
+    {
+      "name": "COCA COLA CO/THE",
+      "security_id": "191216100",
+      "ticker": "KO"
+    },
+    {
+      "name": "HONEYWELL INTERNATIONAL INC",
+      "security_id": "438516205",
+      "ticker": "HON"
+    },
+    {
+      "name": "WALMART INC",
+      "security_id": "931142103",
+      "ticker": "WMT"
+    },
+    {
+      "name": "ALPHABET INC CL A",
+      "security_id": "02079K305",
+      "ticker": "GOOGL"
+    },
+    {
+      "name": "CISCO SYSTEMS INC",
+      "security_id": "17275R102",
+      "ticker": "CSCO"
+    },
+    {
+      "name": "INTL BUSINESS MACHINES CORP",
+      "security_id": "459200101",
+      "ticker": "IBM"
+    },
+    {
+      "name": "NIKE INC  CL B",
+      "security_id": "654106103",
+      "ticker": "NKE"
+    },
+    {
+      "name": "AMAZON.COM INC",
+      "security_id": "023135106",
+      "ticker": "AMZN"
+    },
+    {
+      "name": "BOEING CO/THE",
+      "security_id": "097023105",
+      "ticker": "BA"
+    },
+    {
+      "name": "CATERPILLAR INC",
+      "security_id": "149123101",
+      "ticker": "CAT"
+    },
+    {
+      "name": "AMGEN INC",
+      "security_id": "031162100",
+      "ticker": "AMGN"
+    },
+    {
+      "name": "SHERWIN WILLIAMS CO/THE",
+      "security_id": "824348106",
+      "ticker": "SHW"
+    },
+    {
+      "name": "CHEVRON CORP",
+      "security_id": "166764100",
+      "ticker": "CVX"
+    }
+  ],
+  "metric": "Primary: equal-company mean absolute revenue error divided by issued seasonal revenue, in percent. Compare persistence minus seasonal on the identical scored set. Secondary: margin absolute percentage-point error. No whole-panel verdict before all20 revenue outcomes; missing margin remains ungradable.",
+  "missing_rule": "Keep all20 members. No replacement. Show missing inputs, pending outcomes, expired missing outcomes and ungradable margin. Partial matched-set errors are exploratory, not whole-panel findings.",
+  "resolution_rule": "First public original GAAP quarterly result, curator-reviewed against original source and publication history. Both publication and retained receipt must occur by target end plus180calendar days. Later revisions are not substituted.",
+  "scope": "Current DIA equity holdings, excluding fixed banking/insurance/payment-services names AXP, GS, JPM, TRV, V and UNH. This is a narrow scoped panel, not a historical or representative market universe.",
+  "scope_exclusions": [
+    "AXP",
+    "GS",
+    "JPM",
+    "TRV",
+    "UNH",
+    "V"
+  ],
+  "selection_rule": "First20 by SHA256(study_id|CUSIP), stable security-id tie; no financial or outcome values used",
+  "source_as_of": "2026-11-03",
+  "source_received_at": "2026-11-04T13:20:34.025131+00:00",
+  "source_review_limit": "Fund holdings proxy, not independent index certification. CUSIP-to-issuer mapping must be reviewed before issuance.",
+  "source_url": "https://www.ssga.com/library-content/products/fund-data/etfs/us/holdings-daily-us-en-dia.xlsx",
+  "split": "Prospective only; target starts after actual issuance",
+  "target_rule": "First complete fiscal quarter starting after frozen membership date, based on reviewed consecutive fiscal calendar covering that date. Issuance must precede its start; no discretionary later target.",
+  "variant": "membership-receipt-v2",
+  "parent_study": "company-growth-prospective-20-v1",
+  "parent_membership_sha256": "9d724c0748fc868769cd4c91651155635cf314391d0c95c8abe7b21df98b222e",
+  "revision_frozen_at": "2026-11-04T14:22:35.455234+00:00",
+  "availability_revision": "V2 permits actually received current SEC inventory/calendar and separately identified issuer filing receipts. Unknown inventory publication remains null. Filing acceptance is a separate event, not publication. Financial amounts remain bound to reviewed releases known before issuance.",
+  "inventory_max_age_seconds": 86400,
+  "input_vintage_rule": "Use reviewed current received input vintages; no claim these bytes were unchanged historical originals. Outcome rule remains first public original future result."
+}

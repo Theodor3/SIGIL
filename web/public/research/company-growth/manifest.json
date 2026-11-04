@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "publicationMode": "reviewed_frozen_snapshot",
+  "status": "pending_outcome",
+  "forecastSha256": "df38b3cbd27e8e931ec1c79430687bdd263eecc780f8c17cf4096abbf84823fd",
+  "codeSha256": "863a6e75bb20a25f1d835567cc7b50a55083d278fb484e3a7601979492b6e56d",
+  "issuedAt": "2026-11-04T14:22:35.486555+00:00",
+  "target": {
+    "end": "2027-03-31",
+    "fiscal_quarter": 1,
+    "fiscal_year": 2027,
+    "start": "2027-01-01"
+  },
+  "selectedCompanies": 20,
+  "issuedCompanies": 1,
+  "scoredCompanies": 0,
+  "limitations": "Manually reviewed public inputs; snapshot hashes do not authenticate sources or establish alpha. Raw captures and SQLite remain local."
+}

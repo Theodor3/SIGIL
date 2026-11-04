@@ -1,0 +1,84 @@
+{
+  "security_id": "097023105",
+  "cik": "0000012927",
+  "mapping_reviewed": true,
+  "definition": {
+    "basis": "GAAP",
+    "scope": "consolidated_three_months",
+    "currency": "USD",
+    "scale": "units"
+  },
+  "target": {
+    "fiscal_year": 2027,
+    "fiscal_quarter": 1,
+    "start": "2027-01-01",
+    "end": "2027-03-31"
+  },
+  "fiscal_calendar": [
+    {
+      "fiscal_year": 2026,
+      "fiscal_quarter": 4,
+      "start": "2026-10-01",
+      "end": "2026-12-31"
+    },
+    {
+      "fiscal_year": 2027,
+      "fiscal_quarter": 1,
+      "start": "2027-01-01",
+      "end": "2027-03-31"
+    }
+  ],
+  "calendar_source_id": "inventory",
+  "fiscal_calendar_reviewed": true,
+  "input_inventory": {
+    "received_versions_reviewed": true,
+    "source_id": "inventory",
+    "reviewed_at": null,
+    "latest_available_fiscal_year": 2026,
+    "latest_available_fiscal_quarter": 3,
+    "latest_public_release_reviewed": true,
+    "latest_release_source_id": "q3",
+    "release_completeness_note": "Reviewed current issuer Q3 release dated October27 and official inventory at November4 receipt. Q3 ends September30, the latest completed calendar quarter on November4; Q4 has not ended. This is manual completeness review, not proof supplied by SEC max alone."
+  },
+  "history": [
+    {
+      "fiscal_year": 2026,
+      "fiscal_quarter": 3,
+      "start": "2026-07-01",
+      "end": "2026-09-30",
+      "revenue": 24188000000,
+      "operating_income": 354000000,
+      "table_reference": "Table1 first/current quarterly column; reconciled to consolidated three-month statements",
+      "source_id": "q3",
+      "amounts_reviewed": true
+    },
+    {
+      "fiscal_year": 2025,
+      "fiscal_quarter": 3,
+      "start": "2025-07-01",
+      "end": "2025-09-30",
+      "revenue": 23270000000,
+      "operating_income": -4781000000,
+      "table_reference": "Table1 second/prior-year quarterly column; not Nine Months columns",
+      "source_id": "q3",
+      "amounts_reviewed": true
+    },
+    {
+      "fiscal_year": 2026,
+      "fiscal_quarter": 1,
+      "start": "2026-01-01",
+      "end": "2026-03-31",
+      "revenue": 22217000000,
+      "operating_income": 448000000,
+      "table_reference": "Table1 first/current quarterly column; consolidated statements specify Three months ended March31",
+      "source_id": "q1",
+      "amounts_reviewed": true
+    }
+  ],
+  "sources": {
+    "q1": "sources/q1-release.receipt.json",
+    "q3": "sources/q3-release.receipt.json",
+    "inventory": "sources/inventory.receipt.json",
+    "q1_filing": "sources/q1-filing.receipt.json"
+  }
+}

@@ -1,0 +1,211 @@
+{
+  "baseline": "Seasonal no-growth and latest-quarter YoY growth persistence with latest-quarter margin",
+  "code_sha256": "863a6e75bb20a25f1d835567cc7b50a55083d278fb484e3a7601979492b6e56d",
+  "cost_assumptions": "Offline forecast tool; manually retained free public sources. No paid model calls or orders.",
+  "data": [
+    {
+      "availability_basis": "reviewed_release_publication_and_actual_receipt",
+      "id": "q1",
+      "sha256": "b6b384e969507986a6cd21ccb21208aa51d9da912439bae980f26aedb3802b68"
+    },
+    {
+      "availability_basis": "reviewed_release_publication_and_actual_receipt",
+      "id": "q3",
+      "sha256": "42fe2de7ade87b3aa47d6250f5473ca78add096bef65ba303384ffc7e20aec48"
+    },
+    {
+      "availability_basis": "actual_receipt",
+      "id": "inventory",
+      "sha256": "d6f54c35b7f948949998175acf0903d8ae00a3a9b29907df78b6c49bfd57cd5a"
+    },
+    {
+      "availability_basis": "filing_acceptance_and_receipt",
+      "id": "q1_filing",
+      "sha256": "061370993532cf24dfd032d5d9d4b5adfa954f83de22a475f8609b36fb1beea5"
+    }
+  ],
+  "forecasts": {
+    "growth_persistence": {
+      "margin_pct": "1.463535637506201422192822887",
+      "revenue": "23093459217.87709497206703911"
+    },
+    "seasonal_no_growth": {
+      "margin_pct": "2.016473871359769545843273169",
+      "revenue": "22217000000"
+    }
+  },
+  "hypothesis": "Do reported revenue growth and operating margins persist into a fully future fiscal quarter?",
+  "issued_at": "2026-11-04T14:22:35.486555+00:00",
+  "member": {
+    "name": "BOEING CO/THE",
+    "security_id": "097023105",
+    "ticker": "BA"
+  },
+  "membership_sha256": "4b52614d2cfee21ec919f87b7960af5bea35904adef3a5af2789bb85df3cfcf0",
+  "metric": "Primary: equal-company mean absolute revenue error divided by issued seasonal revenue, in percent. Compare persistence minus seasonal on the identical scored set. Secondary: margin absolute percentage-point error. No whole-panel verdict before all20 revenue outcomes; missing margin remains ungradable.",
+  "packet": {
+    "calendar_source_id": "inventory",
+    "cik": "0000012927",
+    "definition": {
+      "basis": "GAAP",
+      "currency": "USD",
+      "scale": "units",
+      "scope": "consolidated_three_months"
+    },
+    "fiscal_calendar": [
+      {
+        "end": "2026-12-31",
+        "fiscal_quarter": 4,
+        "fiscal_year": 2026,
+        "start": "2026-10-01"
+      },
+      {
+        "end": "2027-03-31",
+        "fiscal_quarter": 1,
+        "fiscal_year": 2027,
+        "start": "2027-01-01"
+      }
+    ],
+    "fiscal_calendar_reviewed": true,
+    "history": [
+      {
+        "amounts_reviewed": true,
+        "end": "2026-09-30",
+        "fiscal_quarter": 3,
+        "fiscal_year": 2026,
+        "operating_income": 354000000,
+        "revenue": 24188000000,
+        "source_id": "q3",
+        "start": "2026-07-01",
+        "table_reference": "Table1 first/current quarterly column; reconciled to consolidated three-month statements"
+      },
+      {
+        "amounts_reviewed": true,
+        "end": "2025-09-30",
+        "fiscal_quarter": 3,
+        "fiscal_year": 2025,
+        "operating_income": -4781000000,
+        "revenue": 23270000000,
+        "source_id": "q3",
+        "start": "2025-07-01",
+        "table_reference": "Table1 second/prior-year quarterly column; not Nine Months columns"
+      },
+      {
+        "amounts_reviewed": true,
+        "end": "2026-03-31",
+        "fiscal_quarter": 1,
+        "fiscal_year": 2026,
+        "operating_income": 448000000,
+        "revenue": 22217000000,
+        "source_id": "q1",
+        "start": "2026-01-01",
+        "table_reference": "Table1 first/current quarterly column; consolidated statements specify Three months ended March31"
+      }
+    ],
+    "input_inventory": {
+      "latest_available_fiscal_quarter": 3,
+      "latest_available_fiscal_year": 2026,
+      "latest_public_release_reviewed": true,
+      "latest_release_source_id": "q3",
+      "received_versions_reviewed": true,
+      "release_completeness_note": "Reviewed current issuer Q3 release dated October27 and official inventory at November4 receipt. Q3 ends September30, the latest completed calendar quarter on November4; Q4 has not ended. This is manual completeness review, not proof supplied by SEC max alone.",
+      "reviewed_at": "2026-11-04T14:21:27.514439+00:00",
+      "source_id": "inventory"
+    },
+    "mapping_reviewed": true,
+    "security_id": "097023105",
+    "sources": {
+      "inventory": "sources/inventory.receipt.json",
+      "q1": "sources/q1-release.receipt.json",
+      "q1_filing": "sources/q1-filing.receipt.json",
+      "q3": "sources/q3-release.receipt.json"
+    },
+    "target": {
+      "end": "2027-03-31",
+      "fiscal_quarter": 1,
+      "fiscal_year": 2027,
+      "start": "2027-01-01"
+    }
+  },
+  "receipts": {
+    "inventory": {
+      "availability_basis": "actual_receipt",
+      "body_file": "sources/inventory.bin",
+      "bytes": 147516,
+      "evidence_role": "issuer_filing_inventory",
+      "final_url": "https://data.sec.gov/submissions/CIK0000012927.json",
+      "inventory_reviewed": true,
+      "original_filer_cik": "0000012927",
+      "publication_time_reviewed": false,
+      "published_at": null,
+      "received_at": "2026-11-04T14:06:43.507813+00:00",
+      "review_limit": "Manual issuer/amount/calendar review; hash checks retained bytes, not authenticity or unchanged historical contents.",
+      "sha256": "d6f54c35b7f948949998175acf0903d8ae00a3a9b29907df78b6c49bfd57cd5a",
+      "source_version_kind": "current_received_input_vintage",
+      "started_at": "2026-11-04T14:06:43.433662+00:00",
+      "status": 200,
+      "url": "https://data.sec.gov/submissions/CIK0000012927.json"
+    },
+    "q1": {
+      "availability_basis": "reviewed_release_publication_and_actual_receipt",
+      "body_file": "sources/q1-release.bin",
+      "bytes": 324615,
+      "evidence_role": "issuer_quarter_data",
+      "final_url": "https://www.prnewswire.com/news-releases/boeing-reports-first-quarter-results-302750199.html",
+      "original_filer_cik": "0000012927",
+      "publication_time_reviewed": true,
+      "published_at": "2026-04-22T11:30:00Z",
+      "received_at": "2026-11-04T13:59:26.409061+00:00",
+      "review_limit": "Manual issuer/amount/calendar review; hash checks retained bytes, not authenticity or unchanged historical contents.",
+      "sha256": "b6b384e969507986a6cd21ccb21208aa51d9da912439bae980f26aedb3802b68",
+      "source_version_kind": "current_received_input_vintage",
+      "started_at": "2026-11-04T13:59:26.302938+00:00",
+      "status": 200,
+      "url": "https://www.prnewswire.com/news-releases/boeing-reports-first-quarter-results-302750199.html"
+    },
+    "q1_filing": {
+      "availability_basis": "filing_acceptance_and_receipt",
+      "body_file": "sources/q1-filing.bin",
+      "body_identity_limit": "Issuer-hosted report cover and fiscal period reviewed; not asserted identical SEC filing bytes or retrieved denied Q3 filing.",
+      "bytes": 1416442,
+      "evidence_role": "issuer_filing_evidence",
+      "filing_accepted_at": "2026-04-22T16:38:40.000Z",
+      "filing_accession": "0001628280-26-026458",
+      "filing_identity_reviewed": true,
+      "filing_report_date": "2026-03-31",
+      "final_url": "https://s2.q4cdn.com/661678649/files/doc_financials/2026/q1/10-Q.pdf",
+      "original_filer_cik": "0000012927",
+      "publication_time_reviewed": false,
+      "published_at": null,
+      "received_at": "2026-11-04T14:06:43.731145+00:00",
+      "review_limit": "Manual issuer/amount/calendar review; hash checks retained bytes, not authenticity or unchanged historical contents.",
+      "sha256": "061370993532cf24dfd032d5d9d4b5adfa954f83de22a475f8609b36fb1beea5",
+      "source_version_kind": "current_received_input_vintage",
+      "started_at": "2026-11-04T14:06:43.509814+00:00",
+      "status": 200,
+      "url": "https://s2.q4cdn.com/661678649/files/doc_financials/2026/q1/10-Q.pdf"
+    },
+    "q3": {
+      "availability_basis": "reviewed_release_publication_and_actual_receipt",
+      "body_file": "sources/q3-release.bin",
+      "bytes": 391515,
+      "evidence_role": "issuer_quarter_data",
+      "final_url": "https://www.prnewswire.com/news-releases/boeing-reports-third-quarter-results-302920638.html",
+      "original_filer_cik": "0000012927",
+      "publication_time_reviewed": true,
+      "published_at": "2026-10-27T11:30:00Z",
+      "received_at": "2026-11-04T13:59:26.499305+00:00",
+      "review_limit": "Manual issuer/amount/calendar review; hash checks retained bytes, not authenticity or unchanged historical contents.",
+      "sha256": "42fe2de7ade87b3aa47d6250f5473ca78add096bef65ba303384ffc7e20aec48",
+      "source_version_kind": "current_received_input_vintage",
+      "started_at": "2026-11-04T13:59:26.410062+00:00",
+      "status": 200,
+      "url": "https://www.prnewswire.com/news-releases/boeing-reports-third-quarter-results-302920638.html"
+    }
+  },
+  "resolution_deadline": "2027-09-27",
+  "resolution_rule": "First public original GAAP quarterly result, curator-reviewed against original source and publication history. Both publication and retained receipt must occur by target end plus180calendar days. Later revisions are not substituted.",
+  "source_limit": "Current received input vintages and inferred fiscal calendar are curator reviewed; SEC acceptance is distinct from publication; no denied filing body is claimed retrieved. Hashes prove byte consistency only.",
+  "split": "Prospective only; target starts after actual issuance",
+  "variant": "baselines-receipt-v2"
+}
