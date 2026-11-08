@@ -26,8 +26,10 @@ def replay(monkeypatch):
     monkeypatch.setattr(bt, 'load_context', lambda _: object())
     monkeypatch.setattr(bt, 'context_receipt', lambda d: {'captured_at': f'{d.isoformat()}T20:00:00+00:00'})
 
-    def run(history, scores=(('ABC', .8),), **kwargs):
+    def run(history, scores=(('ABC', .8),), raw_outputs=None, **kwargs):
         async def compute(_):
+            if raw_outputs is not None:
+                return raw_outputs
             return [SimpleNamespace(ticker=t, score=s, confidence=1) for t, s in scores]
         monkeypatch.setattr(bt, 'get_registry', lambda: {'test': SimpleNamespace(version='1', compute=compute, replay_safe=True)})
         monkeypatch.setattr(bt, '_download_history_sync', lambda *args: history)
@@ -96,3 +98,61 @@ def test_nonfinite_stock_window_is_not_a_benchmark_failure(replay):
     r = replay({'ABC': series(end=float('nan')), 'SPY': series()})['horizons']['5d']
     assert r['n'] == 0 and r['skipped_stock_window'] == 1
     assert r['skipped_benchmark_window'] == 0
+
+
+@pytest.mark.parametrize('field', ['score', 'confidence'])
+@pytest.mark.parametrize('value', [float('nan'), float('inf'), -float('inf'),
+                                  -.1, 1.1, True, False, None, '0.8', [], {}])
+def test_invalid_probabilities_cannot_contaminate_metrics(replay, field, value):
+    invalid = dict(ticker='ABC', score=.8, confidence=1)
+    invalid[field] = value
+    result = replay({'ABC': series(), 'SPY': series(end=104)}, raw_outputs=[
+        SimpleNamespace(**invalid),
+        SimpleNamespace(ticker='ABC', score=.8, confidence=1),
+    ])
+    assert result['output_counts'] == dict(outputs_seen=2, skipped_invalid_output=1,
+                                         skipped_abstention=0, accepted_calls=1)
+    assert result['total_calls'] == 1
+    r = result['horizons']['5d']
+    assert r['eligible_calls'] == r['n'] == r['alpha_n'] == 1
+    assert r['long_calls'] == 1 and r['short_calls'] == 0
+    assert r['avg_alpha'] == .06 and r['hit_rate'] == 1
+
+
+@pytest.mark.parametrize('ticker', ['', ' ', ' ABC', 'ABC ', None, [], 123])
+def test_invalid_ticker_is_not_a_missing_price_window(replay, ticker):
+    result = replay({}, raw_outputs=[SimpleNamespace(ticker=ticker, score=.8, confidence=1)])
+    assert result['output_counts']['skipped_invalid_output'] == 1
+    assert result['output_counts']['accepted_calls'] == 0
+    assert 'horizons' not in result
+
+
+def test_all_invalid_outputs_do_not_request_prices(replay, monkeypatch):
+    def forbidden(*args):
+        raise AssertionError('No price request allowed for invalid outputs')
+    # The fixture installs a downloader; reject executor dispatch itself.
+    monkeypatch.setattr(asyncio.BaseEventLoop, 'run_in_executor', forbidden)
+    result = replay({}, raw_outputs=[SimpleNamespace(), None,
+                    SimpleNamespace(ticker='ABC', score=float('nan'), confidence=1)])
+    assert result['output_counts'] == dict(outputs_seen=3, skipped_invalid_output=3,
+                                         skipped_abstention=0, accepted_calls=0)
+    assert 'invalid outputs' in result['note']
+
+
+def test_valid_boundaries_and_abstentions_have_separate_accounting(replay):
+    result = replay({'ABC': series(), 'SPY': series(end=104)}, raw_outputs=[
+        SimpleNamespace(ticker='ABC', score=0, confidence=1),
+        SimpleNamespace(ticker='ABC', score=1, confidence=1),
+        SimpleNamespace(ticker='ABC', score=.8, confidence=0),
+        SimpleNamespace(ticker='ABC', score=.5, confidence=1),
+        SimpleNamespace(ticker='ABC', score=.5 + 1e-7, confidence=1),
+    ])
+    counts = result['output_counts']
+    assert counts == dict(outputs_seen=5, skipped_invalid_output=0,
+                          skipped_abstention=3, accepted_calls=2)
+    assert counts['outputs_seen'] == sum(counts[k] for k in
+        ['skipped_invalid_output', 'skipped_abstention', 'accepted_calls'])
+    r = result['horizons']['5d']
+    assert r['n'] == r['eligible_calls'] == 2
+    assert r['long_calls'] == r['short_calls'] == 1
+    assert r['avg_alpha'] == 0 and r['hit_rate'] == .5

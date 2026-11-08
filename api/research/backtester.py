@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import math
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from api.research.context_store import list_snapshot_dates, load_context, context_receipt
 from api.signals.registry import get_registry
@@ -23,6 +23,16 @@ from api.tracker.evaluator import (
 )
 
 NEUTRAL_EPSILON = 1e-6
+
+
+def _valid_probability(value) -> bool:
+    """Reject malformed model output rather than silently grading it bearish."""
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and 0 <= value <= 1
+        and math.isfinite(value)
+    )
 
 
 async def backtest_signal(
@@ -62,8 +72,14 @@ async def backtest_signal(
         }
 
     # Phase 1: replay compute() over each recorded context
-    calls: list[tuple[date, str, float]] = []  # (as_of, ticker, score)
+    calls: list[tuple[datetime, str, float]] = []  # (receipt, ticker, score)
     replayed = 0
+    output_counts = {
+        'outputs_seen': 0,
+        'skipped_invalid_output': 0,
+        'skipped_abstention': 0,
+        'accepted_calls': 0,
+    }
     for d in usable:
         try:
             receipt = context_receipt(d)
@@ -80,9 +96,20 @@ async def backtest_signal(
             continue
         replayed += 1
         for out in outputs:
-            if out.confidence <= 0 or abs(out.score - 0.5) <= NEUTRAL_EPSILON:
+            output_counts['outputs_seen'] += 1
+            score = getattr(out, 'score', None)
+            confidence = getattr(out, 'confidence', None)
+            ticker = getattr(out, 'ticker', None)
+            if (not _valid_probability(score) or not _valid_probability(confidence)
+                    or not isinstance(ticker, str) or not ticker.strip()
+                    or ticker != ticker.strip()):
+                output_counts['skipped_invalid_output'] += 1
                 continue
-            calls.append((captured, out.ticker, out.score))
+            if confidence == 0 or abs(score - 0.5) <= NEUTRAL_EPSILON:
+                output_counts['skipped_abstention'] += 1
+                continue
+            calls.append((captured, ticker, score))
+            output_counts['accepted_calls'] += 1
 
     if not calls:
         return {
@@ -90,7 +117,8 @@ async def backtest_signal(
             "version": signal.version,
             "snapshots_usable": len(usable),
             "snapshots_replayed": replayed,
-            "note": "Signal made no non-neutral calls on recorded data.",
+            "output_counts": output_counts,
+            "note": "No valid non-neutral calls remain; inspect output_counts for invalid outputs and abstentions.",
         }
 
     # Phase 2: one batched price download covering every call window
@@ -177,6 +205,7 @@ async def backtest_signal(
             "hit_basis": "strictly_positive_SPY_relative_directional_alpha",
             "benchmark_policy": "exact_stock_entry_and_exit_dates",
             "round_trip_cost_bps": round_trip_cost_bps,
+            "output_policy": "Only finite numeric scores and confidence in [0, 1], excluding booleans, and nonblank unpadded ticker strings are eligible. Zero confidence and neutral scores abstain. Rejected outputs never enter horizon denominators.",
             "cost_scope": "Flat assumed round-trip cost per forecast, including any assumed fees, spread, slippage and borrow. Not measured execution or portfolio returns.",
             "timing_limit": "Only uniquely selected immutable local receipts and explicitly deterministic context-only signals replay. First close strictly after receipt NY date; publisher first-public time still unknown. Overlapping calls are not independent.",
         },
@@ -184,6 +213,7 @@ async def backtest_signal(
         "version": signal.version,
         "snapshots_usable": len(usable),
         "snapshots_replayed": replayed,
+        "output_counts": output_counts,
         "total_calls": len(calls),
         "date_range": [usable[0].isoformat(), usable[-1].isoformat()],
         "horizons": results,
