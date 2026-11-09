@@ -22,3 +22,13 @@ Next verification when the authorized Docker runner is available: execute `pytes
 ## Scope and retained studies
 
 No paid calls, fitting, trading, source requests, deployment, remote push, service restarts or schedules. No historical metric was recomputed or rewritten. Existing user work and canonical budget/ledger state were not modified. The local November 1 ERCOT and river forward packets remain unchanged; this change does not resolve their outcomes or establish predictive skill.
+
+## Follow-up verification, 2026-11-09
+
+After the owner reported restored access, GitHub and Docker access succeeded on DESKTOP-MDURS43. The unchanged implementation commit `d541d2452582ad718c26588f44e0f5bc27901010` was tested through the existing GitStudio isolated runner and pinned image `sha256:c2ddeeec7f32f1717584654d6a4cbc20ee2b454cad49a2fefd911d2cff8bed9d`.
+
+- `tests`: **168 passed**, one pre-existing datetime.utcnow deprecation warning, exit 0, untruncated output.
+- `swarm/tests`: **316 passed, 16 failed, 11 errors**, exit 1. Re-running the same target on the unchanged parent commit `cf22fd7269cd05186ce985b15923162b2d93af30` produced the same failed/error test names and counts. These failures are not introduced by this backtester patch. They include the sanitized runner lacking a Git snapshot required by some app/queue tests; the full aggregate suite is not green.
+- The runner retained no-network, read-only root, non-root user, no host mounts, dropped capabilities, 1 CPU, 256 MiB and a 45-second timeout. No packages were installed and no paid model calls or live services were used.
+
+The focused repository suite now passes, superseding the earlier Docker-blocked test status above. Suitable for publication on the review branch only; no merge or production deployment is implied. The current remote main may be newer than this branch's base and integration against it remains separate work.
