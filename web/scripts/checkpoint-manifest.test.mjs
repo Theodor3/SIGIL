@@ -211,3 +211,10 @@ test('hyperscaler labels and units cannot drift from reviewed artifact',{skip:!p
   assert.throws(()=>verify(s,m,{readEvidence:evidenceReader(process.env.SIGIL_LOCAL_EVIDENCE_ROOT)}),/label differs|unit differs/);
  }
 });
+
+test('checked-out reviewed manifest retains its recorded byte digest',()=>{
+ const manifestBytes=fs.readFileSync(new URL('./research-checkpoint.manifest.json',import.meta.url));
+ const snapshot=JSON.parse(fs.readFileSync(new URL('../src/data/researchCheckpoint.json',import.meta.url)));
+ assert.equal(sha(manifestBytes),snapshot.manifestSha256);
+ assert.equal(verify(snapshot,JSON.parse(manifestBytes)).mode,'snapshot_manifest_only');
+});
