@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -19,6 +20,15 @@ class ScoredTicker:
     signal_scores: dict[str, float]
     eligible: bool
     gate_flags: dict[str, bool]
+
+
+def _finite_number(value) -> bool:
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
 
 
 def _resolve_weights(config: dict) -> dict[str, float]:
@@ -82,17 +92,25 @@ def score_universe(
 
         for sig_name, weight in resolved.items():
             out = scores.get(sig_name)
-            if out and out.confidence > 0:
+            if (out and _finite_number(weight) and weight > 0
+                    and _finite_number(out.score) and 0 <= out.score <= 1
+                    and _finite_number(out.confidence) and 0 < out.confidence <= 1):
                 tilt = regime.factor_tilts.get(sig_name, 1.0)
+                if not _finite_number(tilt) or tilt <= 0:
+                    continue
                 effective_weight = weight * out.confidence
                 weighted_sum += out.score * effective_weight * tilt
                 total_weight += effective_weight
                 signal_scores[sig_name] = round(out.score, 4)
                 confidences.append(out.confidence)
 
-        final = weighted_sum / max(total_weight, 0.01)
-        avg_conf = sum(confidences) / max(len(confidences), 1) if confidences else 0.6
-        eligible = avg_conf >= min_confidence
+        has_evidence = (total_weight > 0 and math.isfinite(total_weight)
+                        and math.isfinite(weighted_sum))
+        if not has_evidence:
+            signal_scores = {}
+        final = weighted_sum / max(total_weight, 0.01) if has_evidence else 0.0
+        avg_conf = sum(confidences) / len(confidences) if has_evidence else 0.0
+        eligible = has_evidence and avg_conf >= min_confidence
 
         results.append(ScoredTicker(
             ticker=ticker,
@@ -100,7 +118,7 @@ def score_universe(
             confidence=round(avg_conf, 4),
             signal_scores=signal_scores,
             eligible=eligible,
-            gate_flags={"confidence": avg_conf >= min_confidence},
+            gate_flags={"confidence": eligible, "signal_evidence": has_evidence},
         ))
 
     results.sort(key=lambda x: x.final_score, reverse=True)
