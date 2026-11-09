@@ -1,2 +1,5 @@
 research/company_growth/** -text
 web/public/research/company-growth/** -text
+
+# Keep the hash-bound reviewed manifest byte-identical on Windows.
+web/scripts/research-checkpoint.manifest.json -text
