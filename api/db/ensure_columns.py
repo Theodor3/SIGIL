@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 # table -> {column: SQL type (plus any DEFAULT clause)}
 REQUIRED_COLUMNS: dict[str, dict[str, str]] = {
+    "pipeline_runs": {"score_snapshot": "JSON"},
     "order_executions": {
         "decision_bid": "FLOAT",
         "decision_ask": "FLOAT",

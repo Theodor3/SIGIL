@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api import cache
 from api.db import get_db
 from api.db.models import PipelineRun, SignalPrediction, Trade
+from api.model.score_snapshot import read_run_scores
 
 router = APIRouter(prefix="/api", tags=["dashboard"])
 
@@ -94,49 +95,9 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db), view: Literal["
         "history": regime_history,
     }
 
-    # Get top ideas from latest run
-    top_ideas = []
-    if latest_run:
-        # Get all predictions for the latest run, compute weighted scores
-        preds_q = await db.execute(
-            select(SignalPrediction)
-            .where(SignalPrediction.run_id == latest_run.id)
-        )
-        preds = preds_q.scalars().all()
-
-        # Group by ticker
-        by_ticker: dict[str, dict] = {}
-        for p in preds:
-            if p.ticker not in by_ticker:
-                by_ticker[p.ticker] = {"scores": {}, "confidences": [], "sector": ""}
-            by_ticker[p.ticker]["scores"][p.signal_name] = p.score
-            if p.confidence > 0:
-                by_ticker[p.ticker]["confidences"].append(p.confidence)
-            if p.signal_name == "quality" and p.metadata_:
-                by_ticker[p.ticker]["sector"] = p.metadata_.get("sector", "")
-
-        # Score each ticker using group-resolved weights
-        from api.model.scorer import load_weights
-        weights = load_weights()
-        scored = []
-        for ticker, data in by_ticker.items():
-            weighted_sum = sum(
-                data["scores"].get(sig, 0) * w
-                for sig, w in weights.items()
-            )
-            avg_conf = sum(data["confidences"]) / max(len(data["confidences"]), 1) if data["confidences"] else 0.6
-            scored.append({
-                "ticker": ticker,
-                "final_score": round(weighted_sum, 6),
-                "confidence": round(avg_conf, 4),
-                "signal_scores": {k: round(v, 4) for k, v in data["scores"].items()},
-                "sector": data["sector"],
-            })
-
-        scored.sort(key=lambda x: x["final_score"], reverse=True)
-        top_ideas = scored[:20]
-        for i, idea in enumerate(top_ideas):
-            idea["rank"] = i + 1
+    # Read the exact run's ranked output. Legacy runs cannot be reconstructed faithfully.
+    saved_scores, score_status = read_run_scores(latest_run)
+    top_ideas = saved_scores[:20]
 
     # Signal health stats with evaluation data
     from api.tracker.evaluator import get_signal_stats
@@ -155,6 +116,7 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db), view: Literal["
         for sig_name in group.get("signals", {}):
             sig_to_group[sig_name] = group_name
 
+    from api.model.scorer import load_weights
     resolved_weights = load_weights()
 
     # One grouped count replaces one query per registered signal.
@@ -248,6 +210,7 @@ async def get_dashboard_data(db: AsyncSession = Depends(get_db), view: Literal["
         "signal_groups": group_summary,
         "regime": regime,
         "top_ideas": top_ideas,
+        "score_status": score_status,
         "portfolio": portfolio_summary,
         "pipeline": pipeline_status,
         "recent_runs": recent_runs,

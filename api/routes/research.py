@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api import cache
+from api.model.score_snapshot import read_run_scores
 from api.db import get_db
 from api.db.models import PipelineRun, SignalPrediction, SignalEvaluation, Trade
 
@@ -43,10 +44,6 @@ async def backtest_coverage():
 @router.get("/ticker/{ticker}")
 async def ticker_drilldown(ticker: str, db: AsyncSession = Depends(get_db)):
     """Deep dive on a single ticker — signal breakdown, prediction history, trades."""
-    from api.signals.registry import get_registry
-
-    signals = get_registry()
-    weights = {s.name: s.default_weight for s in signals.values()}
     ticker = ticker.upper()
 
     # Latest predictions for this ticker
@@ -58,58 +55,38 @@ async def ticker_drilldown(ticker: str, db: AsyncSession = Depends(get_db)):
     )
     latest_run = latest_run_q.scalar_one_or_none()
 
+    saved_scores, score_status = read_run_scores(latest_run)
+    saved = next((row for row in saved_scores if row['ticker'] == ticker), None)
     current_signals = []
-    final_score = 0.0
-    avg_confidence = 0.0
-    if latest_run:
-        preds_q = await db.execute(
-            select(SignalPrediction).where(
-                SignalPrediction.run_id == latest_run.id,
-                SignalPrediction.ticker == ticker,
-            )
-        )
-        preds = preds_q.scalars().all()
-        confidences = []
-        for p in preds:
-            w = weights.get(p.signal_name, 0)
-            contribution = p.score * w
-            final_score += contribution
-            if p.confidence > 0:
-                confidences.append(p.confidence)
-            current_signals.append({
-                "signal": p.signal_name,
-                "score": round(p.score, 4),
-                "confidence": round(p.confidence, 4),
-                "weight": round(w, 4),
-                "contribution": round(contribution, 6),
-                "metadata": p.metadata_ or {},
-            })
-        current_signals.sort(key=lambda x: x["contribution"], reverse=True)
-        avg_confidence = sum(confidences) / max(len(confidences), 1) if confidences else 0
+    if saved:
+        preds_q = await db.execute(select(SignalPrediction).where(
+            SignalPrediction.run_id == latest_run.id, SignalPrediction.ticker == ticker))
+        metadata = {p.signal_name: p.metadata_ or {} for p in preds_q.scalars().all()}
+        current_signals = [{
+            'signal': name, 'score': value,
+            'confidence': None,
+            'weight': None,
+            'contribution': None,
+            'metadata': metadata.get(name, {}),
+        } for name, value in saved['signal_scores'].items()]
 
-    # Prediction history across runs (last 30 days)
+    elif score_status == 'saved':
+        score_status = 'ticker_unavailable'
+
+    # Run identity, not date alone, preserves multiple runs on the same day.
     cutoff = date.today() - timedelta(days=30)
-    history_q = await db.execute(
-        select(SignalPrediction)
-        .where(
-            SignalPrediction.ticker == ticker,
-            SignalPrediction.run_date >= cutoff,
-        )
-        .order_by(SignalPrediction.run_date.desc())
-    )
-    history_preds = history_q.scalars().all()
-
-    by_run: dict[str, dict] = {}
-    for p in history_preds:
-        if p.run_id not in by_run:
-            by_run[p.run_id] = {"run_date": p.run_date.isoformat(), "signals": {}, "total": 0.0}
-        by_run[p.run_id]["signals"][p.signal_name] = round(p.score, 4)
-        by_run[p.run_id]["total"] += p.score * weights.get(p.signal_name, 0)
-
-    score_history = [
-        {"date": v["run_date"], "score": round(v["total"], 6), "signals": v["signals"]}
-        for v in by_run.values()
-    ]
+    history_q = await db.execute(select(PipelineRun).where(
+        PipelineRun.status == 'completed', PipelineRun.started_at >= cutoff
+    ).order_by(PipelineRun.started_at.desc(), PipelineRun.id.desc()))
+    score_history = []
+    for historical_run in history_q.scalars().all():
+        rows, status = read_run_scores(historical_run)
+        row = next((r for r in rows if r['ticker'] == ticker), None)
+        score_history.append({'run_id': historical_run.id,
+            'date': historical_run.started_at.isoformat(),
+            'score': row['final_score'] if row else None,
+            'score_status': status if row or status != 'saved' else 'ticker_unavailable',
+            'signals': row['signal_scores'] if row else {}})
 
     # Evaluations for this ticker
     eval_q = await db.execute(
@@ -176,8 +153,10 @@ async def ticker_drilldown(ticker: str, db: AsyncSession = Depends(get_db)):
     return {
         "ticker": ticker,
         "company": company_info,
-        "final_score": round(final_score, 6),
-        "confidence": round(avg_confidence, 4),
+        "final_score": saved["final_score"] if saved else None,
+        "score_status": score_status,
+        "eligible": saved["eligible"] if saved else None,
+        "confidence": saved["confidence"] if saved else None,
         "signals": current_signals,
         "score_history": score_history,
         "evaluations": evaluations,
@@ -189,11 +168,6 @@ async def ticker_drilldown(ticker: str, db: AsyncSession = Depends(get_db)):
 @router.get("/top-ideas")
 async def top_ideas_detailed(db: AsyncSession = Depends(get_db)):
     """Extended top ideas with signal attribution for each."""
-    from api.signals.registry import get_registry
-
-    signals = get_registry()
-    weights = {s.name: s.default_weight for s in signals.values()}
-
     latest_run_q = await db.execute(
         select(PipelineRun)
         .where(PipelineRun.status == "completed")
@@ -201,50 +175,18 @@ async def top_ideas_detailed(db: AsyncSession = Depends(get_db)):
         .limit(1)
     )
     latest_run = latest_run_q.scalar_one_or_none()
-    if not latest_run:
-        return {"ideas": [], "run_date": None}
-
-    preds_q = await db.execute(
-        select(SignalPrediction).where(SignalPrediction.run_id == latest_run.id)
-    )
-    preds = preds_q.scalars().all()
-
-    by_ticker: dict[str, dict] = {}
-    for p in preds:
-        if p.ticker not in by_ticker:
-            by_ticker[p.ticker] = {"scores": {}, "confidences": [], "metadata": {}}
-        by_ticker[p.ticker]["scores"][p.signal_name] = p.score
-        if p.confidence > 0:
-            by_ticker[p.ticker]["confidences"].append(p.confidence)
-        if p.metadata_:
-            by_ticker[p.ticker]["metadata"][p.signal_name] = p.metadata_
-
+    rows, score_status = read_run_scores(latest_run)
+    metadata = {}
+    if rows:
+        preds_q = await db.execute(select(SignalPrediction).where(
+            SignalPrediction.run_id == latest_run.id))
+        for pred in preds_q.scalars().all():
+            metadata.setdefault(pred.ticker, {})[pred.signal_name] = pred.metadata_ or {}
     ideas = []
-    for ticker, data in by_ticker.items():
-        weighted_sum = sum(data["scores"].get(sig, 0) * w for sig, w in weights.items())
-        avg_conf = sum(data["confidences"]) / max(len(data["confidences"]), 1) if data["confidences"] else 0.6
+    for row in rows[:30]:
 
-        top_drivers = sorted(
-            [(sig, data["scores"].get(sig, 0) * w) for sig, w in weights.items()],
-            key=lambda x: x[1],
-            reverse=True,
-        )[:3]
-
-        ideas.append({
-            "ticker": ticker,
-            "final_score": round(weighted_sum, 6),
-            "confidence": round(avg_conf, 4),
-            "signal_scores": {k: round(v, 4) for k, v in data["scores"].items()},
-            "top_drivers": [{"signal": s, "contribution": round(c, 6)} for s, c in top_drivers],
-            "metadata": data["metadata"],
-        })
-
-    ideas.sort(key=lambda x: x["final_score"], reverse=True)
-    for i, idea in enumerate(ideas[:30]):
-        idea["rank"] = i + 1
-
-    return {
-        "ideas": ideas[:30],
-        "run_date": latest_run.started_at.isoformat(),
-        "regime": latest_run.regime_id,
-    }
+        ideas.append({**row, 'top_drivers': [],
+                      'metadata': metadata.get(row['ticker'], {})})
+    return {'ideas': ideas, 'score_status': score_status,
+            'run_date': latest_run.started_at.isoformat() if latest_run else None,
+            'regime': latest_run.regime_id if latest_run else None}

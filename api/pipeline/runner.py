@@ -15,6 +15,7 @@ from api.data.universe import SEED_UNIVERSE, fetch_universe_tickers, screen_univ
 from api.data.yahoo import YahooProvider
 from api.db.models import PipelineRun, SignalPrediction
 from api.model.scorer import score_universe
+from api.model.score_snapshot import build_score_snapshot
 from api.regime.detector import detect_regime
 from api.signals.registry import get_registry
 
@@ -520,6 +521,11 @@ async def run_pipeline(db: AsyncSession) -> dict:
         # Phase 8: Score universe
         weights = {sig_name: signal.default_weight for sig_name, signal in registry.items()}
         scored = score_universe(signal_outputs, weights, regime)
+
+        # Display-only capture; scoring and returned trading inputs stay unchanged.
+        run.score_snapshot = build_score_snapshot(
+            run_id, scored, fundamentals, datetime.now(timezone.utc).isoformat()
+        )
 
         # Finalize run
         run.finished_at = datetime.utcnow()

@@ -23,6 +23,7 @@ class PipelineRun(Base):
     universe_size: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(String(16), default="running")
     error_message: Mapped[str | None] = mapped_column(Text)
+    score_snapshot: Mapped[dict | None] = mapped_column(JSON)
 
 
 class SignalPrediction(Base):

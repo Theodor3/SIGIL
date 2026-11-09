@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException
 
 from api.research.recovery_files import load_recovery
 from api.routes.recovered_daily import create_router
-from test_recovered_daily import fixture
+from recovery_fixture import fixture
 
 
 def write_packet(root):
