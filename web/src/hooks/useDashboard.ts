@@ -1,3 +1,4 @@
+import type { ScoreStatus } from "../lib/savedScores";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface SignalInfo {
@@ -14,8 +15,9 @@ interface SignalInfo {
 interface TopIdea {
   rank: number;
   ticker: string;
-  final_score: number;
-  confidence: number;
+  final_score: number | null;
+  confidence: number | null;
+  score_status?: ScoreStatus;
   signal_scores: Record<string, number>;
   sector?: string;
 }
@@ -53,6 +55,7 @@ interface DashboardData {
   };
   signal_groups: Record<string, { budget: number; signals: string[] }>;
   top_ideas: TopIdea[];
+  score_status?: ScoreStatus;
   portfolio: {
     holdings_count?: number;
     total_value?: number;

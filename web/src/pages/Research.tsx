@@ -1,3 +1,4 @@
+import { formatSavedScore, scoreStatusLabel, type ScoreStatus } from "../lib/savedScores";
 import { useCallback, useEffect, useState } from "react";
 
 import WatchlistCard from "../components/WatchlistCard";
@@ -5,9 +6,9 @@ import WatchlistCard from "../components/WatchlistCard";
 interface SignalBreakdown {
   signal: string;
   score: number;
-  confidence: number;
-  weight: number;
-  contribution: number;
+  confidence: number | null;
+  weight: number | null;
+  contribution: number | null;
   metadata: Record<string, unknown>;
 }
 
@@ -26,7 +27,9 @@ interface TradeRecord {
 
 interface ScorePoint {
   date: string;
-  score: number;
+  score: number | null;
+  run_id: string;
+  score_status?: ScoreStatus;
   signals: Record<string, number>;
 }
 
@@ -44,8 +47,9 @@ interface CompanyInfo {
 interface TickerData {
   ticker: string;
   company: CompanyInfo;
-  final_score: number;
-  confidence: number;
+  final_score: number | null;
+  score_status?: ScoreStatus;
+  confidence: number | null;
   signals: SignalBreakdown[];
   score_history: ScorePoint[];
   evaluations: { signal: string; horizon_days: number; actual_return: number; signal_correct: boolean; alpha: number; date: string }[];
@@ -56,40 +60,32 @@ interface TickerData {
 interface TopIdea {
   rank: number;
   ticker: string;
-  final_score: number;
-  confidence: number;
+  final_score: number | null;
+  score_status?: ScoreStatus;
+  confidence: number | null;
   signal_scores: Record<string, number>;
   top_drivers: { signal: string; contribution: number }[];
 }
 
 const API = "";
 
-function ContributionBar({ value, max }: { value: number; max: number }) {
-  const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
-  return (
-    <div className="w-full h-2 bg-sigil-border rounded-full overflow-hidden">
-      <div
-        className="h-full bg-sigil-accent rounded-full transition-all"
-        style={{ width: `${Math.max(pct, 1)}%` }}
-      />
-    </div>
-  );
-}
-
 export default function Research() {
   const [query, setQuery] = useState("");
   const [ticker, setTicker] = useState<string | null>(null);
   const [data, setData] = useState<TickerData | null>(null);
   const [ideas, setIdeas] = useState<TopIdea[]>([]);
+  const [ideasStatus, setIdeasStatus] = useState<ScoreStatus>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadIdeas = useCallback(async () => {
     try {
       const res = await fetch(`${API}/api/research/top-ideas`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
+      setIdeasStatus(json.score_status);
       setIdeas(json.ideas || []);
-    } catch {}
+    } catch { setError("Failed to load saved ideas."); }
   }, []);
 
   useEffect(() => {
@@ -104,12 +100,7 @@ export default function Research() {
       const res = await fetch(`${API}/api/research/ticker/${t.toUpperCase()}`);
       if (!res.ok) throw new Error("Ticker not found");
       const json = await res.json();
-      if (!json.signals || json.signals.length === 0) {
-        setError("No signal data for this ticker. Run the pipeline first.");
-        setData(null);
-      } else {
-        setData(json);
-      }
+      setData(json);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
       setData(null);
@@ -123,7 +114,6 @@ export default function Research() {
     if (query.trim()) loadTicker(query.trim());
   };
 
-  const maxContribution = data ? Math.max(...data.signals.map((s) => Math.abs(s.contribution)), 0.001) : 1;
 
   return (
     <div className="space-y-6">
@@ -193,14 +183,15 @@ export default function Research() {
                 </div>
                 {data.run_date && (
                   <span className="text-xs text-sigil-muted block mt-1">
-                    Last scored: {new Date(data.run_date).toLocaleString()}
+                    Saved run: {new Date(data.run_date).toLocaleString()}
                   </span>
                 )}
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold font-mono">{(data.final_score * 100).toFixed(2)}</div>
+                <div className="text-xs text-sigil-muted">{scoreStatusLabel(data.score_status)}</div>
+                <div className="text-2xl font-bold font-mono">{formatSavedScore(data.final_score)}</div>
                 <div className="text-xs text-sigil-muted">
-                  {(data.confidence * 100).toFixed(0)}% confidence
+                  {formatSavedScore(data.confidence, 0, "%")} confidence
                 </div>
                 {data.company?.price && (
                   <div className="text-sm font-mono text-sigil-text mt-1">
@@ -222,38 +213,25 @@ export default function Research() {
             )}
           </div>
 
-          {/* Signal attribution */}
+          {/* Saved signal values are not additive attribution. */}
           <div className="rounded-xl border border-sigil-border bg-sigil-surface p-5">
             <h3 className="text-sm font-semibold text-sigil-muted uppercase tracking-wider mb-4">
-              Signal Attribution
+              Saved Signal Values
             </h3>
+            <p className="text-xs text-sigil-muted mb-4">
+              Signal values recorded with this historical pipeline score. Per-signal confidence,
+              weights, and contributions were not saved and are unavailable. These values are not additive attribution.
+            </p>
             <div className="space-y-3">
               {data.signals.map((s) => (
-                <div key={s.signal} className="flex items-center gap-4">
-                  <div className="w-32 text-sm font-medium text-sigil-text truncate">{s.signal}</div>
-                  <div className="flex-1">
-                    <ContributionBar value={s.contribution} max={maxContribution} />
-                  </div>
-                  <div className="w-20 text-right text-sm font-mono text-sigil-accent">
-                    {(s.score * 100).toFixed(1)}
-                  </div>
-                  <div className="w-12 text-right text-xs text-sigil-muted">
-                    {(s.weight * 100).toFixed(0)}%w
-                  </div>
-                  <div className="w-16 text-right text-xs text-sigil-muted font-mono">
-                    +{(s.contribution * 100).toFixed(2)}
-                  </div>
+                <div key={s.signal} className="flex items-center justify-between gap-4">
+                  <div className="text-sm font-medium text-sigil-text">{s.signal}</div>
+                  <div className="text-sm font-mono text-sigil-accent">{formatSavedScore(s.score, 1)}</div>
                 </div>
               ))}
-            </div>
-            <div className="mt-4 pt-3 border-t border-sigil-border flex justify-between text-sm">
-              <span className="text-sigil-muted">Weighted Total</span>
-              <span className="font-mono font-bold text-sigil-accent">
-                {(data.final_score * 100).toFixed(2)}
-              </span>
+              {data.signals.length === 0 && <p className="text-sm text-sigil-muted">No saved signal values available.</p>}
             </div>
           </div>
-
           {/* Signal metadata */}
           {data.signals.some((s) => Object.keys(s.metadata).length > 0) && (
             <div className="rounded-xl border border-sigil-border bg-sigil-surface p-5">
@@ -286,17 +264,18 @@ export default function Research() {
           {data.score_history.length > 0 && (
             <div className="rounded-xl border border-sigil-border bg-sigil-surface p-5">
               <h3 className="text-sm font-semibold text-sigil-muted uppercase tracking-wider mb-4">
-                Score History (30d)
+                Saved Pipeline Score History (30d)
               </h3>
               <div className="space-y-2">
                 {data.score_history.map((point) => (
                   <div
-                    key={point.date}
+                    key={point.run_id}
                     className="flex items-center justify-between text-sm px-3 py-2 rounded-lg bg-sigil-bg"
                   >
-                    <span className="text-sigil-muted text-xs">{point.date}</span>
+                    <span className="text-sigil-muted text-xs">{point.date}<span className="block">Run: {point.run_id}</span></span>
                     <span className="font-mono text-sigil-accent">
-                      {(point.score * 100).toFixed(2)}
+                      {formatSavedScore(point.score)}
+                      <span className="block text-xs text-sigil-muted">{scoreStatusLabel(point.score_status)}</span>
                     </span>
                     <div className="flex gap-2">
                       {Object.entries(point.signals)
@@ -420,7 +399,7 @@ export default function Research() {
           </h2>
           {ideas.length === 0 ? (
             <p className="text-sigil-muted text-sm">
-              No pipeline runs yet. Run the pipeline from the System tab to generate ideas.
+              {scoreStatusLabel(ideasStatus)}. No saved ideas available.
             </p>
           ) : (
             <div className="space-y-2">
@@ -435,18 +414,12 @@ export default function Research() {
                     <span className="font-semibold text-sigil-text">{idea.ticker}</span>
                   </div>
                   <div className="flex items-center gap-6">
-                    <div className="flex gap-2">
-                      {idea.top_drivers.map((d) => (
-                        <span key={d.signal} className="text-xs text-sigil-muted px-2 py-0.5 rounded-full border border-sigil-border">
-                          {d.signal}
-                        </span>
-                      ))}
-                    </div>
+                    <span className="text-xs text-sigil-muted">{scoreStatusLabel(idea.score_status ?? ideasStatus)}</span>
                     <span className="font-mono text-sigil-accent">
-                      {(idea.final_score * 100).toFixed(2)}
+                      {formatSavedScore(idea.final_score)}
                     </span>
                     <span className="text-xs text-sigil-muted">
-                      {(idea.confidence * 100).toFixed(0)}%
+                      {formatSavedScore(idea.confidence, 0, "%")}
                     </span>
                   </div>
                 </button>

@@ -559,9 +559,10 @@ export default function Portfolio() {
         </div>
       )}
 
-      {/* Targets Tab */}
+      {/* Targets are recalculated separately from historical saved display scores. */}
       {tab === "targets" && (
         <div className="space-y-4">
+          <p className="text-sm text-sigil-muted">Portfolio targets use recalculated scores and current portfolio rules. They may differ from the historical saved pipeline scores shown in Overview and Research.</p>
           {targets?.targets && targets.targets.length > 0 ? (
             <>
               <div className="flex items-center justify-between">
@@ -591,7 +592,7 @@ export default function Portfolio() {
                       <th className="text-left px-4 py-2">Ticker</th>
                       <th className="text-right px-4 py-2">Weight</th>
                       <th className="text-right px-4 py-2">Shares</th>
-                      <th className="text-right px-4 py-2">Score</th>
+                      <th className="text-right px-4 py-2">Recalculated Score</th>
                       <th className="text-right px-4 py-2">Confidence</th>
                       <th className="text-left px-4 py-2">Top Signals</th>
                     </tr>
@@ -667,7 +668,7 @@ export default function Portfolio() {
             <div className="rounded-xl border border-dashed border-sigil-border/50 bg-sigil-surface/50 p-8 text-center">
               <p className="text-sigil-muted text-sm">
                 No targets generated yet. Click "Generate Targets" to build
-                portfolio allocations from the latest pipeline scores.
+                portfolio allocations using recalculated scores from the latest run.
               </p>
             </div>
           )}

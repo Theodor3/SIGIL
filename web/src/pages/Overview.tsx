@@ -1,3 +1,4 @@
+import { formatSavedScore, scoreStatusLabel } from "../lib/savedScores";
 import { useEffect, useState } from "react";
 import { useDashboard } from "../hooks/useDashboard";
 import { dashboardProvenance } from "../lib/dashboardProvenance";
@@ -352,11 +353,11 @@ export default function Overview() {
 
       <div className="rounded-xl border border-sigil-border bg-sigil-surface p-5">
         <h2 className="text-sm font-semibold text-sigil-muted uppercase tracking-wider mb-4">
-          Top Ideas
+          Historical Saved Pipeline Ideas
         </h2>
         {data.top_ideas.length === 0 ? (
           <p className="text-sigil-muted text-sm">
-            No pipeline runs yet. Click "Run Pipeline" to generate ideas.
+            {scoreStatusLabel(data.score_status)}. No saved ideas available.
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -392,11 +393,12 @@ export default function Overview() {
                     </td>
                     <td className="py-2.5 pr-4 text-right">
                       <span className="text-sigil-accent font-mono">
-                        {(idea.final_score * 100).toFixed(2)}
+                        {formatSavedScore(idea.final_score)}
+                        <span className="block text-xs text-sigil-muted">{scoreStatusLabel(idea.score_status ?? data.score_status)}</span>
                       </span>
                     </td>
                     <td className="py-2.5 pr-4 text-right text-sigil-muted font-mono">
-                      {(idea.confidence * 100).toFixed(0)}%
+                      {formatSavedScore(idea.confidence, 0, "%")}
                     </td>
                     {data.signals.map((s) => {
                       const val = idea.signal_scores[s.name];
