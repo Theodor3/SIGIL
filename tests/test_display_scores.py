@@ -203,8 +203,8 @@ def test_display_capture_never_changes_scores_or_targets(monkeypatch, case):
     assert scorer.score_universe(outputs, {}, regime) == original
     for row, actual in zip(rows, original):
         assert {key: row[key] for key in asdict(actual)} == asdict(actual)
-    if case == 'empty': assert rows[0]['confidence'] == .6 and rows[0]['eligible']
-    if case == 'disabled': assert rows[0]['signal_scores'] == {'disabled': .9} and rows[0]['confidence'] == .9
+    if case == 'empty': assert rows[0]['confidence'] == 0 and not rows[0]['eligible']
+    if case == 'disabled': assert rows[0]['signal_scores'] == {} and rows[0]['confidence'] == 0 and not rows[0]['eligible']
     if case == 'threshold': assert [s.eligible for s in original] == [True, False]
     if case == 'tilt': assert rows[0]['final_score'] > 1
 
