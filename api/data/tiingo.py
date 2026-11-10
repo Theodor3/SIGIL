@@ -8,6 +8,7 @@ import httpx
 
 from api.config.settings import settings
 from api.data.base import DataProvider
+from api.data.diagnostics import provider_outcome
 
 _PRICE_BASE = "https://api.tiingo.com/tiingo/daily"
 
@@ -26,6 +27,7 @@ class TiingoProvider(DataProvider):
 
     async def fetch_prices(self, tickers: list[str], days: int = 90) -> dict[str, dict]:
         if not settings.tiingo_api_key:
+            provider_outcome("tiingo", None, "skipped_no_key")
             return {}
 
         headers = _headers()
@@ -47,23 +49,32 @@ class TiingoProvider(DataProvider):
                 responses = await asyncio.gather(*tasks, return_exceptions=True)
                 for ticker, resp in zip(batch, responses):
                     if isinstance(resp, Exception):
+                        outcome = "timeout" if isinstance(resp, httpx.TimeoutException) else "transport_error"
+                        provider_outcome("tiingo", ticker, outcome)
                         continue
                     if resp.status_code != 200:
+                        provider_outcome("tiingo", ticker, "http_error", status=resp.status_code)
                         continue
-                    data = resp.json()
-                    if not data:
-                        continue
-                    latest = data[-1]
-                    closes = [d["adjClose"] for d in data if d.get("adjClose")]
-                    results[ticker] = {
-                        "close": latest.get("adjClose"),
-                        "open": latest.get("adjOpen"),
-                        "high": latest.get("adjHigh"),
-                        "low": latest.get("adjLow"),
-                        "volume": latest.get("volume"),
-                        "closes": closes,
-                        "_source": "tiingo",
-                    }
+                    try:
+                        data = resp.json()
+                        if not data:
+                            provider_outcome("tiingo", ticker, "empty_prices")
+                            continue
+                        latest = data[-1]
+                        closes = [d["adjClose"] for d in data if d.get("adjClose")]
+                        results[ticker] = {
+                            "close": latest.get("adjClose"),
+                            "open": latest.get("adjOpen"),
+                            "high": latest.get("adjHigh"),
+                            "low": latest.get("adjLow"),
+                            "volume": latest.get("volume"),
+                            "closes": closes,
+                            "_source": "tiingo",
+                        }
+                    except Exception:
+                        provider_outcome("tiingo", ticker, "invalid_response")
+                        raise
+                    provider_outcome("tiingo", ticker, "success")
                 if i + 10 < len(tickers):
                     await asyncio.sleep(0.2)
 

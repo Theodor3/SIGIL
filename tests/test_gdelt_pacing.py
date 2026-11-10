@@ -6,6 +6,7 @@ No network, real sleeps, credentials, or orders are used.
 import asyncio
 import copy
 import importlib.util
+import json
 from dataclasses import asdict
 from datetime import date
 from pathlib import Path
@@ -99,11 +100,9 @@ def test_identical_requests_coverage_fields_and_order(monkeypatch, outcomes, tic
     after = replay(gdelt, monkeypatch, tickers, outcomes)
     assert after[0] == before[0]
     assert list(after[0]) == list(before[0])
-    # Exact endpoints, queries, parameters, count, and ordering; only start time changes.
-    assert [{k: v for k, v in r.items() if k != "at"} for r in after[1]] == [
-        {k: v for k, v in r.items() if k != "at"} for r in before[1]]
+    # Restore exact response-to-request pacing, including failure paths.
+    assert after == before
     assert len(after[1]) <= 50
-    assert after[2] <= before[2] + 1e-9
     for a, b in zip(after[1], after[1][1:]):
         assert b["at"] - a["at"] >= 5.5 - 1e-9
 
@@ -117,16 +116,27 @@ def test_rate_limit_cooldown_and_final_backoff_are_preserved(monkeypatch):
     assert after[2] == 45.5  # final response still waits the original five seconds
 
 
-def test_slow_responses_save_idle_time_without_overlap_or_dropped_requests(monkeypatch):
+def test_failure_diagnostics_identify_each_outcome(monkeypatch, capsys):
+    replay(gdelt, monkeypatch, [f"T{i:03}" for i in range(10)], MIXED)
+    events = [json.loads(line.split(" ", 1)[1]) for line in capsys.readouterr().out.splitlines()]
+    assert [e["outcome"] for e in events] == [
+        "success", "timeout", "success", "http_error", "http_error",
+        "invalid_json_or_value", "empty_timeline", "short_timeline", "success", "invalid_response"]
+    assert events[3]["http_status"] == 429
+    assert events[4]["http_status"] == 500
+    assert all(set(e) == {"source", "ticker", "outcome", "http_status"} for e in events)
+
+
+def test_slow_responses_restore_original_post_response_pause(monkeypatch):
     tickers = [f"T{i:03}" for i in range(50)]
     outcomes = [{"seconds": 15, "body": series()}]
     before = replay(legacy_module(), monkeypatch, tickers, outcomes)
     after = replay(gdelt, monkeypatch, tickers, outcomes)
     assert len(after[0]) == len(before[0]) == 50
     assert before[2] == 1019.5
-    assert after[2] == 750.0
+    assert after == before
     assert after[0] == before[0]
-    assert all(b["at"] - a["at"] == 15 for a, b in zip(after[1], after[1][1:]))
+    assert all(b["at"] - a["at"] == 20.5 for a, b in zip(after[1], after[1][1:]))
 
 
 @pytest.mark.parametrize("enabled", [False, True])

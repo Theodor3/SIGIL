@@ -126,7 +126,8 @@ def test_dashboard_research_and_history_use_same_saved_run(monkeypatch):
 
 
 @pytest.mark.parametrize("serialization_failure", [False, True])
-def test_real_pipeline_persists_the_returned_scores_without_external_calls(monkeypatch, tmp_path, serialization_failure):
+@pytest.mark.parametrize("yahoo_complete", [False, True])
+def test_real_pipeline_persists_the_returned_scores_without_external_calls(monkeypatch, tmp_path, serialization_failure, yahoo_complete):
     from api.pipeline import runner
     if serialization_failure:
         from api.model import score_snapshot
@@ -147,7 +148,17 @@ def test_real_pipeline_persists_the_returned_scores_without_external_calls(monke
     monkeypatch.setattr(runner, 'fetch_universe_tickers', universe)
     monkeypatch.setattr(runner, 'screen_universe', lambda fundamentals: ['AAA'])
     for name in vars(runner):
-        if name.startswith('_fetch_'): monkeypatch.setattr(runner, name, empty)
+        if name.startswith('_fetch_') and name != '_fetch_tiingo_gaps':
+            monkeypatch.setattr(runner, name, empty)
+    yahoo_calls, tiingo_calls = [], []
+    async def yahoo_prices(yahoo, bucket):
+        yahoo_calls.append(bucket)
+        return {'AAA': {'close': 100}} if yahoo_complete else {}
+    async def tiingo_prices(bucket):
+        tiingo_calls.append(bucket)
+        return {'AAA': {'close': 100}}
+    monkeypatch.setattr(runner, '_fetch_yahoo_prices', yahoo_prices)
+    monkeypatch.setattr(runner, '_fetch_tiingo_prices', tiingo_prices)
     async def regime(*args): return RegimeSnapshot(date.today(), 'risk_on', .8, .7, factor_tilts={'a': 1.1})
     monkeypatch.setattr(runner, 'detect_regime', regime)
     async def compute(ctx): return [SignalOutput('AAA', .8, .9)]
@@ -161,6 +172,8 @@ def test_real_pipeline_persists_the_returned_scores_without_external_calls(monke
         sessions = async_sessionmaker(engine, expire_on_commit=False)
         async with sessions() as db:
             result = await runner.run_pipeline(db)
+            assert yahoo_calls == [['AAA']]
+            assert tiingo_calls == ([] if yahoo_complete else [['AAA']])
             run = (await db.execute(select(PipelineRun).where(PipelineRun.id == result['run_id']))).scalar_one()
             assert run.status == 'completed'
             rows, status = read_run_scores(run)

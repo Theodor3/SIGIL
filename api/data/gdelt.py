@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 import asyncio
-from time import monotonic
 
 import httpx
 
 from api.data.base import DataProvider
+from api.data.diagnostics import provider_outcome
 
 # Override map for tickers whose symbol alone is too ambiguous for a news search
 TICKER_OVERRIDES = {
@@ -136,14 +136,10 @@ class GdeltProvider(DataProvider):
             # GDELT rate-limits to 1 request per 5 seconds — cap at top N tickers
             queries = queries[:self.MAX_TICKERS]
 
-            next_request_at = 0.0
-            for ticker, query in queries:
-                # Space request STARTS, rather than adding 5.5 seconds after
-                # every response/timeout. Requests remain strictly sequential.
-                delay = next_request_at - monotonic()
-                if delay > 0:
-                    await asyncio.sleep(delay)
-                next_request_at = monotonic() + 5.5
+            for i, (ticker, query) in enumerate(queries):
+                # Restore the original pause after each completed attempt.
+                if i > 0:
+                    await asyncio.sleep(5.5)
 
                 try:
                     resp = await client.get(
@@ -159,10 +155,12 @@ class GdeltProvider(DataProvider):
                         data = resp.json()
                         timeline = data.get("timeline", [])
                         if not timeline:
+                            provider_outcome("gdelt", ticker, "empty_timeline")
                             continue
 
                         series = timeline[0].get("data", []) if timeline else []
                         if len(series) < 3:
+                            provider_outcome("gdelt", ticker, "short_timeline")
                             continue
 
                         tones = [pt.get("value", 0) for pt in series]
@@ -197,13 +195,19 @@ class GdeltProvider(DataProvider):
                             "volume_ratio": round(vol_ratio, 3),
                             "news_tone_shift": round(tone_shift, 3),
                         }
-                    elif resp.status_code == 429:
-                        # Preserve the previous 5s backoff + 5.5s pause after
-                        # a rate-limit response; never accelerate this path.
-                        next_request_at = monotonic() + 10.5
-                        await asyncio.sleep(5)
+                        provider_outcome("gdelt", ticker, "success")
+                    else:
+                        provider_outcome("gdelt", ticker, "http_error", status=resp.status_code)
+                        if resp.status_code == 429:
+                            await asyncio.sleep(5)
 
+                except httpx.TimeoutException:
+                    provider_outcome("gdelt", ticker, "timeout")
+                except httpx.RequestError:
+                    provider_outcome("gdelt", ticker, "transport_error")
+                except ValueError:
+                    provider_outcome("gdelt", ticker, "invalid_json_or_value")
                 except Exception:
-                    pass
+                    provider_outcome("gdelt", ticker, "invalid_response")
 
         return nowcast
