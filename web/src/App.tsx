@@ -5,6 +5,7 @@ import Overview from "./pages/Overview";
 import Signals from "./pages/Signals";
 import Portfolio from "./pages/Portfolio";
 import Research from "./pages/Research";
+import Compare from "./pages/Compare";
 import Data from "./pages/Data";
 import Performance from "./pages/Performance";
 import Lab from "./pages/Lab";
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="data" element={<Data />} />
           <Route path="portfolio" element={<Portfolio />} />
           <Route path="research" element={<Research />} />
+          <Route path="compare" element={<Compare />} />
           <Route path="performance" element={<Performance />} />
           {/* legacy bookmark */}
           <Route path="backtest" element={<Performance />} />
