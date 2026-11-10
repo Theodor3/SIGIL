@@ -1,6 +1,7 @@
 import asyncio
 
-from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api import cache
@@ -50,3 +51,25 @@ async def trigger_evaluation(db: AsyncSession = Depends(get_db)):
 async def signal_stats(db: AsyncSession = Depends(get_db)):
     """Get signal accuracy stats from evaluations."""
     return await get_signal_stats(db)
+
+
+@router.get("/pipeline/{run_id}/usage")
+async def pipeline_usage(run_id: str, db: AsyncSession = Depends(get_db)):
+    """Read saved response accounting without running providers or the pipeline."""
+    from api.db.models import PipelineRun, SignalPrediction
+    from api.pipeline.usage import summarize_usage
+
+    run = await db.get(PipelineRun, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Pipeline run not found")
+    result = await db.execute(
+        select(SignalPrediction.metadata_).where(
+            SignalPrediction.run_id == run_id,
+            SignalPrediction.signal_name == "llm_conviction",
+        )
+    )
+    return {
+        "run_id": run.id,
+        "run_status": run.status,
+        **summarize_usage(result.scalars().all()),
+    }

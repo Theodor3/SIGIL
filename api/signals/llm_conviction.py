@@ -107,6 +107,29 @@ def _build_ticker_prompt(ticker: str, ctx: PipelineContext) -> str | None:
     return "\n".join(parts)
 
 
+def _provider_usage(resp=None) -> dict:
+    """Provider counters for this response, not an invoice or retry ledger."""
+    status = "unknown"
+    usage = getattr(resp, "usage", None)
+    counters = {}
+    for name in ("input_tokens", "output_tokens", "cache_creation_input_tokens",
+                 "cache_read_input_tokens"):
+        value = getattr(usage, name, None)
+        counters[name] = value if type(value) is int and value >= 0 else None
+    if counters["input_tokens"] is not None and counters["output_tokens"] is not None:
+        status = "reported"
+    return {
+        "provider": "anthropic",
+        "requested_model": MODEL,
+        "reported_model": getattr(resp, "model", None),
+        "status": status,
+        **counters,
+        # Pricing, cache TTLs and SDK retries are not known here.
+        "cost_usd": None,
+        "cost_status": "unknown",
+    }
+
+
 class LLMConvictionSignal(Signal):
     @property
     def name(self) -> str:
@@ -178,7 +201,7 @@ class LLMConvictionSignal(Signal):
             for (ticker, _), result in zip(batch, batch_results):
                 if isinstance(result, Exception):
                     print(f"[llm_conviction] {ticker} failed: {result}")
-                    results[ticker] = SignalOutput(ticker, 0.5, 0.0, {"reason": "api_error"})
+                    results[ticker] = SignalOutput(ticker, 0.5, 0.0, {"reason": "api_error", "provider_usage": _provider_usage()})
                 else:
                     results[ticker] = result
                 scored_tickers.add(ticker)
@@ -205,18 +228,25 @@ class LLMConvictionSignal(Signal):
             messages=[{"role": "user", "content": prompt}],
         )
 
-        text = resp.content[0].text.strip()
-        # Strip markdown code fences if present
-        if text.startswith("```"):
-            text = text.split("\n", 1)[1] if "\n" in text else text[3:]
-        if text.endswith("```"):
-            text = text[:-3]
-        text = text.strip()
+        usage = _provider_usage(resp)
+        try:
+            text = resp.content[0].text.strip()
+            # Strip markdown code fences if present
+            if text.startswith("```"):
+                text = text.split("\n", 1)[1] if "\n" in text else text[3:]
+            if text.endswith("```"):
+                text = text[:-3]
+            text = text.strip()
 
-        data = json.loads(text)
-        score = max(0.0, min(1.0, float(data["score"])))
-        confidence = max(0.0, min(1.0, float(data["confidence"])))
-        reasoning = data.get("reasoning", "")
+            data = json.loads(text)
+            score = max(0.0, min(1.0, float(data["score"])))
+            confidence = max(0.0, min(1.0, float(data["confidence"])))
+            reasoning = data.get("reasoning", "")
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError, OverflowError):
+            # The provider may charge even when its content is unusable.
+            return SignalOutput(ticker, 0.5, 0.0, {
+                "reason": "invalid_response", "provider_usage": usage,
+            })
 
         return SignalOutput(
             ticker=ticker,
@@ -226,5 +256,6 @@ class LLMConvictionSignal(Signal):
                 "reasoning": reasoning,
                 "model": MODEL,
                 "raw_score": data["score"],
+                "provider_usage": usage,
             },
         )
