@@ -18,6 +18,7 @@ from api.model.scorer import score_universe
 from api.model.score_snapshot import build_score_snapshot
 from api.regime.detector import detect_regime
 from api.signals.registry import get_registry
+from api.pipeline.timing import timed_source
 
 
 async def _fetch_finnhub(bucket: list[str]) -> dict:
@@ -123,7 +124,7 @@ async def run_pipeline(db: AsyncSession) -> dict:
         # Phase 1: Fetch multi-index universe + lightweight FMP fundamentals for screening
         yahoo = YahooProvider(demo_mode=settings.demo_mode)
         fmp = FMPProvider()
-        universe = await fetch_universe_tickers()
+        universe = await timed_source(run_id, "universe", fetch_universe_tickers())
         print(f"[pipeline] Fetched {len(universe)} tickers across all indices")
 
         # Watchlist tickers are force-included in the universe (and jump
@@ -143,7 +144,7 @@ async def run_pipeline(db: AsyncSession) -> dict:
         )
         cached = await load_screening_cache(db)
         refresh_list = choose_refresh(universe, cached, priority=watchlist)
-        fresh = await fmp.fetch_screening_data(refresh_list)
+        fresh = await timed_source(run_id, "screening", fmp.fetch_screening_data(refresh_list))
         await store_screening_cache(db, fresh)
 
         universe_set = set(universe)
@@ -166,8 +167,15 @@ async def run_pipeline(db: AsyncSession) -> dict:
         print(f"[pipeline] Universe: {len(bucket)} tickers after screening")
 
         # Phase 3: Fetch ALL other data sources IN PARALLEL
+        provider_names = [
+            "yahoo_prices", "finnhub", "yahoo_benchmarks", "fred", "wikipedia",
+            "gdelt", "insider", "analyst", "fmp", "tiingo_prices",
+            "alphavantage", "bls", "yahoo_fundamentals",
+            "fmp_price_targets", "fmp_shares_float", "fmp_forward_estimates",
+            "edgar_filings",
+        ]
         t0 = datetime.utcnow()
-        results = await asyncio.gather(
+        operations = [
             _fetch_yahoo_prices(yahoo, bucket),        # 0
             _fetch_finnhub(bucket),                    # 1
             _fetch_benchmarks(),                       # 2
@@ -185,6 +193,10 @@ async def run_pipeline(db: AsyncSession) -> dict:
             fmp.fetch_shares_float(bucket),            # 14 - shares float data
             fmp.fetch_analyst_estimates(bucket),       # 15 - forward estimates
             _fetch_edgar(bucket),                      # 16 - SEC filing red flags
+        ]
+        results = await asyncio.gather(
+            *(timed_source(run_id, name, operation)
+              for name, operation in zip(provider_names, operations, strict=True)),
             return_exceptions=True,
         )
         fetch_time = (datetime.utcnow() - t0).total_seconds()
@@ -210,13 +222,6 @@ async def run_pipeline(db: AsyncSession) -> dict:
         filing_flags = results[16] if not isinstance(results[16], Exception) else {}
 
         # Log errors from any failed providers
-        provider_names = [
-            "yahoo_prices", "finnhub", "yahoo_benchmarks", "fred", "wikipedia",
-            "gdelt", "insider", "analyst", "fmp", "tiingo_prices",
-            "alphavantage", "bls", "yahoo_fundamentals",
-            "fmp_price_targets", "fmp_shares_float", "fmp_forward_estimates",
-            "edgar_filings",
-        ]
         for i, name in enumerate(provider_names):
             if isinstance(results[i], Exception):
                 print(f"[pipeline] {name} failed: {results[i]}")
