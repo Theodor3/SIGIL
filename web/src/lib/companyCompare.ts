@@ -288,30 +288,37 @@ export interface ColumnLoader {
 export function createColumnLoader(
   fetchImpl: FetchLike, onResult: (ticker: string, result: LoadResult) => void,
 ): ColumnLoader {
-  const inFlight = new Map<string, AbortController>();
+  // A request stays here after it has answered, marked delivered, until a sync
+  // shows the page no longer has that company as loading. The page can sync
+  // once more with its old state before it has rendered the answer; forgetting
+  // the request at delivery made that sync ask for the company a second time.
+  const requests = new Map<string, { controller: AbortController; delivered: boolean }>();
   let disposed = false;
   return {
     sync(columns) {
       if (disposed) return;
       const loading = new Set(columns.filter((c) => c.status === "loading").map((c) => c.ticker));
-      for (const [ticker, controller] of inFlight) {
-        if (!loading.has(ticker)) { controller.abort(); inFlight.delete(ticker); }
+      for (const [ticker, request] of requests) {
+        if (loading.has(ticker)) continue;
+        if (!request.delivered) request.controller.abort();
+        requests.delete(ticker);
       }
       for (const ticker of loading) {
-        if (inFlight.has(ticker)) continue;
-        const controller = new AbortController();
-        inFlight.set(ticker, controller);
-        void fetchCompanyColumn(ticker, fetchImpl, controller.signal).then((result) => {
-          if (inFlight.get(ticker) !== controller) return; // superseded or disposed
-          inFlight.delete(ticker);
-          if (result.status !== "aborted") onResult(ticker, result);
+        if (requests.has(ticker)) continue;
+        const request = { controller: new AbortController(), delivered: false };
+        requests.set(ticker, request);
+        void fetchCompanyColumn(ticker, fetchImpl, request.controller.signal).then((result) => {
+          if (requests.get(ticker) !== request) return; // superseded or disposed
+          if (result.status === "aborted") { requests.delete(ticker); return; }
+          request.delivered = true;
+          onResult(ticker, result);
         });
       }
     },
     dispose() {
       disposed = true;
-      for (const controller of inFlight.values()) controller.abort();
-      inFlight.clear();
+      for (const request of requests.values()) if (!request.delivered) request.controller.abort();
+      requests.clear();
     },
   };
 }

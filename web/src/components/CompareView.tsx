@@ -64,7 +64,13 @@ function Choice<T extends string>({ legend, name, options, value, onChange }: {
   );
 }
 
-const rowHead = "px-3 py-2 text-left text-sm font-medium text-sigil-muted align-top";
+// The first column stays put while a table scrolls sideways, so on a narrow
+// screen every value still has its row label next to it. It needs its own
+// background or the scrolled values would show through.
+// Long signal names wrap rather than widen it past a phone screen.
+const pinned = "sticky left-0 z-10 bg-sigil-surface max-w-[7rem] sm:max-w-none [overflow-wrap:anywhere]";
+const rowHead = `${pinned} px-3 py-2 text-left text-sm font-medium text-sigil-muted align-top`;
+const cornerHead = `${pinned} px-3 py-2 text-left text-xs text-sigil-muted font-medium w-28 sm:w-44`;
 const tableClass = "w-full min-w-[36rem] border-collapse";
 const caption = "caption-top text-left text-sm font-semibold uppercase tracking-wider text-sigil-muted pb-2";
 
@@ -94,7 +100,7 @@ export default function CompareView({ state, filter, sort, onFilter, onSort, onR
   const head = (
     <thead>
       <tr className="border-b border-sigil-border">
-        <th scope="col" className="px-3 py-2 text-left text-xs text-sigil-muted font-medium w-44">Measure</th>
+        <th scope="col" className={cornerHead}>Measure</th>
         {columns.map((column) => (
           <th key={column.ticker} scope="col" className="px-3 py-2 text-left align-top">
             <span className="text-base font-bold text-sigil-accent">{column.ticker}</span>
@@ -170,7 +176,9 @@ export default function CompareView({ state, filter, sort, onFilter, onSort, onR
         </p>
       )}
 
-      <div className="rounded-xl border border-sigil-border bg-sigil-surface p-5 overflow-x-auto">
+      {/* The padding belongs to the card, not the scrolling area, so nothing scrolls past the pinned labels. */}
+      <div className="rounded-xl border border-sigil-border bg-sigil-surface p-5">
+        <div className="overflow-x-auto">
         <table className={tableClass}>
           <caption className={caption}>Company facts and saved score</caption>
           {head}
@@ -202,6 +210,7 @@ export default function CompareView({ state, filter, sort, onFilter, onSort, onR
               {columns.map((c) => <Cell key={c.ticker} column={c} missing="No completed run" value={(x) => formatRunTime(x.runDate)} />)}</tr>
           </tbody>
         </table>
+        </div>
       </div>
 
       <div className="rounded-xl border border-sigil-border bg-sigil-surface p-5 space-y-4">
@@ -218,18 +227,17 @@ export default function CompareView({ state, filter, sort, onFilter, onSort, onR
             difference covers the loaded companies only.
           </p>
         )}
+        {/* Outside the scrolling area so it can be read without scrolling sideways. */}
+        <p id="compare-signal-scale" className="text-xs text-sigil-muted">
+          On a 0–100 scale. Difference is the highest saved value minus the lowest in that row. These
+          values are not additive attribution, and a larger difference is not a recommendation.
+        </p>
         <div className="overflow-x-auto">
-          <table className={tableClass}>
-            <caption className={caption}>
-              Saved signal values
-              <span className="block normal-case tracking-normal font-normal text-xs mt-1">
-                On a 0–100 scale. Difference is the highest saved value minus the lowest in that row. These
-                values are not additive attribution, and a larger difference is not a recommendation.
-              </span>
-            </caption>
+          <table className={tableClass} aria-describedby="compare-signal-scale">
+            <caption className={caption}>Saved signal values</caption>
             <thead>
               <tr className="border-b border-sigil-border">
-                <th scope="col" className="px-3 py-2 text-left text-xs text-sigil-muted font-medium w-44">Signal</th>
+                <th scope="col" className={cornerHead}>Signal</th>
                 {columns.map((column) => (
                   <th key={column.ticker} scope="col" className="px-3 py-2 text-left text-base font-bold text-sigil-accent">{column.ticker}</th>
                 ))}

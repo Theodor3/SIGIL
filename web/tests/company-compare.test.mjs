@@ -263,6 +263,8 @@ test('the loader sends one request per company and aborts removed ones', async (
   net.respond(net.calls[2], {}, 500);
   await settle();
   assert.deepEqual(results[1], ['BBB', 'error']);
+  // The page renders the failure (and syncs) before a retry can be asked for.
+  loader.sync([ready('AAA'), { ticker: 'BBB', status: 'error', reason: 'http_error', httpStatus: 500 }]);
   loader.sync([ready('AAA'), ...loading('BBB')]);
   assert.equal(net.calls.length, 4);
   loader.dispose();
@@ -462,6 +464,37 @@ test('the page reads its selection from the link and reports what it ignored', (
   } finally {
     globalThis.fetch = realFetch;
   }
+});
+
+// Found in a real browser: two answers landing back to back made the page ask
+// for the second company twice. React ran the effect of the first answer's
+// render (state still says the second company is loading) after the loader had
+// already forgotten the second request.
+test('a finished request is not repeated while the page still shows it as loading', async () => {
+  const net = fakeFetch();
+  const results = [];
+  const loader = lib.createColumnLoader(net.fn, (ticker, result) => results.push([ticker, result.status]));
+  const stale = [{ ticker: 'AAA', status: 'loading' }, { ticker: 'BBB', status: 'loading' }];
+  loader.sync(stale);
+  net.respond(net.calls[0], payload('AAA'));
+  net.respond(net.calls[1], payload('BBB'));
+  await settle();
+  assert.deepEqual(results, [['AAA', 'ready'], ['BBB', 'ready']]);
+
+  // The page has not re-rendered with the results yet and syncs its old state.
+  loader.sync(stale);
+  loader.sync([{ ticker: 'AAA', status: 'ready', column: column('AAA') }, { ticker: 'BBB', status: 'loading' }]);
+  assert.equal(net.calls.length, 2, 'no company is requested a second time');
+
+  // Once the page has taken the result, a later retry is a new request.
+  loader.sync([{ ticker: 'AAA', status: 'ready', column: column('AAA') },
+    { ticker: 'BBB', status: 'error', reason: 'http_error', httpStatus: 503 }]);
+  loader.sync([{ ticker: 'AAA', status: 'ready', column: column('AAA') }, { ticker: 'BBB', status: 'loading' }]);
+  assert.equal(net.calls.length, 3);
+  assert.equal(net.calls[2].url, '/api/research/ticker/BBB');
+  assert.ok(net.calls.slice(0, 2).every((c) => !c.aborted), 'finished requests are not aborted after the fact');
+  loader.dispose();
+  assert.equal(net.calls[2].aborted, true);
 });
 
 // ---------- unloaded companies and the signal filters ----------
