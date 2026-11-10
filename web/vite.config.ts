@@ -9,6 +9,9 @@ export default defineConfig({
     proxy: {
       "/api": "http://localhost:8000",
       "/health": "http://localhost:8000",
+      // useWebSocket connects to /ws on the page's own host, so the dev server
+      // has to forward the upgrade to the backend like it does /api.
+      "/ws": { target: "ws://localhost:8000", ws: true },
     },
   },
 });

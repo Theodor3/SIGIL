@@ -1,0 +1,44 @@
+[
+  {
+    "path": "api/model/scorer.py",
+    "start": 1,
+    "end": 120,
+    "sha256": "5b7044320501541f96d16b79af4d172369f6179d9a649fec26b647fb254c2c02",
+    "commit": "33eb5ef6fad7c557c87d9f10b160f07f46c034d1"
+  },
+  {
+    "path": "api/model/scorer.py",
+    "start": 121,
+    "end": 140,
+    "sha256": "5b7044320501541f96d16b79af4d172369f6179d9a649fec26b647fb254c2c02",
+    "commit": "33eb5ef6fad7c557c87d9f10b160f07f46c034d1"
+  },
+  {
+    "path": "api/model/portfolio.py",
+    "start": 1,
+    "end": 120,
+    "sha256": "89021075aef64eb420431b7c4721dc33551366d891cc85729db57080d6c66188",
+    "commit": "33eb5ef6fad7c557c87d9f10b160f07f46c034d1"
+  },
+  {
+    "path": "api/model/portfolio.py",
+    "start": 121,
+    "end": 227,
+    "sha256": "89021075aef64eb420431b7c4721dc33551366d891cc85729db57080d6c66188",
+    "commit": "33eb5ef6fad7c557c87d9f10b160f07f46c034d1"
+  },
+  {
+    "path": "api/config/alpha_model.json",
+    "start": 1,
+    "end": 80,
+    "sha256": "ad3e2ca6744ff48d87519ec71904bbfef4dd4ff061a772f8aabf1cbfe5e528ec",
+    "commit": "33eb5ef6fad7c557c87d9f10b160f07f46c034d1"
+  },
+  {
+    "path": "tests/shadow_fixtures/baseline_scorer_26531a3.py",
+    "start": 1,
+    "end": 107,
+    "sha256": "0da1d23e3d8de8da70e818f0385fa7e389e5220a9eb0f5a1c65cbbb64dcb3f41",
+    "commit": "33eb5ef6fad7c557c87d9f10b160f07f46c034d1"
+  }
+]
