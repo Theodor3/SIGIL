@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from time import monotonic
 
 import httpx
 
@@ -135,9 +136,14 @@ class GdeltProvider(DataProvider):
             # GDELT rate-limits to 1 request per 5 seconds — cap at top N tickers
             queries = queries[:self.MAX_TICKERS]
 
-            for i, (ticker, query) in enumerate(queries):
-                if i > 0:
-                    await asyncio.sleep(5.5)
+            next_request_at = 0.0
+            for ticker, query in queries:
+                # Space request STARTS, rather than adding 5.5 seconds after
+                # every response/timeout. Requests remain strictly sequential.
+                delay = next_request_at - monotonic()
+                if delay > 0:
+                    await asyncio.sleep(delay)
+                next_request_at = monotonic() + 5.5
 
                 try:
                     resp = await client.get(
@@ -192,6 +198,9 @@ class GdeltProvider(DataProvider):
                             "news_tone_shift": round(tone_shift, 3),
                         }
                     elif resp.status_code == 429:
+                        # Preserve the previous 5s backoff + 5.5s pause after
+                        # a rate-limit response; never accelerate this path.
+                        next_request_at = monotonic() + 10.5
                         await asyncio.sleep(5)
 
                 except Exception:
