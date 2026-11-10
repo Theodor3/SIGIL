@@ -17,8 +17,9 @@ function load(source,imports={}){
  return module.exports;
 }
 const helpers=load(read('../src/lib/researchCheckpoint.ts'));
-const component=()=>load(read('../src/components/ResearchCheckpoint.tsx'),{
- 'react':React,'../data/researchCheckpoint.json':data,'../lib/researchCheckpoint':helpers}).default;
+const component=(now)=>load(read('../src/components/ResearchCheckpoint.tsx'),{
+ 'react':React,'../data/researchCheckpoint.json':data,'../lib/researchCheckpoint':{...helpers,
+  checkpointAgeNotice: snapshot=>helpers.checkpointAgeNotice(snapshot,now)}}).default;
 const evidenceRoot=process.env.SIGIL_LOCAL_EVIDENCE_ROOT;
 const artifact=relative=>JSON.parse(readFileSync(join(evidenceRoot,relative),'utf8'));
 
@@ -86,7 +87,7 @@ test('signed charts have a shared zero and monotonic scale within each study',()
  assert.equal(helpers.chartScale([0,0])(0),210);
 });
 test('actual component server-renders periods, limitations and unscored predictions',()=>{
- const html=renderToStaticMarkup(React.createElement(component()));
+ const html=renderToStaticMarkup(React.createElement(component(Date.parse(data.evidenceCheckedAt))));
  assert.match(html,/Curated evidence/);assert.match(html,/not newly published company data/);
  assert.match(html,/Snapshot as of/);assert.match(html,/Evidence checked/);assert.match(html,/not added automatically/);
  assert.match(html,/Predictions only/);assert.match(html,/not performance/);assert.match(html,/Archived TTM October 2023/);
@@ -107,4 +108,12 @@ test('hyperscaler paired quarters share signed scale and explicit cash definitio
 test('page integrates checkpoint without claiming registry or live-worker availability',()=>{
  const page=read('../src/pages/Experiments.tsx');assert.match(page,/!experimentId && <ResearchCheckpoint \/>/);
  const css=read('../src/pages/Experiments.css');assert.match(css,/@media\(max-width:800px\)\{\.checkpoint-grid\{grid-template-columns:1fr/);
+});
+
+test('actual component shows stale-evidence warning after seven days',()=>{
+ const now=Date.parse(data.evidenceCheckedAt)+8*86400000;
+ const html=renderToStaticMarkup(React.createElement(component(now)));
+ assert.match(html,/more than seven days/);
+ assert.match(html,/Newer studies and outcomes may be missing/);
+ assert.match(html,/historical figures are not automatically invalidated/);
 });
