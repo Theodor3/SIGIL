@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 import Layout from "./components/Layout";
 import LoginGate from "./components/LoginGate";
 import Overview from "./pages/Overview";
+import StockIdeas from "./pages/StockIdeas";
 import Signals from "./pages/Signals";
 import Portfolio from "./pages/Portfolio";
 import Research from "./pages/Research";
@@ -24,7 +25,8 @@ export default function App() {
         <Route path="strategy-lab" element={<StrategyLab />} />
         <Route path="market-strategy" element={<MarketStrategy />} />
         <Route element={<LoginGate><Layout /></LoginGate>}>
-          <Route index element={<Overview />} />
+          <Route index element={<StockIdeas />} />
+          <Route path="overview" element={<Overview />} />
           <Route path="signals" element={<Signals />} />
           <Route path="data" element={<Data />} />
           <Route path="portfolio" element={<Portfolio />} />

@@ -28,6 +28,8 @@ test('research does not manufacture signal contributions or hide empty snapshots
   const research = readFileSync(new URL('../src/pages/Research.tsx', import.meta.url), 'utf8');
   assert.doesNotMatch(research, /ContributionBar|Weighted Total|top_drivers\.map|s\.contribution \*|s\.weight \*/);
   assert.match(research, /not additive attribution/);
-  assert.match(research, /key=\{point\.run_id\}/);
+  assert.match(research, /<SavedScoreHistory points=\{data.score_history\}/);
+  const chart = readFileSync(new URL('../src/components/SavedScoreHistory.tsx', import.meta.url), 'utf8');
+  assert.match(chart, /key=\{row\.run_id\}/);
   assert.doesNotMatch(research, /No signal data for this ticker/);
 });

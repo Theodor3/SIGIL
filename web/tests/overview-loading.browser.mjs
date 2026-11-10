@@ -36,7 +36,7 @@ test('overview loads lightweight data, retains dated content on refresh failure 
  try{
   const page=await browser.newPage();await page.clock.install();
   await page.route('**/*',r=>r.request().url().startsWith(origin)?r.continue():r.abort());
-  await page.goto(origin,{waitUntil:'domcontentloaded'});
+  await page.goto(origin+'/overview',{waitUntil:'domcontentloaded'});
   await page.getByRole('status').filter({hasText:'Loading pipeline'}).waitFor();
   assert.equal(await page.getByRole('heading',{name:'Overview',exact:true}).count(),1);
   await page.clock.runFor(60_002);assert.equal(requests,1,'polls must not overlap the pending fetch');
