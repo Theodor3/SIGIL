@@ -1,5 +1,7 @@
+import { useSearchParams } from "react-router-dom";
+import SavedScoreHistory from "../components/SavedScoreHistory";
 import { formatSavedScore, scoreStatusLabel, type ScoreStatus } from "../lib/savedScores";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import WatchlistCard from "../components/WatchlistCard";
 
@@ -70,6 +72,8 @@ interface TopIdea {
 const API = "";
 
 export default function Research() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestId = useRef(0);
   const [query, setQuery] = useState("");
   const [ticker, setTicker] = useState<string | null>(null);
   const [data, setData] = useState<TickerData | null>(null);
@@ -93,25 +97,49 @@ export default function Research() {
   }, [loadIdeas]);
 
   const loadTicker = async (t: string) => {
+    const currentRequest = ++requestId.current;
     setLoading(true);
     setError(null);
     setTicker(t.toUpperCase());
     try {
-      const res = await fetch(`${API}/api/research/ticker/${t.toUpperCase()}`);
+      const res = await fetch(`${API}/api/research/ticker/${encodeURIComponent(t.toUpperCase())}`);
       if (!res.ok) throw new Error("Ticker not found");
       const json = await res.json();
+      if (currentRequest !== requestId.current) return;
       setData(json);
     } catch (e) {
+      if (currentRequest !== requestId.current) return;
       setError(e instanceof Error ? e.message : "Failed to load");
       setData(null);
     } finally {
-      setLoading(false);
+      if (currentRequest === requestId.current) setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    const linkedTicker = searchParams.get("ticker")?.trim();
+    if (linkedTicker) { setQuery(linkedTicker); void loadTicker(linkedTicker); }
+    else { setData(null); setTicker(null); setQuery(""); setLoading(false); }
+    return () => { requestId.current++; };
+  }, [searchParams]);
+
+  const selectTicker = (value: string) => {
+    const selected = value.trim().toUpperCase();
+    if (!selected) return;
+    requestId.current++;
+    setQuery(selected);
+    if (searchParams.get("ticker") === selected) {
+      void loadTicker(selected);
+      return;
+    }
+    const next = new URLSearchParams(searchParams);
+    next.set("ticker", selected);
+    setSearchParams(next);
   };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (query.trim()) loadTicker(query.trim());
+    selectTicker(query);
   };
 
 
@@ -121,7 +149,7 @@ export default function Research() {
         <h1 className="text-xl font-bold">Research</h1>
         {data && (
           <button
-            onClick={() => { setData(null); setTicker(null); setQuery(""); }}
+            onClick={() => { requestId.current++; setLoading(false); setData(null); setTicker(null); setQuery(""); setSearchParams({}); }}
             className="text-xs text-sigil-muted hover:text-sigil-text transition-colors"
           >
             Back to Ideas
@@ -147,7 +175,7 @@ export default function Research() {
       </form>
 
       {!data && !loading && (
-        <WatchlistCard onSelect={(t) => { setQuery(t); loadTicker(t); }} />
+        <WatchlistCard onSelect={selectTicker} />
       )}
 
       {loading && <div className="text-sigil-muted text-sm">Loading research for {ticker}...</div>}
@@ -260,38 +288,7 @@ export default function Research() {
             </div>
           )}
 
-          {/* Score history */}
-          {data.score_history.length > 0 && (
-            <div className="rounded-xl border border-sigil-border bg-sigil-surface p-5">
-              <h3 className="text-sm font-semibold text-sigil-muted uppercase tracking-wider mb-4">
-                Saved Pipeline Score History (30d)
-              </h3>
-              <div className="space-y-2">
-                {data.score_history.map((point) => (
-                  <div
-                    key={point.run_id}
-                    className="flex items-center justify-between text-sm px-3 py-2 rounded-lg bg-sigil-bg"
-                  >
-                    <span className="text-sigil-muted text-xs">{point.date}<span className="block">Run: {point.run_id}</span></span>
-                    <span className="font-mono text-sigil-accent">
-                      {formatSavedScore(point.score)}
-                      <span className="block text-xs text-sigil-muted">{scoreStatusLabel(point.score_status)}</span>
-                    </span>
-                    <div className="flex gap-2">
-                      {Object.entries(point.signals)
-                        .sort(([, a], [, b]) => b - a)
-                        .slice(0, 3)
-                        .map(([sig, val]) => (
-                          <span key={sig} className="text-xs text-sigil-muted">
-                            {sig}: {(val * 100).toFixed(1)}
-                          </span>
-                        ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <SavedScoreHistory points={data.score_history} />
 
           {/* Evaluations */}
           {data.evaluations.length > 0 && (
@@ -406,7 +403,7 @@ export default function Research() {
               {ideas.map((idea) => (
                 <button
                   key={idea.ticker}
-                  onClick={() => { setQuery(idea.ticker); loadTicker(idea.ticker); }}
+                  onClick={() => selectTicker(idea.ticker)}
                   className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-sigil-bg hover:bg-sigil-border/30 transition-colors text-left"
                 >
                   <div className="flex items-center gap-4">
