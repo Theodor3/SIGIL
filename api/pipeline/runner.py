@@ -81,9 +81,25 @@ async def _fetch_fmp(bucket: list[str]) -> dict:
 
 async def _fetch_tiingo_prices(bucket: list[str]) -> dict:
     if not settings.tiingo_api_key:
+        from api.data.diagnostics import provider_outcome
+        provider_outcome("tiingo", None, "skipped_no_key")
         return {}
     from api.data.tiingo import TiingoProvider
     return await TiingoProvider().fetch_prices(bucket)
+
+
+async def _fetch_tiingo_gaps(bucket: list[str], yahoo_task) -> dict:
+    """Request only rows that the existing Yahoo-first merge would replace."""
+    from api.data.diagnostics import provider_outcome
+    try:
+        prices = await yahoo_task
+    except Exception:
+        prices = {}
+    missing = [t for t in bucket if t not in prices or not prices[t].get("close")]
+    if not missing:
+        provider_outcome("tiingo", None, "skipped_yahoo_complete")
+        return {}
+    return await _fetch_tiingo_prices(missing)
 
 
 async def _fetch_alphavantage_earnings(bucket: list[str]) -> dict:
@@ -166,7 +182,7 @@ async def run_pipeline(db: AsyncSession) -> dict:
             bucket += [t for t in watchlist if t not in in_bucket]
         print(f"[pipeline] Universe: {len(bucket)} tickers after screening")
 
-        # Phase 3: Fetch ALL other data sources IN PARALLEL
+        # Phase 3: Fetch in parallel; Tiingo waits for Yahoo's missing-price list.
         provider_names = [
             "yahoo_prices", "finnhub", "yahoo_benchmarks", "fred", "wikipedia",
             "gdelt", "insider", "analyst", "fmp", "tiingo_prices",
@@ -175,8 +191,10 @@ async def run_pipeline(db: AsyncSession) -> dict:
             "edgar_filings",
         ]
         t0 = datetime.utcnow()
+        yahoo_prices_task = asyncio.create_task(
+            timed_source(run_id, "yahoo_prices", _fetch_yahoo_prices(yahoo, bucket)))
         operations = [
-            _fetch_yahoo_prices(yahoo, bucket),        # 0
+            yahoo_prices_task,                        # 0 - fetched and timed once
             _fetch_finnhub(bucket),                    # 1
             _fetch_benchmarks(),                       # 2
             _fetch_fred(),                             # 3
@@ -185,7 +203,7 @@ async def run_pipeline(db: AsyncSession) -> dict:
             _fetch_insider(bucket),                    # 6
             _fetch_analyst(bucket),                    # 7
             _fetch_fmp(bucket),                        # 8  - full FMP fundamentals
-            _fetch_tiingo_prices(bucket),              # 9
+            _fetch_tiingo_gaps(bucket, yahoo_prices_task),  # 9 - includes Yahoo wait
             _fetch_alphavantage_earnings(bucket),      # 10
             _fetch_bls(),                              # 11
             _fetch_yahoo_fundamentals(yahoo, bucket),  # 12 - Yahoo fundamentals on screened bucket
@@ -195,7 +213,7 @@ async def run_pipeline(db: AsyncSession) -> dict:
             _fetch_edgar(bucket),                      # 16 - SEC filing red flags
         ]
         results = await asyncio.gather(
-            *(timed_source(run_id, name, operation)
+            *(operation if name == "yahoo_prices" else timed_source(run_id, name, operation)
               for name, operation in zip(provider_names, operations, strict=True)),
             return_exceptions=True,
         )

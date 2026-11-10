@@ -5,8 +5,8 @@
 It is an offline differential-test reference, not a second production provider.
 Line endings may differ from the Git blob.
 
-`tests/test_gdelt_pacing.py` feeds this reference and the optimized provider the
-same synthetic HTTP responses. It checks exact request parameters and order,
+`tests/test_gdelt_pacing.py` feeds this reference and the restored provider the
+same synthetic HTTP responses. It checks exact request parameters, timing and order,
 the 50-query coverage cap, returned fields and order, malformed/empty responses,
 timeouts, rate-limit backoff, downstream signals, LLM input prompts, scores,
 confidence, eligibility, ranking, and portfolio targets. The simulated-clock
