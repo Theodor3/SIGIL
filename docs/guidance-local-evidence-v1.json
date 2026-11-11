@@ -1,0 +1,142 @@
+{
+  "status": "supplied_archived_evidence_not_verified_availability",
+  "rows": [
+    {
+      "quarter": "2024Q4",
+      "filingDate": "2024-12-11",
+      "secAccepted": "2024-12-11 16:06:49",
+      "secTimezone": "America/New_York",
+      "retrievedAt": "2026-10-27T17:29:20.759Z",
+      "source": "https://www.sec.gov/Archives/edgar/data/796343/000079634324000250/adbeex991q424.htm",
+      "sha256": "427906767f0959fe30a6fd6b4a036f1ee6f909d51139c371481eeb75f5dc3e3c",
+      "content": {
+        "ticker": "ADBE",
+        "quarter": "2024Q4",
+        "sourceUrl": "https://www.sec.gov/Archives/edgar/data/796343/000079634324000250/adbeex991q424.htm",
+        "rawSha256": "427906767f0959fe30a6fd6b4a036f1ee6f909d51139c371481eeb75f5dc3e3c",
+        "normalizedTextSha256": "bab495787f1d6d71384c8b7a947fd3a9bd8c4e5af812b32ec464ef0b22d8d963",
+        "rawFile": "raw/427906767f0959fe30a6fd6b4a036f1ee6f909d51139c371481eeb75f5dc3e3c.bin",
+        "status": "numeric_annual_guidance_found",
+        "supportingPassage": "Total revenue $23.30 billion to $23.55 billion",
+        "passageStart": 5038,
+        "passageEnd": 5084,
+        "targetPeriod": "FY2025",
+        "metric": "total_revenue",
+        "unit": "USD_billion",
+        "range": [
+          23.3,
+          23.55
+        ],
+        "caveat": "Annual table initiates FY2025; not a comparable FY2024 revision.",
+        "reviewScope": "Targeted context in first archived exhibit; not full-document absence certification",
+        "latestPriorVerified": false,
+        "timingVerified": false,
+        "eligibleForReturns": false
+      },
+      "possibleInterveningEvent": null
+    },
+    {
+      "quarter": "2025Q1",
+      "filingDate": "2025-03-12",
+      "secAccepted": "2025-03-12 16:06:35",
+      "secTimezone": "America/New_York",
+      "retrievedAt": "2026-10-27T17:29:21.742Z",
+      "source": "https://www.sec.gov/Archives/edgar/data/796343/000079634325000052/adbeex991q125.htm",
+      "sha256": "e3a33eb84d09193e9ba2a71722caf8ee992fe85ff8c2f99f17f649c950ada012",
+      "content": {
+        "ticker": "ADBE",
+        "quarter": "2025Q1",
+        "sourceUrl": "https://www.sec.gov/Archives/edgar/data/796343/000079634325000052/adbeex991q125.htm",
+        "rawSha256": "e3a33eb84d09193e9ba2a71722caf8ee992fe85ff8c2f99f17f649c950ada012",
+        "normalizedTextSha256": "947a68c89516e325de657a3193ec7a64f7f2221a6f2e92a356a247562a8313f5",
+        "rawFile": "raw/e3a33eb84d09193e9ba2a71722caf8ee992fe85ff8c2f99f17f649c950ada012.bin",
+        "status": "numeric_annual_guidance_found",
+        "supportingPassage": "Total revenue $23.30 billion to $23.55 billion",
+        "passageStart": 4505,
+        "passageEnd": 4551,
+        "targetPeriod": "FY2025",
+        "metric": "total_revenue",
+        "unit": "USD_billion",
+        "range": [
+          23.3,
+          23.55
+        ],
+        "caveat": "Annual table matches December; intervening disclosures not exhausted.",
+        "reviewScope": "Targeted context in first archived exhibit; not full-document absence certification",
+        "latestPriorVerified": false,
+        "timingVerified": false,
+        "eligibleForReturns": false
+      },
+      "possibleInterveningEvent": "Adobe to Host Investor Meeting at Adobe Summit 2025 Adobe will host its Investor Meeting with financial analysts and investors on Tuesday, March 18, 2025 at 2:00 p.m. Pacific Time at Adobe Summit in Las Vegas, Nevada. Adobe’s executive team will provide updates on Adobe’s strategy, innovation roadmap, market opportunity and financials. The event will be streamed live on the Adobe Investor Relations Website. Following the event, a recording and related materials will be available on the site. Forward-Looking Statements, Non-GAAP and Other Disclosures In addition to historical information, this press release contains “forward-looking statements"
+    },
+    {
+      "quarter": "2025Q2",
+      "filingDate": "2025-06-12",
+      "secAccepted": "2025-06-12 16:19:20",
+      "secTimezone": "America/New_York",
+      "retrievedAt": "2026-10-27T17:29:22.489Z",
+      "source": "https://www.sec.gov/Archives/edgar/data/796343/000079634325000064/adbeex991q225.htm",
+      "sha256": "73fc65bc650b1e522adf3c32c77c41711e8b452a74a7515e5bd79fcc5f466d9b",
+      "content": {
+        "ticker": "ADBE",
+        "quarter": "2025Q2",
+        "sourceUrl": "https://www.sec.gov/Archives/edgar/data/796343/000079634325000064/adbeex991q225.htm",
+        "rawSha256": "73fc65bc650b1e522adf3c32c77c41711e8b452a74a7515e5bd79fcc5f466d9b",
+        "normalizedTextSha256": "a21d8f2591985e9beb3eea6b6241be8b659be73862b6eb16c181181247e2458f",
+        "rawFile": "raw/73fc65bc650b1e522adf3c32c77c41711e8b452a74a7515e5bd79fcc5f466d9b.bin",
+        "status": "numeric_annual_guidance_found",
+        "supportingPassage": "Total revenue $23.50 billion to $23.60 billion",
+        "passageStart": 3711,
+        "passageEnd": 3757,
+        "targetPeriod": "FY2025",
+        "metric": "total_revenue",
+        "unit": "USD_billion",
+        "range": [
+          23.5,
+          23.6
+        ],
+        "caveat": "Annual table raises both endpoints relative to March; latest-prior check remains.",
+        "reviewScope": "Targeted context in first archived exhibit; not full-document absence certification",
+        "latestPriorVerified": false,
+        "timingVerified": false,
+        "eligibleForReturns": false
+      },
+      "possibleInterveningEvent": null
+    },
+    {
+      "quarter": "2025Q3",
+      "filingDate": "2025-09-11",
+      "secAccepted": "2025-09-11 16:06:22",
+      "secTimezone": "America/New_York",
+      "retrievedAt": "2026-10-27T17:29:23.344Z",
+      "source": "https://www.sec.gov/Archives/edgar/data/796343/000079634325000102/adbeex991q325.htm",
+      "sha256": "3650b88e63af85c5f3c29769b761b65d4b3a0169fc4366267e266edffa027f72",
+      "content": {
+        "ticker": "ADBE",
+        "quarter": "2025Q3",
+        "sourceUrl": "https://www.sec.gov/Archives/edgar/data/796343/000079634325000102/adbeex991q325.htm",
+        "rawSha256": "3650b88e63af85c5f3c29769b761b65d4b3a0169fc4366267e266edffa027f72",
+        "normalizedTextSha256": "9a0ac133dd3219acc51be88d58ce3a019523a69cbec5054e5345a11947c18e81",
+        "rawFile": "raw/3650b88e63af85c5f3c29769b761b65d4b3a0169fc4366267e266edffa027f72.bin",
+        "status": "numeric_annual_guidance_found",
+        "supportingPassage": "Total revenue $23.65 billion to $23.70 billion",
+        "passageStart": 3848,
+        "passageEnd": 3894,
+        "targetPeriod": "FY2025",
+        "metric": "total_revenue",
+        "unit": "USD_billion",
+        "range": [
+          23.65,
+          23.7
+        ],
+        "caveat": "Annual table raises both endpoints relative to June; latest-prior check remains.",
+        "reviewScope": "Targeted context in first archived exhibit; not full-document absence certification",
+        "latestPriorVerified": false,
+        "timingVerified": false,
+        "eligibleForReturns": false
+      },
+      "possibleInterveningEvent": null
+    }
+  ],
+  "task": "Compare numerical ranges only; identify missing latest-prior and public timing evidence. Do not certify tradability, assume no intervening updates, or invent fiscal dates."
+}

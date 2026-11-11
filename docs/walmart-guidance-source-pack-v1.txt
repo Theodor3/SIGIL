@@ -1,0 +1,9 @@
+Walmart FY26 guidance: compact coordinator-supplied evidence packet
+
+The blocked mission needs two SEC Exhibit 99.1 earnings releases: FY26 Q1 (May 15, 2025) and FY26 Q2 (August 21, 2025). It needs only the consolidated annual FY2026 net-sales constant-currency growth row, dated headers, unchanged markers, adjacent quarterly headings and metric controls, plus footnotes and source provenance.
+
+evidence.json is a manually structured extraction from the supported web reader, not raw HTML. Source URLs, accession numbers, release dates and rendered line ranges are attached to each table. No original-file hash is claimed. Filing acceptance dates and historical first-public availability remain unverified.
+
+Both official pages were readable through web open. Direct downloads were separately attempted and blocked by SEC's automated traffic policy; that route was stopped. No browser impersonation, limit change or restriction bypass was used. The swarm's oversized-fetch failures remain preserved and must not be represented as successful worker retrievals.
+
+For swarm ingestion, use an authorized coordinator to place this small sanitized packet in its pinned Studio source snapshot, with the supplied-extraction label retained and a recorded read/hash/commit. Do not replay the failed mission or automatically dispatch new work. No production JSON or strategy file was changed. Timing, latest-prior and return eligibility remain false.

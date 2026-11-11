@@ -1,0 +1,406 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-10-27",
+  "status": "source_manifest_not_completed_event_audit",
+  "selectionRule": "Fixed named convenience sample ADBE CRM MSFT ORCL WMT TGT; one scheduled earnings release in each calendar release quarter 2024Q3 through 2025Q3. Selection does not use price returns or guidance direction. Not a representative historical stock universe.",
+  "verification": "All 30 URLs discovered in web search results from issuer or SEC primary sources on October 27, 2026. This manifest does not assert raw receipt archival, complete document parsing, verified public timestamp, guidance-pair validation, or profitability. Search results can expose market commentary incidentally; no return data were collected or used for selection.",
+  "globalLimitations": [
+    "Publication dates are date-only; exact public availability time remains unverified.",
+    "Current-hosted historical pages are not independently immutable point-in-time archives.",
+    "Guidance comparison requires the latest prior disclosure for the identical fiscal target period, metric, currency basis and consolidation scope; supporting disclosures may fall outside these 30 releases.",
+    "Keep missing, unchanged, cut, initiated, withdrawn and noncomparable guidance in the denominator.",
+    "Returns deliberately absent. No event here is approved for trading or a backtest."
+  ],
+  "events": [
+    {
+      "ticker": "ADBE",
+      "calendarQuarter": "2024Q3",
+      "releaseDate": "2024-09-12",
+      "url": "https://www.adobe.com/cc-shared/assets/investor-relations/pdfs/au4736wy45tg.pdf",
+      "title": "Adobe Reports Record Revenue in Q3 Fiscal 2024",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "PDF tables require extraction and unit validation. New fiscal-year guidance is initiation, not a revision. Check intervening investor-day updates.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "ADBE",
+      "calendarQuarter": "2024Q4",
+      "releaseDate": "2024-12-11",
+      "url": "https://www.sec.gov/Archives/edgar/data/796343/000079634324000250/adbeex991q424.htm",
+      "title": "Adobe Reports Record Q4 and Fiscal 2024 Revenue",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "PDF tables require extraction and unit validation. New fiscal-year guidance is initiation, not a revision. Check intervening investor-day updates.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "ADBE",
+      "calendarQuarter": "2025Q1",
+      "releaseDate": "2025-03-12",
+      "url": "https://www.adobe.com/cc-shared/assets/investor-relations/pdfs/21305202/a4t3greafe.pdf",
+      "title": "Adobe Delivers Record Q1 Results",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "PDF tables require extraction and unit validation. New fiscal-year guidance is initiation, not a revision. Check intervening investor-day updates.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "ADBE",
+      "calendarQuarter": "2025Q2",
+      "releaseDate": "2025-06-12",
+      "url": "https://www.adobe.com/cc-shared/assets/investor-relations/pdfs/12605202/a654erthgf.pdf",
+      "title": "Adobe Reports Record Revenue in Q2 and Raises FY25 Revenue and EPS Targets",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "PDF tables require extraction and unit validation. New fiscal-year guidance is initiation, not a revision. Check intervening investor-day updates.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "ADBE",
+      "calendarQuarter": "2025Q3",
+      "releaseDate": "2025-09-11",
+      "url": "https://www.adobe.com/cc-shared/assets/investor-relations/pdfs/11905202/aiy4w5teshy5t.pdf",
+      "title": "Adobe Raises FY25 Digital Media ARR Growth, Total Revenue, and EPS Targets",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "PDF tables require extraction and unit validation. New fiscal-year guidance is initiation, not a revision. Check intervening investor-day updates.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "CRM",
+      "calendarQuarter": "2024Q3",
+      "releaseDate": "2024-08-28",
+      "url": "https://www.salesforce.com/news/press-releases/2024/08/28/fy25-q2-earnings/?bc=OTH",
+      "title": "Salesforce Announces Second Quarter Fiscal 2025 Results",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Separate reported revenue from constant-currency growth; currency changes and acquisitions may explain revisions. A low-end-only increase is distinct from both endpoints increasing.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "CRM",
+      "calendarQuarter": "2024Q4",
+      "releaseDate": "2024-12-03",
+      "url": "https://www.salesforce.com/news/press-releases/2024/12/03/salesforce-announces-third-quarter-fiscal-2025-results/",
+      "title": "Salesforce Announces Third Quarter Fiscal 2025 Results",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Separate reported revenue from constant-currency growth; currency changes and acquisitions may explain revisions. A low-end-only increase is distinct from both endpoints increasing.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "CRM",
+      "calendarQuarter": "2025Q1",
+      "releaseDate": "2025-02-26",
+      "url": "https://www.salesforce.com/news/press-releases/2025/02/26/fy25-q4-earnings/?bc=OTH",
+      "title": "Salesforce Announces Fourth Quarter and Fiscal Year 2025 Results",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Separate reported revenue from constant-currency growth; currency changes and acquisitions may explain revisions. A low-end-only increase is distinct from both endpoints increasing.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "CRM",
+      "calendarQuarter": "2025Q2",
+      "releaseDate": "2025-05-28",
+      "url": "https://www.salesforce.com/news/press-releases/2025/05/28/fy26-q1-earnings/",
+      "title": "Salesforce Reports Record First Quarter Fiscal 2026 Results Exceeds Guidance Across All Metrics; cRPO up 12% Y/Y",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Separate reported revenue from constant-currency growth; currency changes and acquisitions may explain revisions. A low-end-only increase is distinct from both endpoints increasing.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "CRM",
+      "calendarQuarter": "2025Q3",
+      "releaseDate": "2025-09-03",
+      "url": "https://www.salesforce.com/news/press-releases/2025/09/03/fy26-q2-earnings/",
+      "title": "Salesforce Reports Record Second Quarter Fiscal 2026 Results",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Separate reported revenue from constant-currency growth; currency changes and acquisitions may explain revisions. A low-end-only increase is distinct from both endpoints increasing.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "MSFT",
+      "calendarQuarter": "2024Q3",
+      "releaseDate": "2024-07-30",
+      "url": "https://www.microsoft.com/en-us/investor/earnings/fy-2024-q4/press-release-webcast",
+      "title": "Microsoft Cloud Strength Drives Fourth Quarter Results",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Release may defer outlook to conference call; guidance may concern the next quarter rather than the same annual fiscal period. Missing annual guidance must remain a noncomparable observation.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "MSFT",
+      "calendarQuarter": "2024Q4",
+      "releaseDate": "2024-10-30",
+      "url": "https://www.microsoft.com/en-us/investor/earnings/fy-2025-q1/press-release-webcast",
+      "title": "Microsoft Cloud Strength Drives First Quarter Results",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Release may defer outlook to conference call; guidance may concern the next quarter rather than the same annual fiscal period. Missing annual guidance must remain a noncomparable observation.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "MSFT",
+      "calendarQuarter": "2025Q1",
+      "releaseDate": "2025-01-29",
+      "url": "https://www.microsoft.com/en-us/investor/earnings/fy-2025-q2/press-release-webcast",
+      "title": "Microsoft Cloud and AI Strength Drives Second Quarter Results",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Release may defer outlook to conference call; guidance may concern the next quarter rather than the same annual fiscal period. Missing annual guidance must remain a noncomparable observation.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "MSFT",
+      "calendarQuarter": "2025Q2",
+      "releaseDate": "2025-04-30",
+      "url": "https://www.microsoft.com/en-us/Investor/earnings/FY-2025-Q3/press-release-webcast",
+      "title": "Earnings Release FY25 Q3",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Release may defer outlook to conference call; guidance may concern the next quarter rather than the same annual fiscal period. Missing annual guidance must remain a noncomparable observation.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "MSFT",
+      "calendarQuarter": "2025Q3",
+      "releaseDate": "2025-07-30",
+      "url": "https://www.microsoft.com/en-us/Investor/earnings/FY-2025-Q4/press-release-webcast",
+      "title": "Microsoft Cloud and AI Strength Fuels Fourth Quarter Results",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Release may defer outlook to conference call; guidance may concern the next quarter rather than the same annual fiscal period. Missing annual guidance must remain a noncomparable observation.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "ORCL",
+      "calendarQuarter": "2024Q3",
+      "releaseDate": "2024-09-09",
+      "url": "https://investor.oracle.com/investor-news/news-details/2024/Oracle-Announces-Fiscal-2025-First-Quarter-Financial-Results/default.aspx",
+      "title": "Oracle Announces Fiscal 2025 First Quarter Financial Results",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Guidance may appear in call remarks rather than release; separate total revenue from cloud/RPO growth and multi-year targets. Do not infer missing annual guidance.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "ORCL",
+      "calendarQuarter": "2024Q4",
+      "releaseDate": "2024-12-09",
+      "url": "https://investor.oracle.com/investor-news/news-details/2024/Oracle-Announces-Fiscal-2025-Second-Quarter-Financial-Results/",
+      "title": "Oracle Announces Fiscal 2025 Second Quarter Financial Results",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Guidance may appear in call remarks rather than release; separate total revenue from cloud/RPO growth and multi-year targets. Do not infer missing annual guidance.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "ORCL",
+      "calendarQuarter": "2025Q1",
+      "releaseDate": "2025-03-10",
+      "url": "https://investor.oracle.com/investor-news/news-details/2025/Oracle-Announces-Fiscal-2025-Third-Quarter-Financial-Results/default.aspx",
+      "title": "Oracle Announces Fiscal 2025 Third Quarter Financial Results",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Guidance may appear in call remarks rather than release; separate total revenue from cloud/RPO growth and multi-year targets. Do not infer missing annual guidance.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "ORCL",
+      "calendarQuarter": "2025Q2",
+      "releaseDate": "2025-06-11",
+      "url": "https://investor.oracle.com/investor-news/news-details/2025/Oracle-Announces-Fiscal-2025-Fourth-Quarter-and-Fiscal-Full-Year-Financial-Results/default.aspx",
+      "title": "Oracle Announces Fiscal 2025 Fourth Quarter and Fiscal Full Year Financial Results",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Guidance may appear in call remarks rather than release; separate total revenue from cloud/RPO growth and multi-year targets. Do not infer missing annual guidance.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "ORCL",
+      "calendarQuarter": "2025Q3",
+      "releaseDate": "2025-09-09",
+      "url": "https://investor.oracle.com/investor-news/news-details/2025/Oracle-Announces-Fiscal-Year-2026-First-Quarter-Financial-Results/default.aspx",
+      "title": "Oracle Announces Fiscal Year 2026 First Quarter Financial Results",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Guidance may appear in call remarks rather than release; separate total revenue from cloud/RPO growth and multi-year targets. Do not infer missing annual guidance.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "WMT",
+      "calendarQuarter": "2024Q3",
+      "releaseDate": "2024-08-15",
+      "url": "https://stock.walmart.com/sec-filings/all-sec-filings/content/0000104169-24-000131/earningsreleasefy25q2.htm",
+      "title": "Walmart Reports Second Quarter Results",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Net-sales growth guidance is often constant-currency percentage growth, not reported dollar revenue. Preserve basis and baseline; do not compare directly with dollar guidance.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "WMT",
+      "calendarQuarter": "2024Q4",
+      "releaseDate": "2024-11-19",
+      "url": "https://stock.walmart.com/sec-filings/all-sec-filings/content/0000104169-24-000170/earningsreleasefy25q3.htm",
+      "title": "Walmart Reports Third Quarter Results",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Net-sales growth guidance is often constant-currency percentage growth, not reported dollar revenue. Preserve basis and baseline; do not compare directly with dollar guidance.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "WMT",
+      "calendarQuarter": "2025Q1",
+      "releaseDate": "2025-02-20",
+      "url": "https://corporate.walmart.com/content/dam/corporate/documents/newsroom/2025/02/20/walmart-releases-q4-fy25-earnings/q4-fy25-earnings-release.pdf",
+      "title": "Walmart Earnings Release FY25 Q4",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Net-sales growth guidance is often constant-currency percentage growth, not reported dollar revenue. Preserve basis and baseline; do not compare directly with dollar guidance.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "WMT",
+      "calendarQuarter": "2025Q2",
+      "releaseDate": "2025-05-15",
+      "url": "https://stock.walmart.com/sec-filings/all-sec-filings/content/0000104169-25-000069/earningsreleasefy26q1.htm",
+      "title": "Walmart Reports First Quarter Results",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Net-sales growth guidance is often constant-currency percentage growth, not reported dollar revenue. Preserve basis and baseline; do not compare directly with dollar guidance.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "WMT",
+      "calendarQuarter": "2025Q3",
+      "releaseDate": "2025-08-21",
+      "url": "https://stock.walmart.com/sec-filings/all-sec-filings/content/0000104169-25-000120/earningsreleasefy26q2.htm",
+      "title": "Walmart Reports Second Quarter Results",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Net-sales growth guidance is often constant-currency percentage growth, not reported dollar revenue. Preserve basis and baseline; do not compare directly with dollar guidance.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "TGT",
+      "calendarQuarter": "2024Q3",
+      "releaseDate": "2024-08-21",
+      "url": "https://corporate.target.com/press/release/2024/08/target-corporation-reports-second-quarter-earnings",
+      "title": "Target Corporation Reports Second Quarter Earnings",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Comparable-sales guidance differs from total sales. Qualitative low-single-digit wording has no exact numeric bounds. Revenue presentation changed beginning Q4 2024.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "TGT",
+      "calendarQuarter": "2024Q4",
+      "releaseDate": "2024-11-20",
+      "url": "https://corporate.target.com/press/release/2024/11/target-corporation-reports-third-quarter-earnings",
+      "title": "Target Corporation Reports Third Quarter Earnings",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Comparable-sales guidance differs from total sales. Qualitative low-single-digit wording has no exact numeric bounds. Revenue presentation changed beginning Q4 2024.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "TGT",
+      "calendarQuarter": "2025Q1",
+      "releaseDate": "2025-03-04",
+      "url": "https://corporate.target.com/press/release/2025/03/target-corporation-reports-fourth-quarter-and-full-year-2024-earnings",
+      "title": "Target Corporation Reports Fourth Quarter and Full-Year 2024 Earnings",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Comparable-sales guidance differs from total sales. Qualitative low-single-digit wording has no exact numeric bounds. Revenue presentation changed beginning Q4 2024.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "TGT",
+      "calendarQuarter": "2025Q2",
+      "releaseDate": "2025-05-21",
+      "url": "https://corporate.target.com/press/release/2025/05/target-corporation-reports-first-quarter-earnings",
+      "title": "Target Corporation Reports First Quarter Earnings",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Comparable-sales guidance differs from total sales. Qualitative low-single-digit wording has no exact numeric bounds. Revenue presentation changed beginning Q4 2024.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    },
+    {
+      "ticker": "TGT",
+      "calendarQuarter": "2025Q3",
+      "releaseDate": "2025-08-20",
+      "url": "https://corporate.target.com/press/release/2025/08/target-corporation-reports-second-quarter-earnings",
+      "title": "Target Corporation Reports Second Quarter Earnings",
+      "status": "primary_url_search_verified",
+      "guidanceAuditStatus": "pending",
+      "knownLimitations": [
+        "Comparable-sales guidance differs from total sales. Qualitative low-single-digit wording has no exact numeric bounds. Revenue presentation changed beginning Q4 2024.",
+        "Exact release timestamp and latest prior guidance not validated."
+      ]
+    }
+  ]
+}
