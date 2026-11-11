@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import "./Experiments.css";
 import ResearchUpdates from "../components/ResearchUpdates";
 import CompanyStudies from "../components/CompanyStudies";
@@ -49,6 +49,7 @@ function validSnapshot(value: unknown): value is Snapshot {
 }
 export default function Experiments() {
   const { experimentId } = useParams();
+  const { search } = useLocation();
   const [data, setData] = useState<Snapshot | null>(null);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -95,9 +96,9 @@ export default function Experiments() {
     </section>}
     {data && <>
         <div className="research-publication"><span>Reviewed snapshot · {data.reviewedOn}</span><span>Published with the app · Not a live swarm feed</span></div>
-        {experimentId && !selected ? <section className="research-panel"><h2>Experiment not found</h2><Link to="/experiments">Back to all experiments →</Link></section>
+        {experimentId && !selected ? <section className="research-panel"><h2>Experiment not found</h2><Link to={`/experiments${search}`}>Back to all experiments →</Link></section>
           : selected ? <>
-            <Link className="research-back" to="/experiments">← All experiments</Link>
+            <Link className="research-back" to={`/experiments${search}`}>← All experiments</Link>
             <div className="research-dossier">
               <section className="research-panel research-thesis">
                 <p className="research-kicker">{selected.ticker} / {selected.stage.replace(/_/g, " ")} / {selected.id}</p>
