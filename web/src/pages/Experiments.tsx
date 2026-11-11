@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import "./Experiments.css";
 import ResearchUpdates from "../components/ResearchUpdates";
 import CompanyStudies from "../components/CompanyStudies";
 import ResearchCheckpoint from "../components/ResearchCheckpoint";
+import StudyCatalog from "../components/StudyCatalog";
 
 const sourceHosts = ["www.stb.gov", "stb.gov", "www.csx.com", "csx.com", "www.cpc.ncep.noaa.gov", "www.ers.usda.gov", "noaa-gfs-bdp-pds.s3.amazonaws.com", "www.ncei.noaa.gov", "www.eia.gov", "www.bls.gov", "calmainefoods.gcs-web.com", "data.cms.gov", "opendata.usac.org", "croplandcros.scinet.usda.gov", "www.nass.usda.gov", "api.weather.gov", "api.fda.gov", "api.usaspending.gov", "www.fda.gov", "open.fda.gov", "www.ncbi.nlm.nih.gov", "www.usaspending.gov", "www.sec.gov", "investor.starbucks.com", "docs.advanresearch.com"];
 function safeSource(value: string) { try { const u = new URL(value); return u.protocol === "https:" && !u.username && !u.password && sourceHosts.includes(u.hostname); } catch { return false; } }
@@ -32,7 +33,7 @@ function validSnapshot(value: unknown): value is Snapshot {
   return data.schemaVersion === 1 && data.publicationMode === "reviewed_snapshot"
     && typeof data.reviewedOn === "string" && validRegistryDate(data.reviewedOn)
     && typeof data.contentSha256 === "string" && /^[a-f0-9]{64}$/.test(data.contentSha256)
-    && Array.isArray(data.experiments) && data.experiments.every(item =>
+    && Array.isArray(data.experiments) && new Set(data.experiments.map(item => item?.id)).size === data.experiments.length && data.experiments.every(item =>
       item && [item.id, item.title, item.ticker, item.stage, item.hypothesis, item.hypothesisVersion, item.createdAt, item.nextAction].every(v => typeof v === "string")
       && (validRegistryDate(item.createdAt) || validRegistryInstant(item.createdAt))
       && (item.decisionAt === undefined || validRegistryInstant(item.decisionAt))
@@ -48,36 +49,41 @@ function validSnapshot(value: unknown): value is Snapshot {
 }
 export default function Experiments() {
   const { experimentId } = useParams();
+  const { search } = useLocation();
   const [data, setData] = useState<Snapshot | null>(null);
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
     let current = true;
     const timeout = setTimeout(() => controller.abort(), 10000);
-    setError(false); setData(null);
+    setError(false); setLoading(true);
     fetch("/research/experiments.json", { signal: controller.signal, cache: "no-store" })
       .then(async response => {
         if (!response.ok) throw new Error("Unavailable");
-        const result: unknown = await response.json();
+        const raw = await response.text();
+        if (raw.length > 1_000_000) throw new Error("Oversized publication");
+        const result: unknown = JSON.parse(raw);
         if (!validSnapshot(result)) throw new Error("Invalid publication");
         if (current) setData(result);
       }).catch(() => { if (current) setError(true); })
-      .finally(() => clearTimeout(timeout));
+      .finally(() => { clearTimeout(timeout); if (current) setLoading(false); });
     return () => { current = false; controller.abort(); clearTimeout(timeout); };
   }, [attempt]);
   const selected = data?.experiments.find(item => item.id === experimentId);
   return <div className="experiment-research">
     <header className="research-heading">
       <p className="research-kicker">SIGIL FIELDNOTES / EXPERIMENTS</p>
-      <h1>{selected ? selected.title : "Better questions. Measurable answers."}</h1>
+      <h1>{selected ? selected.title : "Studies"}</h1>
       <p>{selected ? "A research dossier. Recorded results, limitations and next steps." : "A home for the ideas that haven’t earned their place in a strategy. Follow what we’re learning, what failed, and what comes next."}</p>
     </header>
-    {!experimentId && <ResearchCheckpoint />}
-    {!experimentId && data && <ResearchUpdates registry={data} />}
-      {!experimentId && data && <CompanyStudies />}
+    {error && <section className="research-panel" role="alert"><h2>Studies could not be refreshed</h2><p>{data ? "The previously loaded publication is still shown. It may be out of date." : "The published study registry could not be loaded. This does not mean studies were deleted. Archived context and standalone reports remain available below."}</p><button className="research-button" onClick={() => setAttempt(n => n + 1)}>Try again</button></section>}
+    {loading && <p role="status">{data ? "Refreshing the published studies..." : "Loading the published studies..."}</p>}
+    {!experimentId && data && <StudyCatalog studies={data.experiments} reviewedOn={data.reviewedOn} refresh={() => setAttempt(n => n + 1)} refreshing={loading} />}
+    {!experimentId && <details className="research-panel study-context"><summary>Archived highlights and curated updates</summary><p>Supplementary reading, not a list of the latest studies. These sections are maintained separately from the registry.</p><ResearchCheckpoint />{data && <ResearchUpdates registry={data} />}<CompanyStudies /></details>}
     {!experimentId && <section className="research-section" aria-label="Strategy experiments">
-      <div className="research-section-title"><h2>Strategy experiments</h2><span>Research only · No live trading</span></div>
+      <div className="research-section-title"><h2>Research tools and standalone reports</h2><span>Research only · No live trading</span></div>
       <div className="research-findings">
         <article className="research-panel"><p className="research-kicker">FROZEN BUSINESS FORECAST / OUTCOME PENDING</p><h2>Can Boeing's sales growth last?</h2><p>For January–March 2027, compare last year’s sales level ($22.217 billion) with continued recent growth ($23.093 billion). Frozen November 4 before the quarter begins. This tests a business forecast, not stock returns.</p><a className="research-button" href="/research/company-growth/index.html">Open the frozen forecast</a></article>
         <article className="research-panel"><p className="research-kicker">PRIMARY SOURCES / EVIDENCE INTAKE</p><h2>When company guidance changes</h2><p>Inspect a fixed sample of 30 disclosure slots before looking at returns. Compare source receipts, missing evidence, and the checks required before testing a possible delayed reaction.</p><Link className="research-button" to="/experiments/guidance-audit">Open evidence ledger ↗</Link></article>
@@ -88,13 +94,11 @@ export default function Experiments() {
         <article className="research-panel"><p className="research-kicker">DIVERSIFIED PROPOSAL / REJECTED IN REVIEW</p><h2>A proposal that needs better rules</h2><p>The local swarm's multi-asset design omitted allocation rules, realistic cash returns and consistent benchmark fees. It was not implemented or tested. The finding is retained without a performance claim.</p></article>
       </div>
     </section>}
-    {error ? <section className="research-panel" role="alert"><h2>Research is temporarily unavailable.</h2><p>The saved snapshot could not be loaded. This does not mean experiments were deleted.</p><button className="research-button" onClick={() => setAttempt(n => n + 1)}>Try again</button></section>
-      : !data ? <p role="status">Loading the research notebook…</p>
-      : <>
+    {data && <>
         <div className="research-publication"><span>Reviewed snapshot · {data.reviewedOn}</span><span>Published with the app · Not a live swarm feed</span></div>
-        {experimentId && !selected ? <section className="research-panel"><h2>Experiment not found</h2><Link to="/experiments">Back to all experiments →</Link></section>
+        {experimentId && !selected ? <section className="research-panel"><h2>Experiment not found</h2><Link to={`/experiments${search}`}>Back to all experiments →</Link></section>
           : selected ? <>
-            <Link className="research-back" to="/experiments">← All experiments</Link>
+            <Link className="research-back" to={`/experiments${search}`}>← All experiments</Link>
             <div className="research-dossier">
               <section className="research-panel research-thesis">
                 <p className="research-kicker">{selected.ticker} / {selected.stage.replace(/_/g, " ")} / {selected.id}</p>
@@ -114,11 +118,6 @@ export default function Experiments() {
               {selected.publicSources.length === 0 ? <p>No public source references published yet.</p> : <ul className="research-sources">{selected.publicSources.map((source, i) => <li key={`${source.url}-${i}`}><a href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a>{source.sha256 && <details><summary>Audit fingerprint</summary><code>{source.sha256}</code></details>}</li>)}</ul>}
             </section>
           </> : <>
-            <div className="research-section-title"><h2>The research notebook</h2><span>{data.experiments.length} registered {data.experiments.length === 1 ? "experiment" : "experiments"}</span></div>
-            {!data.experiments.length ? <section className="research-panel"><h2>Room for the next question.</h2><p>No experiments are included in this reviewed publication yet.</p></section> : data.experiments.map(item => <article className="research-panel research-feature" key={item.id}>
-              <div><p className="research-kicker">{item.ticker} / {item.stage.replace(/_/g, " ")} / {item.id}</p><h2>{item.title}</h2><p>{item.hypothesis}</p><div className="research-tags"><span>{item.sourceSamples} study samples</span><span>{item.findings.length} findings</span><span>{item.predictiveResultsAvailable ? "Results recorded" : "Predictive value untested"}</span></div><Link className="research-button" to={`/experiments/${encodeURIComponent(item.id)}`}>Open research dossier <span aria-hidden="true">↗</span></Link></div>
-              <aside><p className="research-kicker">THE RESEARCH PATH</p><ol><li className={item.stage === "feasibility" ? "current" : ""}>01 <span>Establish data quality</span></li><li>02 <span>Test the business hypothesis</span></li><li>03 <span>Evaluate market relevance</span></li></ol><p className="research-caption">{item.ticker} · Current stage: {item.stage}. This sequence is proposed; it does not certify completed steps.</p></aside>
-            </article>)}
           </>}
         <footer className="research-footer">Research can end in a useful dataset, a rejected idea or a better question. Agreement between agents is not validation.<details><summary>Publication identity</summary><code>{data.contentSha256}</code></details></footer>
       </>}

@@ -106,7 +106,8 @@ test('hyperscaler paired quarters share signed scale and explicit cash definitio
  const bad=structuredClone(data);bad.items.find(i=>i.id===item.id).metrics.push({label:'extra',value:0});assert.throws(()=>helpers.checkpoint(bad));
 });
 test('page integrates checkpoint without claiming registry or live-worker availability',()=>{
- const page=read('../src/pages/Experiments.tsx');assert.match(page,/!experimentId && <ResearchCheckpoint \/>/);
+ const page=read('../src/pages/Experiments.tsx');assert.match(page, /!experimentId && <details[^>]*study-context/);
+  assert.match(page, /<ResearchCheckpoint \/>/);
  const css=read('../src/pages/Experiments.css');assert.match(css,/@media\(max-width:800px\)\{\.checkpoint-grid\{grid-template-columns:1fr/);
 });
 
