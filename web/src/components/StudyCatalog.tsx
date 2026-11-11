@@ -31,4 +31,3 @@ export default function StudyCatalog({ studies, reviewedOn, refresh, refreshing 
       </article>)}</div>}
   </section>;
 }
-
