@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "operator": "CSX",
+  "sourceUrl": "https://www.stb.gov/wp-content/uploads/files/rsir/CSX/CSX%20Data%202026-10-21.xlsx",
+  "sha256": "c46ec378c719c43338277c847b5c4c0f0df347efee29e82b20f5ca365f41eb18",
+  "retrievedAt": "2026-10-27T03:32:58.4442913-04:00",
+  "publicationTimestamp": null,
+  "periodStart": "2026-10-10",
+  "periodEnd": "2026-10-16",
+  "sheet": "Rail Service (Item Nos. 1-6)",
+  "systemSpeedMph": 24.128098773482634,
+  "systemDwellHours": 20.76,
+  "terminals": [
+    {
+      "name": "Baltimore, MD",
+      "dwellHours": 10.763747708715215,
+      "cell": "B17"
+    },
+    {
+      "name": "Chicago, IL",
+      "dwellHours": 7.254923043335882,
+      "cell": "B18"
+    },
+    {
+      "name": "Cincinnati, OH",
+      "dwellHours": 26.308816922500935,
+      "cell": "B19"
+    },
+    {
+      "name": "Indianapolis, IN",
+      "dwellHours": 23.361500611050364,
+      "cell": "B20"
+    },
+    {
+      "name": "Jacksonville, FL",
+      "dwellHours": 20.89929911627705,
+      "cell": "B21"
+    },
+    {
+      "name": "Louisville, KY",
+      "dwellHours": 23.34661060142712,
+      "cell": "B22"
+    },
+    {
+      "name": "Nashville, TN",
+      "dwellHours": 29.302016958576594,
+      "cell": "B23"
+    },
+    {
+      "name": "Selkirk, NY",
+      "dwellHours": 33.42556448244514,
+      "cell": "B24"
+    },
+    {
+      "name": "Toledo, OH",
+      "dwellHours": 24.90194146197971,
+      "cell": "B25"
+    },
+    {
+      "name": "Waycross, GA",
+      "dwellHours": 30.96825464301233,
+      "cell": "B26"
+    }
+  ],
+  "trendObservations": 1,
+  "predictiveResultsAvailable": false
+}
