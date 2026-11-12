@@ -1,18 +1,19 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useWebSocket } from "../hooks/useWebSocket";
+import NavIcon, { type NavIconName } from "./NavIcon";
 
-const tabs = [
-  { to: "/", label: "Stock ideas", icon: "01" },
-  { to: "/experiments", label: "Studies", icon: "02" },
-  { to: "/performance", label: "Results", icon: "03" },
-  { to: "/portfolio", label: "Portfolio", icon: "04" },
-  { to: "/system", label: "System", icon: "05" },
-  { to: "/research", label: "Company research", icon: "+" },
-  { to: "/overview", label: "Previous overview", icon: "+" },
-  { to: "/signals", label: "Signals", icon: "+" },
-  { to: "/data", label: "Source health", icon: "+" },
-  { to: "/compare", label: "Compare", icon: "+" },
-  { to: "/lab", label: "Lab", icon: "+" },
+const tabs: { to: string; label: string; icon: NavIconName }[] = [
+  { to: "/", label: "Stock ideas", icon: "ideas" },
+  { to: "/experiments", label: "Studies", icon: "studies" },
+  { to: "/performance", label: "Results", icon: "results" },
+  { to: "/portfolio", label: "Portfolio", icon: "portfolio" },
+  { to: "/system", label: "System", icon: "system" },
+  { to: "/research", label: "Company research", icon: "research" },
+  { to: "/overview", label: "Previous overview", icon: "overview" },
+  { to: "/signals", label: "Signals", icon: "signals" },
+  { to: "/data", label: "Source health", icon: "sources" },
+  { to: "/compare", label: "Compare", icon: "compare" },
+  { to: "/lab", label: "Lab", icon: "lab" },
 ];
 
 export default function Layout() {
@@ -61,7 +62,7 @@ export default function Layout() {
                 }`
               }
             >
-              <span className="text-base">{tab.icon}</span>
+              <NavIcon name={tab.icon} className="w-[18px] h-[18px]" />
               {tab.label}
             </NavLink>
           ))}
@@ -87,19 +88,19 @@ export default function Layout() {
               }`
             }
           >
-            <span className="text-lg">{tab.icon}</span>
+            <NavIcon name={tab.icon} className="w-5 h-5 mb-0.5" />
             {tab.label}
           </NavLink>
         ))}
         <details className="relative flex-1 group">
           <summary className="flex flex-col items-center py-2 px-1 text-[10px] text-sigil-muted cursor-pointer list-none">
-            <span className="text-lg">☰</span>More
+            <NavIcon name="more" className="w-5 h-5 mb-0.5" />More
           </summary>
           <div className="absolute bottom-full right-0 mb-2 w-48 max-h-[calc(100dvh-5rem)] overflow-y-auto rounded-xl border border-sigil-border bg-sigil-surface shadow-xl p-2">
             {tabs.slice(4).map(tab => <NavLink key={tab.to} to={tab.to}
               onClick={event => event.currentTarget.closest("details")?.removeAttribute("open")}
-              className={({isActive}) => `block px-3 py-3 rounded-lg text-sm ${isActive ? "text-sigil-accent bg-sigil-accent/10" : "text-sigil-text"}`}>
-              {tab.icon} {tab.label}
+              className={({isActive}) => `flex items-center gap-3 px-3 py-3 rounded-lg text-sm ${isActive ? "text-sigil-accent bg-sigil-accent/10" : "text-sigil-text"}`}>
+              <NavIcon name={tab.icon} className="w-[18px] h-[18px]" />{tab.label}
             </NavLink>)}
           </div>
         </details>
