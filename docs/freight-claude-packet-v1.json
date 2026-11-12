@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "status": "supplied_text_excerpt_not_original_document",
+  "eligibleForReturns": false,
+  "provenance": "Coordinator-authored hypothetical research brief, not evidence of source availability or efficacy. No retrieved original documents supplied.",
+  "hypotheses": [
+    {
+      "id": "rail",
+      "claim": "UNVERIFIED: weekly US railroad service deterioration might precede shipper disruptions."
+    },
+    {
+      "id": "port",
+      "claim": "UNVERIFIED: public port congestion measures might forecast freight activity."
+    }
+  ],
+  "constraints": "Compare conceptual testability, select at most one prospective data-feasibility experiment. No source availability, licensing, entitlement, current data, ticker exposure or predictive efficacy is established. First-public timestamps and revision vintages are missing. No backtest executed. No trading eligibility."
+}

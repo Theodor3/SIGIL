@@ -1,0 +1,9 @@
+# Explicit Claude subscription mission windows
+
+An obsolete global October28 cutoff prevented otherwise authorized Pro work. ClaudeCodeAdapter.run now accepts an explicit dispatch_window=(aware_launch_cutoff, aware_hard_stop). It must be future, ordered and no more than30minutes from validation; omitted windows keep expired historical defaults. This is a supervised call-level control, not persistent or automatic authorization, not dashboard scheduling. Current HTTP subscription routes do not pass a new window and remain closed until deliberately integrated.
+
+The launch cutoff is checked after fresh preflight, after progress callback and immediately before subprocess creation. Hardstop propagates through version/auth/generation and kills owned process tree. Existing per-process timeout,8turnmaximum, canonical cross-process lock, managed-policy check,exactCLIversion,ProfirstPartyauth,modelidentity/schema/token validation,public bounded packet,environmentallowlist,noAPIkeys/proxies,native-tools/hooks/MCP isolation and nofallback remain unchanged. No billing/extra-usage changes. Theo's unchanged extra-usage-off confirmation is accepted for this explicitly authorized task.
+
+265 isolated offline Docker tests passed, including invalid/naive/reversed/past/>30minwindows, omitted-window expiry, propagation/nonpersistence, expired deadlines preventPopen and callback crossing cutoff preventsgeneration. Astra statically reviewed and found no remaining blocker. No private subscription endpoints or new credential access.
+
+One current task reviews the public coordinator-corrected EIA distillate helper, six-minute window,120secondtimeout,eightturncap,claude-sonnet-4-6. Receipts outsideGit in task-3/claude-current-mission. Report actual outcome and tokens from validated CLI result,not inferredquota or providerinvoice. APIledger unchanged; subscriptionquota unknown unless supported evidence supplied. No trades, deployment or automaticjobs.

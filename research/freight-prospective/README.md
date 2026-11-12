@@ -1,0 +1,13 @@
+# Experimental NS freight ledger
+
+Local-only research prototype, not imported by the SIGIL trading application. No scheduler, broker, API keys or automatic forecasts. See SPEC.md for fixed prospective rules and limitations.
+
+`ledger.py` stores original bytes and immutable version/forecast/outcome records in an explicitly selected private SQLite file. Never use the operational swarm or production database as its path. `stb_parser.py` validates the audited NS grain template; `capture_once.py --output /private/new-directory` performs one bounded official public sample download and records actual UTC retrieval, never an original publication date. The default sample is an archived 2025 workbook, not current conditions. No forecast is issued by that command. Receipt first_seen is store-local: reconcile earlier known receipts before treating another download as fresh. Same bytes never refresh first_seen in one ledger.
+
+Run `node run-tests.cjs` with Docker Desktop and the pre-existing local test image c2ddeeec7f32, or run pytest inside your equivalent restricted offline container. The bundled runner uses no network or mounts, nonroot/read-only isolation and resource limits. Portable tests generate synthetic workbook bytes in memory. Original government-file fixtures are deliberately excluded; optional STB_FIXTURE_ROOT can point to a private directory containing fixtures.json with base64 bytes, labels, expected periods/values and original SHA/length. Every supplied original is hash/length checked by the tests.
+
+Validation before packaging: 52 isolated tests passed using seven retained government workbooks plus synthetic failures. One public NS file fetched 2026-10-29 02:34:57 UTC:31,180bytes SHA443ce762549975ac5c71681ba4f04a6822da13734dd7704ff2100d143b1d7cd2,2499carloads for2025-06-22 through2025-06-28. Original publication unknown. No raw workbook or sample database is included. Post-packaging portable-suite results are in the review report, not generated data committed here.
+
+Current data: four sparse old grain rows do not satisfy four consecutive fresh native weeks. Trusted actual-clock forecast creation, current-link discovery, shared receipt-history merging and full revision-sensitivity reporting remain follow-up work; no live experiment/alpha claim. Need four consecutive fresh weeks before issuing, then52chronologically scored weekly targets for proposed26+26feasibility cohorts. Missingness can extend collection beyondayear.
+
+Keep databases, raw workbooks, sample directories, receipts, test output and caches local. This folder's ignore rules are defense in depth; inspect staged files before any push.

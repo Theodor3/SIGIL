@@ -287,6 +287,8 @@ function renderCompanyStatus() {
 function renderModeNote() {
   const local = $("local-mode-input").checked;
   $("local-role").disabled = !local;
+  $("local-context-controls").hidden = !local;
+  $("mission-test-target").required = local && $("local-role").value === "engineering";
   $("new-mission-input").maxLength = 6000;
   if (local) {
     $("mission-mode-note").textContent = localAvailable() ? "One local worker, then a separate-context critique with the same model. Results wait for coordinator review. No paid calls or automatic edits." : "Local worker unavailable: load sigil-local and start the LM Studio server on localhost port 1234. Finish any active mission first.";
@@ -724,9 +726,9 @@ function schedulePoll(immediate = false) {
 }
 
 function switchView(view) {
-  if (!["workspace", "missions", "evidence", "team", "studio", "experiments"].includes(view)) return;
+  if (!["workspace", "missions", "evidence", "team", "studio", "experiments", "handoff"].includes(view)) return;
   currentView = view;
-  for (const name of ["workspace", "missions", "evidence", "team", "studio", "experiments"]) $(`view-${name}`).hidden = name !== view;
+  for (const name of ["workspace", "missions", "evidence", "team", "studio", "experiments", "handoff"]) $(`view-${name}`).hidden = name !== view;
   for (const button of document.querySelectorAll(".nav-item")) {
     const active = button.dataset.view === view;
     button.classList.toggle("active", active);
@@ -735,12 +737,12 @@ function switchView(view) {
   }
   const titles = { workspace: "Swarm workspace", missions: "Mission control", evidence: "Shared evidence", team: "Meet the team", studio: "Development studio" };
   const subtitles = { workspace: "One place to think, collaborate, and turn ideas into evidence.", missions: "The questions, handoffs, and decisions that move the work forward.", evidence: "Keep the claims inspectable and the sources close.", team: "Seven Gemini specialists, connected by one GPT coordinator.", studio: "Pinned source, draft changes, and a clear record of the work." };
-  titles.experiments = "Experiments";
+  titles.handoff = "Needs Theodore"; subtitles.handoff = "Decisions for you. Evidence and progress from the last 24 hours."; titles.experiments = "Experiments";
   subtitles.experiments = "Long-running questions, with evidence that survives the next session.";
   $("view-title").replaceChildren(document.createTextNode(titles[view]), element("span", "heading-dot", "."));
   $("view-subtitle").textContent = subtitles[view];
   if (view === "studio") window.sigilStudio?.activate();
-  if (view === "experiments") window.sigilExperiments?.activate();
+  if (view === "experiments") window.sigilExperiments?.activate(); if (view === "handoff") window.sigilHandoff?.activate();
 }
 
 async function chooseMission(id, nextView = "workspace") {
@@ -865,8 +867,17 @@ function performMissionAction() {
 }
 
 async function createAndRun(prompt, mode) {
-  const mission = await post("/api/missions", { prompt, mode, local_role: $("local-role").value, max_cost_usd: 2 });
+  const local = mode === 'local';
+  const target = local ? $("mission-test-target").value.trim() : '';
+  const query = local ? $("notebook-query").value.trim() : '';
+  const notes = local ? $("notebook-notes").value.split(/\r?\n/).map(s => s.trim()).filter(Boolean) : [];
+  if (Boolean(query) !== Boolean(notes.length) || notes.length > 6) throw new Error('Select a query and one to six note IDs together.');
+  const mission = await post("/api/missions", { prompt, mode, local_role: $("local-role").value, max_cost_usd: 2,
+    test_target: target || null, requires_tests: local && Boolean(target),
+    notebook_query: query || null, notebook_notes: notes });
   if (mode === "live" && mission.max_cost_usd !== 2) throw new Error("The saved mission cap was not verified; no run was started.");
+  $("notebook-query").value = "";
+  $("notebook-notes").value = "";
   selectedMissionId = mission.id;
   detail = { mission, messages: [], tasks: [], artifacts: [], calls: [] };
   selectedDetailSignature = "";
@@ -1161,3 +1172,4 @@ $("authorize-research-allowance").addEventListener("click", async () => {
   } catch (error) { toast(error.message || "Allowance activation failed."); }
   finally { busy = false; }
 });
+$("local-role").addEventListener("change", renderModeNote);

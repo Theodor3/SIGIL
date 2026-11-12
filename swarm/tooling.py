@@ -44,6 +44,9 @@ class MissionTools:
                 raise ValueError('Subscription packet missions permit only controller-recorded Studio reads.')
             if self.store.snapshot(mission_id)["mission"]["mode"] == "local" and request.tool == "web_search":
                 raise ValueError("Paid web search is disabled in local missions. Use free paper_search or fetch_page on an approved public domain.")
+            if ((self.store.snapshot(mission_id).get('notebook_context') is not None or self.store.snapshot(mission_id)['mission'].get('notebook_context_selected'))
+                    and request.tool in ('web_search', 'paper_search', 'fetch_page')):
+                raise ValueError('Outbound tools are disabled for selected private notebook context.')
             if query_error:
                 raise ValueError(query_error)
             if request.tool in ("web_search", "paper_search", "fetch_page"):

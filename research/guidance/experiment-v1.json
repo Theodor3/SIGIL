@@ -1,0 +1,38 @@
+{
+  "id": "guidance-revision-v1",
+  "version": 1,
+  "stage": "data_feasibility_only",
+  "authorizedOn": "2026-10-27",
+  "hypothesis": "Same-fiscal-period revenue guidance increases may precede residual returns in the issuer or economically linked firms over ten trading sessions.",
+  "sample": {
+    "selection": "Six named issuers selected for a cross-sector feasibility sample, not a representative or survivorship-free investment universe. Inspect all Item 2.02 8-K filings in each calendar release quarter. Select the earliest filing as an unverified candidate; retain all alternatives and require human verification of scheduled earnings release identity.",
+    "quarters": ["2024Q3", "2024Q4", "2025Q1", "2025Q2", "2025Q3"],
+    "issuers": [{"ticker":"ADBE","cik":796343},{"ticker":"CRM","cik":1108524},{"ticker":"MSFT","cik":789019},{"ticker":"ORCL","cik":1341439},{"ticker":"WMT","cik":104169},{"ticker":"TGT","cik":27419}],
+    "slots": 30,
+    "returnsUsedForSelection": false,
+    "keep": ["raised", "unchanged", "cut", "initial", "withdrawn", "noncomparable", "missing", "ambiguous", "retrieval_failed"]
+  },
+  "comparison": {
+    "metric": "company-wide annual revenue guidance",
+    "matchRequired": ["fiscal period start and end", "currency", "reported versus constant-currency basis", "absolute revenue versus growth percentage", "consolidated entity scope"],
+    "revision": "For two comparable closed ranges, midpoint change and both endpoint changes. A strict raise requires neither endpoint lower and at least one higher. A crossing range is mixed, not a raise. No midpoint-percent calculation on zero or negative prior midpoint.",
+    "prior": "Last guidance publicly disclosed before the current event for the same fiscal period; retrieve additional prior releases outside the sample when necessary. No annual rollover comparison.",
+    "consensus": "Not an analyst surprise measure; historical consensus unavailable.",
+    "review": "Exact current/prior passages and document hashes, independent verification, and explicit exclusion reasons required before a pair is eligible. Automated keyword windows are discovery aids only."
+  },
+  "timing": {
+    "preserve": ["claimed publisher timestamp and timezone", "SEC accepted local timestamp", "raw SEC API acceptanceDateTime", "actual retrieval UTC", "decision UTC"],
+    "policy": "Neither filing date nor SEC acceptance proves first public dissemination. Historical source time requires corroboration. Unknown or conflicting times make the event ineligible; never backdate retrieval or decision timestamps.",
+    "entry": "First regular-session open strictly after verified availability plus declared processing delay; requires an exchange calendar and executable open-price data. Not implemented by this audit.",
+    "exit": "Close of the tenth exchange session counting the entry session as session one; five and twenty sessions are declared robustness checks, not optimized alternatives."
+  },
+  "evaluation": {
+    "status": "not_implemented_no_price_data_requested",
+    "arms": ["issuer-only revision baseline", "initial-reaction-aware issuer ranking", "pre-event documented relationship spillovers"],
+    "comparators": ["same-window sector exposure", "passive portfolio on identical dates"],
+    "costBpsPerSide": [10, 25],
+    "requirements": ["immutable data/config/model snapshots", "chronological splits with overlapping holding periods purged", "no outcome-aware relationship mapping", "retain failed experiments", "portfolio cash/overlap/capacity rules frozen before returns", "issuer and time dependence reflected in uncertainty", "fresh forward records before any live-money consideration"],
+    "prohibition": "This feasibility sample cannot validate profitability or select portfolio thresholds. Historical LLM extraction may contain pretraining leakage."
+  },
+  "finiteNextSteps": ["collect 30 slot receipts and retain all missing/ambiguous cases", "verify same-period guidance pairs and timing", "decide data feasibility before implementing return evaluation"]
+}

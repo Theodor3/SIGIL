@@ -1,0 +1,102 @@
+{
+  "registry_sha256": "5d1cfc362ea29f441a906645fe5a1a12880c3ab38de3997734aa1adac211cd1a",
+  "receipts": [
+    {
+      "id": "CALM",
+      "url": "https://query1.finance.yahoo.com/v8/finance/chart/CALM?range=10y&interval=1d",
+      "file": "../egg-company-event-pilot/raw/7552b5a0fb2db43b28ba927e410c40b9b8db171d3d7d5addfab9726ea8ef3bfb.bin",
+      "sha256": "7552b5a0fb2db43b28ba927e410c40b9b8db171d3d7d5addfab9726ea8ef3bfb",
+      "bytes": 264594,
+      "retrieved_at": "2026-10-28T19:56:12.639Z"
+    },
+    {
+      "id": "XLP",
+      "url": "https://query1.finance.yahoo.com/v8/finance/chart/XLP?range=10y&interval=1d",
+      "file": "../egg-company-event-pilot/raw/cb78c6f48700e2bb582a2b4b712064edd4e23bb57e95ccb1e885400008271b37.bin",
+      "sha256": "cb78c6f48700e2bb582a2b4b712064edd4e23bb57e95ccb1e885400008271b37",
+      "bytes": 271267,
+      "retrieved_at": "2026-10-28T19:56:12.768Z"
+    },
+    {
+      "id": "SPY",
+      "url": "https://query1.finance.yahoo.com/v8/finance/chart/SPY?range=10y&interval=1d",
+      "file": "../egg-company-event-pilot/raw/99e649cd2b12c6979a1a9603cf5361b66e0d5d14a4e844b07537879b375667e4.bin",
+      "sha256": "99e649cd2b12c6979a1a9603cf5361b66e0d5d14a4e844b07537879b375667e4",
+      "bytes": 273799,
+      "retrieved_at": "2026-10-28T19:56:12.937Z"
+    },
+    {
+      "id": "issuer-2022",
+      "url": "https://calmainefoods.gcs-web.com/node/13091/pdf",
+      "file": "raw/eee38fc28529d8c902b021d69913a0c2daf044e0afff0459bec50fd46f3fe511.bin",
+      "sha256": "eee38fc28529d8c902b021d69913a0c2daf044e0afff0459bec50fd46f3fe511",
+      "bytes": 278479,
+      "retrieved_at": "2026-10-28T20:02:40.513Z"
+    },
+    {
+      "id": "issuer-kansas",
+      "url": "https://calmainefoods.gcs-web.com/node/13456/pdf",
+      "file": "raw/59845dcb4fb19c4259f11e528ca8dff0495cedb03df880b6b5ae329591c28978.bin",
+      "sha256": "59845dcb4fb19c4259f11e528ca8dff0495cedb03df880b6b5ae329591c28978",
+      "bytes": 143183,
+      "retrieved_at": "2026-10-28T20:02:40.591Z"
+    },
+    {
+      "id": "issuer-jan",
+      "url": "https://investors.calmainefoods.com/node/13471/pdf",
+      "file": "raw/f3b41a7ae261ec1b63da39464d692f0f550e9084b3ba20ca2df50ede3345cd65.bin",
+      "sha256": "f3b41a7ae261ec1b63da39464d692f0f550e9084b3ba20ca2df50ede3345cd65",
+      "bytes": 264700,
+      "retrieved_at": "2026-10-28T20:02:40.945Z"
+    },
+    {
+      "id": "issuer-april",
+      "url": "https://calmainefoods.gcs-web.com/node/13601/pdf",
+      "file": "raw/a835e54e76143ddd561d7bc3670a59bebf1f37cf88e6a762ad62733c53b0b612.bin",
+      "sha256": "a835e54e76143ddd561d7bc3670a59bebf1f37cf88e6a762ad62733c53b0b612",
+      "bytes": 266637,
+      "retrieved_at": "2026-10-28T20:02:41.211Z"
+    },
+    {
+      "id": "issuer-july",
+      "url": "https://investors.calmainefoods.com/static-files/a82fba45-accb-4372-ad11-05d71a76c373",
+      "file": "raw/d6d5c65ede0e2bdd6561670ac47bc5089fc26b45367c267ed87a62190067ab05.bin",
+      "sha256": "d6d5c65ede0e2bdd6561670ac47bc5089fc26b45367c267ed87a62190067ab05",
+      "bytes": 313203,
+      "retrieved_at": "2026-10-28T20:02:41.315Z"
+    },
+    {
+      "id": "ers-2022",
+      "url": "https://www.ers.usda.gov/media/10484/ldp-m-341.pdf?v=11865",
+      "file": "raw/35ab30d587ca81d2cd47e7ae6e222e4fe52ba82c914ed7e464cf8fe286621fe4.bin",
+      "sha256": "35ab30d587ca81d2cd47e7ae6e222e4fe52ba82c914ed7e464cf8fe286621fe4",
+      "bytes": 1221537,
+      "retrieved_at": "2026-10-28T20:02:41.818Z"
+    },
+    {
+      "id": "ers-2023",
+      "url": "https://www.ers.usda.gov/media/10580/ldp-m-353.pdf?v=31175",
+      "file": "raw/5fe5f1ce530d2afcaf03acff778f0e8f0ec3d7cfef69f669eb2604a1d9f31ac7.bin",
+      "sha256": "5fe5f1ce530d2afcaf03acff778f0e8f0ec3d7cfef69f669eb2604a1d9f31ac7",
+      "bytes": 1433863,
+      "retrieved_at": "2026-10-28T20:02:42.229Z"
+    },
+    {
+      "id": "ers-march2024",
+      "url": "https://www.ers.usda.gov/media/10611/ldp-m-357.pdf?v=47948",
+      "file": "raw/9573b070b8ef2e4a13fdf9529feafd27da165ef3bae5a3d3be3e6a6151b8f660.bin",
+      "sha256": "9573b070b8ef2e4a13fdf9529feafd27da165ef3bae5a3d3be3e6a6151b8f660",
+      "bytes": 1501291,
+      "retrieved_at": "2026-10-28T20:02:42.671Z"
+    },
+    {
+      "id": "ers-june2024",
+      "url": "https://ers.usda.gov/sites/default/files/_laserfiche/outlooks/109388/LDP-M-360.pdf?v=49360",
+      "file": "raw/3fa3ca7c6d76fbff74c04850561a42b24244bd72eadeb4b9990149eb7fbde32c.bin",
+      "sha256": "3fa3ca7c6d76fbff74c04850561a42b24244bd72eadeb4b9990149eb7fbde32c",
+      "bytes": 1206528,
+      "retrieved_at": "2026-10-28T20:02:43.027Z"
+    }
+  ],
+  "failures": []
+}

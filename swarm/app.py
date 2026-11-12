@@ -14,6 +14,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from . import __version__
 from .engine import Engine
 from .experiments import read_experiments
+from .handoff import Decision, Answer, Progress, add_record, answer_record, digest, read_evidence
 from .models import AGENTS, Disconnect, LocalReview, NewMission, ProviderKeys, UserMessage
 from .models import SubscriptionMission, SubscriptionRun, QueueSession, QueuePrepare
 from .models import ReviewResolution, ResearchAllowanceAuthorization
@@ -26,7 +27,7 @@ from .studio import GitStudio
 ROOT = Path(__file__).resolve().parent
 
 
-def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None, subscription_adapter=None, queue_root=None):
+def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None, subscription_adapter=None, queue_root=None, notebook_root=None):
     store = Store(Path(data_dir or os.environ.get("SIGIL_SWARM_DATA_DIR", ROOT.parent / ".swarm" / "runtime")))
     provider_manager = providers or Providers()
     studio = studio or GitStudio(ROOT.parent)
@@ -210,6 +211,29 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None, su
     def readiness():
         return runtime_status()
 
+    @app.get("/api/handoff")
+    def handoff():
+        with engine.lock:
+            active = engine.active_id
+        return digest(store, active)
+
+    @app.get("/api/handoff/evidence/{key}")
+    def handoff_evidence(key: str):
+        return PlainTextResponse(read_evidence(ROOT.parent, key),
+                                 headers={'X-Content-Type-Options': 'nosniff'})
+
+    @app.post("/api/handoff/decisions")
+    def add_decision(body: Decision):
+        return add_record(store, 'decisions', body)
+
+    @app.post("/api/handoff/progress")
+    def add_progress(body: Progress):
+        return add_record(store, 'progress', body)
+
+    @app.post("/api/handoff/decisions/{identity}/answer")
+    def answer_decision(identity: str, body: Answer):
+        return answer_record(store, identity, body.answer)
+
     @app.get("/api/experiments")
     def experiments():
         try:
@@ -341,12 +365,24 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None, su
 
     @app.post("/api/missions")
     def create(payload: NewMission):
+        packet = None
+        selected = payload.notebook_query is not None or bool(payload.notebook_notes)
+        if selected:
+            if payload.mode != 'local' or not payload.notebook_query or not payload.notebook_notes:
+                raise ValueError('Explicit local notebook query and selected note IDs are required.')
+            if notebook_root is None:
+                raise ValueError('No approved notebook root is configured for this server.')
+            from .notebook import retrieve_notebook
+            packet = retrieve_notebook(notebook_root, payload.notebook_query, note_names=payload.notebook_notes)
+            if not packet['excerpts']:
+                raise ValueError('Selected notes have no safely retrievable matching context.')
         return store.create(
             payload.prompt, payload.mode, max_revisions=payload.max_revisions,
             specialist_execution=payload.specialist_execution,
             local_role=payload.local_role,
-            requires_tests=payload.requires_tests,
+            requires_tests=payload.requires_tests, test_target=payload.test_target,
             max_cost_usd=payload.max_cost_usd,
+            notebook_context=packet,
         )
 
     @app.post('/api/subscription/preflight')
@@ -413,6 +449,14 @@ def create_app(data_dir=None, *, providers=None, demo_delay=0.8, studio=None, su
                 raise ValueError("Only a finished local mission awaiting review can receive a coordinator decision.")
             if data["mission"].get("coordinator_review"):
                 raise ValueError("The coordinator decision is already recorded.")
+            if payload.accepted:
+                from .notebook import validate_selected_context
+                from .coding_gate import test_gate
+                validate_selected_context(data)
+                gate = test_gate(data, (data.get('studio') or {}).get('commit'))
+                if gate['status'] == 'blocked':
+                    raise ValueError('Acceptance blocked: a passing current-draft container test receipt is required.')
+                data['mission']['test_gate'] = gate
             data["mission"]["coordinator_review"] = {**payload.model_dump(), "at": now()}
             data["mission"]["status"] = "completed" if payload.accepted else "blocked"
             data["mission"]["summary"] = payload.note

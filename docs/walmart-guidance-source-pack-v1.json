@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "status": "coordinator_supplied_web_extraction_not_raw_html",
+  "retrieved_date_utc": "2026-10-27",
+  "retrieval_method": "Supported web reader open of official SEC exhibits; rendered text with line references",
+  "limitations": ["Raw HTML download failed: SEC undeclared automated tool policy; no retry or bypass", "Dates below are release/table as-of dates, not independently verified filing acceptance or first-public timestamps", "Original February release not retrieved", "Intervening disclosures not exhaustively checked", "Not whole-document evidence; eligibility remains false"],
+  "needed_fields": ["issuer", "target fiscal year", "consolidated metric", "constant-currency basis", "dated column header", "lower and upper growth bounds", "unchanged marker", "qualifying footnotes", "source URL and extraction location"],
+  "sources": [
+    {
+      "url": "https://www.sec.gov/Archives/edgar/data/104169/000010416925000069/earningsreleasefy26q1.htm",
+      "accession": "0000104169-25-000069",
+      "exhibit": "99.1",
+      "release_date": "2025-05-15",
+      "filing_date_verified": false,
+      "web_total_lines": 683,
+      "context_lines": "159-190",
+      "table_lines": "173-190",
+      "target_period": "FY2026",
+      "metric": "consolidated net sales growth",
+      "basis": "constant currency, non-GAAP; adjusted prior-year basis",
+      "baseline_fy25_net_sales_usd_billion": 674.5,
+      "columns": [
+        {"header": "Original from 2.20.2025", "as_of": "2025-02-20", "growth_pct": [3.0, 4.0]},
+        {"header": "As of 5.15.2025", "as_of": "2025-05-15", "marker": "Unchanged", "resolved_growth_pct": [3.0, 4.0]}
+      ],
+      "net_sales_qualifiers": {"leap_year_lapping_headwind_approx_bps": 20, "VIZIO_acquisition_tailwind_approx_bps": 20},
+      "adjacent_controls": {"annual_adjusted_operating_income_growth_pct": [3.5, 5.5], "annual_adjusted_eps_usd": [2.50, 2.60], "q2_only_net_sales_growth_pct": [3.5, 4.5]},
+      "context": "The annual guidance follows a separate Q2 guidance table. Annual outlook is reaffirmed; uncertainties and non-GAAP qualifications precede both tables. Do not confuse quarterly net sales, EPS, operating income or segment comparable sales with the annual consolidated row."
+    },
+    {
+      "url": "https://www.sec.gov/Archives/edgar/data/104169/000010416925000120/earningsreleasefy26q2.htm",
+      "accession": "0000104169-25-000120",
+      "exhibit": "99.1",
+      "release_date": "2025-08-21",
+      "filing_date_verified": false,
+      "web_total_lines": 745,
+      "context_lines": "164-195",
+      "table_lines": "178-195",
+      "target_period": "FY2026",
+      "metric": "consolidated net sales growth",
+      "basis": "constant currency, non-GAAP; adjusted prior-year basis",
+      "baseline_fy25_net_sales_usd_billion": 674.5,
+      "columns": [
+        {"header": "Original from 2.20.2025", "as_of": "2025-02-20", "growth_pct": [3.0, 4.0]},
+        {"header": "As of 5.15.2025", "as_of": "2025-05-15", "marker": "Unchanged", "resolved_growth_pct": [3.0, 4.0]},
+        {"header": "As of 8.21.2025", "as_of": "2025-08-21", "growth_pct": [3.75, 4.75]}
+      ],
+      "net_sales_qualifiers": {"leap_year_lapping_headwind_approx_bps": 20, "VIZIO_acquisition_tailwind_approx_bps": 20},
+      "adjacent_controls": {"annual_adjusted_operating_income_growth_pct": [3.5, 5.5], "annual_adjusted_eps_usd": [2.52, 2.62], "q3_only_net_sales_growth_pct": [3.75, 4.75]},
+      "context": "The quarterly and annual net-sales ranges happen to be identical here; the annual row is identified by its FY2026 heading and three dated outlook columns. Earlier outlook is explicitly reproduced in the current document; that is not proof of an exhaustive latest-prior search."
+    }
+  ],
+  "derived_arithmetic": {"prior_midpoint_pct": 3.5, "current_midpoint_pct": 4.25, "lower_delta_percentage_points": 0.75, "upper_delta_percentage_points": 0.75, "midpoint_delta_percentage_points": 0.75},
+  "timingVerified": false,
+  "latestPriorVerified": false,
+  "eligibleForReturns": false
+}
