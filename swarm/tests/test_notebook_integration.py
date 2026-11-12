@@ -34,7 +34,7 @@ class FixtureProvider(Providers):
     def __init__(self):
         super().__init__();self.calls=[]
         self.local.status=lambda:{'configured':True,'verified':True,'model':LOCAL_MODEL}
-    def run(self,provider,system,prompt,schema):
+    def run(self,provider,system,prompt,schema,*,model=None):
         assert provider=='local'
         self.calls.append((system,json.loads(prompt)))
         body={'summary':'Fixture review claims all tests pass','artifact_title':'Fixture','artifact_body':'Fixture only; no real model or alpha',
