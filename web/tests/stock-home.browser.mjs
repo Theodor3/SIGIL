@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {readFileSync, mkdirSync} from 'node:fs';
 import {resolve,extname} from 'node:path';
-const {chromium}=await import(process.env.SIGIL_PLAYWRIGHT_MODULE || 'playwright');
+import {importPlaywright} from './playwright-module.mjs';
+const {chromium}=await importPlaywright();
 const dist=resolve('dist');
 test('offline stock home: keyboard selection, voting, filters, empty/error states, mobile and no API calls',async()=>{
  const server=createServer((req,res)=>{const path=new URL(req.url,'http://localhost').pathname;const file=path==='/stock-home-preview'?resolve('preview-artifacts/sigil-stock-home-preview.html'):path.startsWith('/assets/')?resolve(dist,'.'+path):resolve(dist,'index.html');if(path!=='/stock-home-preview'&&!file.startsWith(dist)){res.writeHead(400);res.end();return}try{res.setHeader('Content-Type',extname(file)==='.js'?'application/javascript':extname(file)==='.css'?'text/css':'text/html');res.end(readFileSync(file));}catch{res.writeHead(404);res.end();}});

@@ -21,11 +21,10 @@ import { createServer } from 'node:http';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import { dirname, extname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
+import { importPlaywright } from './playwright-module.mjs';
 
-const moduleRef = process.env.SIGIL_PLAYWRIGHT_MODULE || 'playwright';
-const { chromium } = await import(
-  /^[A-Za-z]:[\\/]|^\//.test(moduleRef) ? pathToFileURL(moduleRef).href : moduleRef);
+const { chromium } = await importPlaywright();
 
 const dist = resolve(dirname(fileURLToPath(import.meta.url)), '../dist');
 const artifacts = process.env.SIGIL_BROWSER_ARTIFACTS
