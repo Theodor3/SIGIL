@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {readFileSync} from 'node:fs';
 import {resolve,extname} from 'node:path';
-const {chromium}=await import(process.env.SIGIL_PLAYWRIGHT_MODULE || 'playwright');
+import {importPlaywright} from './playwright-module.mjs';
+const {chromium}=await importPlaywright();
 const dist=resolve('dist');
 test('connected home uses read-only summary, keeps research through errors, retries and links selected ticker',async()=>{
  let fail=false;let hold=false;let release;const calls=[];

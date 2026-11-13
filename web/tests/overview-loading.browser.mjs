@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs';
 import { resolve, extname, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 // Optional existing Playwright installation; no downloads or production endpoints.
-const { chromium } = await import(process.env.SIGIL_PLAYWRIGHT_MODULE || 'playwright');
+import { importPlaywright } from './playwright-module.mjs';
+const { chromium } = await importPlaywright();
 const dist=resolve(dirname(fileURLToPath(import.meta.url)),'../dist');
 const fixture={status:'ok',view:'overview',signals:[],signal_groups:{},top_ideas:[],recent_runs:[],
  portfolio:{is_demo:true},pipeline:{last_run:'2024-01-01T00:00:00Z',status:'completed',run_id:'synthetic-run',universe_size:2,duration:1},
