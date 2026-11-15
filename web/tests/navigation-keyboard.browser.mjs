@@ -16,10 +16,10 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, extname, join, resolve, sep } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
+import { importPlaywright } from './playwright-module.mjs';
 
-const moduleRef = process.env.SIGIL_PLAYWRIGHT_MODULE || 'playwright';
-const { chromium } = await import(/^[A-Za-z]:[\\/]|^\//.test(moduleRef) ? pathToFileURL(moduleRef).href : moduleRef);
+const { chromium } = await importPlaywright();
 const dist = resolve(dirname(fileURLToPath(import.meta.url)), '../dist');
 const MIME = { '.js': 'application/javascript', '.css': 'text/css', '.html': 'text/html', '.json': 'application/json', '.svg': 'image/svg+xml' };
 const unexpected = [];
@@ -85,7 +85,7 @@ const currentPages = page => page.locator('[aria-current="page"]:visible').evalu
 async function eventually(read, expected, message) {
   const deadline = Date.now() + 5000; let actual;
   do { actual = await read(); try { assert.deepEqual(actual, expected); return; } catch { await new Promise(done => setTimeout(done, 25)); } } while (Date.now() < deadline);
-  assert.deepEqual(actual, expected, message);
+  assert.deepEqual(actual, expected, message ?? 'state did not settle before the deadline');
 }
 const moreText = async page => (await more(page).textContent()).replace(/\s+/g, ' ').trim();
 const ALL = ['/', '/experiments', '/performance', '/portfolio', '/system', '/research', '/overview', '/signals', '/data', '/compare', '/lab'];
@@ -215,6 +215,37 @@ test('phone More menu: a pointer press that drops focus still activates what was
   // A keyboard exit afterwards still closes the menu: the press is not remembered.
   await more(page).focus(); await page.keyboard.press('Enter');
   await menuLink(page, 'Lab').focus(); await page.keyboard.press('Tab');
+  await eventually(() => menuOpen(page), false);
+  clean(problems);
+});
+
+test('phone More menu: repeated navigation and interrupted keyboard navigation keep focus usable', async () => {
+  const { page, problems } = await openPage(PHONE, '/');
+  for (const name of ['Lab', 'Signals', 'Lab']) {
+    await more(page).focus(); await page.keyboard.press('Enter');
+    await menuLink(page, name).focus(); await page.keyboard.press('Escape');
+    assert.equal(await menuOpen(page), false);
+    await page.keyboard.press('Enter');
+    await menuLink(page, name).focus(); await page.keyboard.press('Enter');
+    await page.waitForURL(`${origin}/${name.toLowerCase()}`);
+    await eventually(() => menuOpen(page), false);
+    assert.equal((await focused(page))?.tag, 'summary');
+  }
+  clean(problems);
+});
+
+test('phone More menu: an interrupted pointer press does not suppress a later outside blur', async () => {
+  const { page, problems } = await openPage(PHONE, '/');
+  await more(page).focus(); await page.keyboard.press('Enter');
+  const box = await more(page).boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(10, 10); await page.mouse.up();
+  assert.equal(await menuOpen(page), true);
+  assert.equal((await focused(page))?.tag, 'summary');
+  // A later press on unfocusable content drops focus with no relatedTarget.
+  await page.locator('main').click({ position: { x: 2, y: 2 } });
+  assert.equal(await focused(page), null);
   await eventually(() => menuOpen(page), false);
   clean(problems);
 });

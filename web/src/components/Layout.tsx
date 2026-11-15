@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useWebSocket } from "../hooks/useWebSocket";
 import NavIcon, { type NavIconName } from "./NavIcon";
@@ -26,6 +26,17 @@ export default function Layout() {
   // press which drops focus (Safari does not focus links or the control when
   // they are pressed) does not close the menu before the click lands.
   const pressedInMore = useRef(false);
+  useEffect(() => {
+    // A drag can end outside details, so its click/cancel handlers alone cannot
+    // clear the press. Do not let that interrupted press mask a later blur.
+    const release = () => { pressedInMore.current = false; };
+    window.addEventListener("pointerup", release);
+    window.addEventListener("pointercancel", release);
+    return () => {
+      window.removeEventListener("pointerup", release);
+      window.removeEventListener("pointercancel", release);
+    };
+  }, []);
   // The page shown when it is one of those tucked inside the phone More menu.
   // Route matching ignores case, so this does too.
   const path = pathname.toLowerCase();
