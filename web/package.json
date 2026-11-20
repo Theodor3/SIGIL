@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "studies:candidate:generate": "node scripts/intake-study.mjs generate",
     "studies:candidate:check": "node scripts/intake-study.mjs check",
-    "studies:candidate:test": "node --test scripts/intake-study.test.mjs"
+    "studies:candidate:test": "node --test scripts/intake-study.test.mjs scripts/intake-receipt.test.mjs scripts/intake-workflow.test.mjs"
   },
   "dependencies": {
     "react": "^19.0.0",

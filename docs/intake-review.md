@@ -38,3 +38,18 @@ verification. This import makes no portability claim for tracked private data.
 
 Review and port to a future canonical base separately if it differs. Keep existing
 publisher, snapshot, catalog, dependency versions and unrelated scripts unchanged.
+
+## Full receipt verification
+
+The follow-up fix recomputes the complete receipt from freshly validated inputs.
+Normal `studies:candidate:check` requires a saved receipt; missing or altered
+claims fail. Receipt equality compares parsed JSON objects, so whitespace and
+object key order are immaterial. Exact candidate byte hashes remain intentional.
+Explicit `check --record` is the sole receipt bootstrap and refuses overwrites;
+it does not grant manual review approval. Generation needs no prior receipt.
+
+`node scripts/intake-receipt.mjs` is a read-only CLI using the same required-receipt
+path. The package test command includes direct and filesystem CLI tests with
+generated fixtures. They exercise missing receipts, forged claims, formatting
+equivalence, candidate-byte changes and exclusive-create behavior. A fresh
+code-only export can run these tests without any private bundle or dependencies.

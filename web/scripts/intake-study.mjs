@@ -107,6 +107,22 @@ export function validateCandidate(candidate,context,otherDrafts=[]){
   check(temporaryProjection.experiments.at(-1).publicSources.length===0,'unsupported source link projected');
   return {schemaVersion:1,id:ID,accepted:true,acceptance:'draft_for_manual_review_only',publicationMode:'draft_candidate',published:false,manualReviewPending:true,catalogRoute:'/experiments',existingRegistryEntries:ids.length,inMemoryCompatibilityEntries:temporaryProjection.experiments.length,existingEntriesPreserved:true,publisherUsedForValidationOnly:true,reviewedSnapshotWritten:false,sourceAllowlistChanged:false,sourceLinksKeptInDraftHandoff:true,evidenceFilesVerified:Object.keys(context.fileHashes).length,holdoutLockedAndUnscored:true,correctedEvidenceOnly:true,networkRequired:false,signInRequired:false};
 }
+// Receipt equality compares parsed JSON objects: whitespace and object key order are irrelevant.
+// Candidate SHA-256 deliberately binds the exact bytes that were accepted.
+export function validateReceipt(receipt,candidateBytes,context,otherDrafts=[]){
+  const candidate=JSON.parse(candidateBytes.toString('utf8'));
+  const expected=validateCandidate(candidate,context,otherDrafts);
+  preserveCheck(context.policy,context.root);
+  expected.candidateSha256=hash(candidateBytes);
+  expected.protectedSourceHashesVerified=true;
+  check(same(receipt,expected),'stored receipt differs from recomputed acceptance');
+  return expected;
+}
+export function checkReceipt(context,target){
+  const receiptPath=path.join(context.root,`.swarm/candidate-checks/${ID}.json`);
+  check(fs.existsSync(receiptPath),'required acceptance receipt missing');
+  return validateReceipt(json(receiptPath),read(target),context,otherDrafts(context.root,target));
+}
 function otherDrafts(root,target){const dir=path.join(root,'.swarm/candidates');return fs.existsSync(dir)?fs.readdirSync(dir).filter(f=>f.endsWith('.json')&&path.join(dir,f)!==target).map(f=>json(path.join(dir,f))):[];}
 export function main(args=process.argv.slice(2)){
   const [command,...flags]=args;check(['generate','check'].includes(command)&&flags.every(x=>x==='--record')&&flags.length<=1,'usage: intake-study.mjs generate | check [--record]');
@@ -116,6 +132,7 @@ export function main(args=process.argv.slice(2)){
   else candidate=json(target);
   const result=validateCandidate(candidate,context,otherDrafts(ROOT,target));preserveCheck(context.policy);
   result.candidateSha256=hash(read(target));result.protectedSourceHashesVerified=true;
+  if(command==='check'&&!flags.includes('--record'))checkReceipt(context,target);
   if(flags.includes('--record')){const file=path.join(ROOT,`.swarm/candidate-checks/${ID}.json`);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify(result,null,2)+'\n',{flag:'wx'});}
   console.log(JSON.stringify(result,null,2));return result;
 }
