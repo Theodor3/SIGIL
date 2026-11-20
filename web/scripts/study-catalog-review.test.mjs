@@ -16,9 +16,14 @@ test('all twelve prior registry objects and projected entries remain unchanged',
 });
 
 test('snapshot is the existing publisher projection of the whole deduplicated catalog',()=>{
-  assert.equal(additions.length,34);assert.equal(snapshot.experiments.length,46);
-  assert.equal(new Set(registry.experiments.map(item=>item.id)).size,46);
+  assert.equal(additions.length,36);assert.equal(snapshot.experiments.length,48);
+  assert.equal(new Set(registry.experiments.map(item=>item.id)).size,48);
   assert.deepEqual(projectRegistry(registry,snapshot.reviewedOn),snapshot);
+});
+
+test('exact-citation follow-up preserves all 46 existing entries',()=>{
+  assert.equal(digest(registry.experiments.slice(0,46)),'f0d333c172f24a59ceff229c5994be96aa22cdfd3d23321ee44f4015bbea5bc8');
+  assert.equal(digest(snapshot.experiments.slice(0,46)),'b923a5f9a5c9923505a85c02b11bcb2798635e27a22088238b9d9be03b7b1dad');
 });
 
 test('new public summaries contain only permitted summary fields and no private artifacts',()=>{
@@ -45,14 +50,30 @@ test('SPY retains correction, negative baselines and sealed-holdout limits',()=>
   assert.match(text,/sealed and unscored/);assert.match(text,/without price reloads, refitting or tuning/);
 });
 
-test('unverified cloud handoffs and synthetic QA remain outside catalog results',()=>{
-  for(const item of additions)assert.doesNotMatch(item.id,/IBM|KIBOT|BARGE|WASDE|ISO-NE|SYNTHETIC|SCORER|BENCHMARK/);
+test('remaining unverified handoffs and synthetic QA stay outside catalog results',()=>{
+  for(const item of additions)assert.doesNotMatch(item.id,/BARGE|ISO-NE|SYNTHETIC|SCORER|BENCHMARK/);
   const backlog=readFileSync(new URL('../../docs/study-catalog-review.md',import.meta.url),'utf8');
-  for(const phrase of ['Cairo','WASDE','ISO New England','IBM/Kibot','Synthetic 30-minute','MOS / Compass'])assert.ok(backlog.includes(phrase));
+  for(const phrase of ['Cairo','ISO New England','Synthetic 30-minute','MOS / Compass'])assert.ok(backlog.includes(phrase));
+});
+
+test('new IBM and WASDE summaries retain the reconciled scope and exact citations',()=>{
+  const ibm=study('IBM-KIBOT-30M-DEV-001'),wasde=study('CORN-EXPORT-WASDE-2026-001');
+  assert.equal(ibm.status,'negative_result');assert.equal(ibm.sourceSamples,47);
+  assert.match(JSON.stringify(ibm.findings),/490 eligible paths overall/);
+  assert.match(JSON.stringify(ibm.findings),/400 paths in folds of 83, 157 and 160/);
+  assert.match(JSON.stringify(ibm.findings),/rolling documentation, not the pinned historical payload/);
+  assert.equal(ibm.publicSources[0].url,'https://www.kibot.com/free-historical-intraday-data.html');
+  assert.equal(wasde.predictiveResultsAvailable,false);assert.equal(wasde.sourceSamples,1);
+  assert.match(JSON.stringify(wasde.findings),/3,300 to 3,275 million bushels/);
+  assert.deepEqual(wasde.publicSources.map(s=>s.url),[
+    'https://esmis.nal.usda.gov/sites/default/release-files/796099/wasde1026.pdf',
+    'https://esmis.nal.usda.gov/sites/default/release-files/796142/wasde1126.pdf',
+  ]);
 });
 
 test('curated updates keep their partial coverage and original entries',()=>{
   const updates=json('../public/research/updates.json');assert.equal(updates.coverage,'curated_partial');
   assert.equal(updates.updates.length,4);assert.equal(updates.registryContentSha256,snapshot.contentSha256);
+  assert.equal(digest(updates.updates),'3c632f4eafcc2a4e0b1c80c9ba5ae782156f266bb8cff81d2e750095ae3f72a3');
   assert.ok(updates.updates.every(item=>snapshot.experiments.some(e=>e.id===item.experimentId)));
 });

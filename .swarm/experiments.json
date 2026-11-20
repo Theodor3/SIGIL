@@ -1604,6 +1604,81 @@
         }
       ],
       "publicSources": []
+    },
+    {
+      "id": "IBM-KIBOT-30M-DEV-001",
+      "title": "IBM 30-minute development: ridge lost to simple baselines",
+      "type": "reviewed_summary",
+      "ticker": "IBM",
+      "stage": "exploratory_development",
+      "status": "negative_result",
+      "hypothesisVersion": "ibm-kibot-30m-summary-v1",
+      "hypothesis": "Does a fixed chronological ridge forecast improve 30-minute log close-to-close error over no change and training mean?",
+      "createdAt": "2026-11-20",
+      "nextAction": "Retain this negative exposed-development finding. Any new representation test needs a separately declared development protocol; keep reserved holdouts sealed and raw vendor data private.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": true,
+      "sourceSamples": 47,
+      "findings": [
+        {
+          "id": "PROVENANCE",
+          "status": "reviewed_aggregate",
+          "summary": "Coordinator review reconciled the original aggregate, frozen protocol, independent audit and original retrieval manifest. The audit marker matches the exact protocol and runner; the prior source hash agrees with the retrieval manifest. This is review of one preserved study, not independent predictive confirmation."
+        },
+        {
+          "id": "NEGATIVE_RESULT",
+          "status": "negative_development",
+          "summary": "There were 47 previously exposed development dates and 490 eligible paths overall. Expanding validation scored 400 paths in folds of 83, 157 and 160. The 30-minute log close-to-close ridge lost to both no change and training mean in every fold; ridge/no-change MAE ratios were 1.053268289, 1.043802992 and 1.008797830. Equal-day weighting agrees. The 490 overall paths are not 490 validation scores or independent observations."
+        },
+        {
+          "id": "LIMITS",
+          "status": "limitations",
+          "summary": "The Kibot official samples landing page is rolling documentation, not the pinned historical payload or proof of that vintage. No historical timing receipt, executable fills, spread/slippage/cost model or sealed-holdout score was established. No raw data, reconstructions or data charts are reproduced; the saved terms review permits aggregate research results only. This exploratory negative result establishes no tradable signal and does not transfer to SPY, tokens or LSTMs."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "Kibot official samples documentation; rolling page, not pinned data vintage",
+          "url": "https://www.kibot.com/free-historical-intraday-data.html"
+        }
+      ]
+    },
+    {
+      "id": "CORN-EXPORT-WASDE-2026-001",
+      "title": "Corn exports: one dated WASDE projection revision",
+      "type": "reviewed_summary",
+      "ticker": "CORN",
+      "stage": "descriptive_feasibility",
+      "status": "descriptive_result",
+      "hypothesisVersion": "corn-exports-wasde-2026-summary-v1",
+      "hypothesis": "Can a dated official export-projection comparison form a qualified starting fixture for later inspection-data research?",
+      "createdAt": "2026-11-20",
+      "nextAction": "Keep this one descriptive edition comparison separate from any forecast or price study. Establish inspection-report revisions and historical first-receipt timing before a predeclared predictive evaluation.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 1,
+      "findings": [
+        {
+          "id": "EDITION_COMPARISON",
+          "status": "reviewed_descriptive_fixture",
+          "summary": "Coordinator review of the archived official October 9 and November 10, 2026 WASDE PDFs and the saved official CSV extraction agrees that the same 2026/27 U.S. corn export projection fell from 3,300 to 3,275 million bushels, a reduction of 25 million bushels. These are report projections for the same marketing year, not observed exports or realized prices."
+        },
+        {
+          "id": "LIMITS",
+          "status": "limitations",
+          "summary": "This is one descriptive feasibility fixture, not a scored forecast, independent event cohort, causal finding or predictive result. Inspection-report revisions and historical first receipts remain unverified; the report edition dates and present source links do not prove original public availability. No source downloads, raw observations, models, price study or holdout evaluation were performed for this catalog admission."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "Official WASDE October 9, 2026 archived report",
+          "url": "https://esmis.nal.usda.gov/sites/default/release-files/796099/wasde1026.pdf"
+        },
+        {
+          "title": "Official WASDE November 10, 2026 archived report",
+          "url": "https://esmis.nal.usda.gov/sites/default/release-files/796142/wasde1126.pdf"
+        }
+      ]
     }
   ]
 }

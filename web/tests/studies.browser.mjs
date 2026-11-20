@@ -12,6 +12,7 @@ import { dirname, extname, join, resolve, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { importPlaywright } from './playwright-module.mjs';
+import { exactStudyCitations, rejectedStudyCitations, legacyCitationCases } from '../scripts/study-source-citation-cases.mjs';
 
 const { chromium } = await importPlaywright();
 const dist = resolve(dirname(fileURLToPath(import.meta.url)), '../dist');
@@ -86,6 +87,23 @@ const sort = page => page.getByRole('combobox', { name: /^Sort/ });
 const catalog = page => page.getByRole('region', { name: 'Published studies' });
 const cards = page => catalog(page).locator('article');
 const loaded = page => catalog(page).waitFor();
+
+test('actual cold-loaded snapshot validator enforces exact citations and legacy behavior', async () => {
+  const { page, problems } = await openPage();
+  const cases = [...exactStudyCitations.map(url => [url, true]), ...rejectedStudyCitations.map(url => [url, false]), ...legacyCitationCases];
+  for (const [url, accepted] of cases) {
+    fx.responses.push([publication([study('citation', { publicSources: [{ title: 'Synthetic citation', url }] })]), 200]);
+    await page.goto(`${origin}/experiments/citation`);
+    if (accepted) {
+      await page.getByRole('heading', { level: 1, name: 'citation study' }).waitFor();
+      assert.equal(await page.getByRole('link', { name: 'Synthetic citation' }).count(), 1, JSON.stringify(url));
+    } else {
+      await page.getByRole('heading', { name: 'Studies could not be refreshed' }).waitFor();
+      assert.equal(await page.getByRole('link', { name: 'Synthetic citation' }).count(), 0, JSON.stringify(url));
+    }
+  }
+  clean(problems);
+});
 
 // Fails on 06766fe: the catalog unmounts on dossier navigation and loses state.
 test('filters survive dossier navigation, in-app Back, and browser Back/Forward', async () => {

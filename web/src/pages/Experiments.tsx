@@ -6,8 +6,15 @@ import CompanyStudies from "../components/CompanyStudies";
 import ResearchCheckpoint from "../components/ResearchCheckpoint";
 import StudyCatalog from "../components/StudyCatalog";
 
+// Reviewed citation exceptions only; do not normalize variants into permission.
+const exactSourceUrls = [
+  "https://esmis.nal.usda.gov/sites/default/release-files/796099/wasde1026.pdf",
+  "https://esmis.nal.usda.gov/sites/default/release-files/796142/wasde1126.pdf",
+  "https://www.kibot.com/free-historical-intraday-data.html",
+];
+
 const sourceHosts = ["www.stb.gov", "stb.gov", "www.csx.com", "csx.com", "www.cpc.ncep.noaa.gov", "www.ers.usda.gov", "noaa-gfs-bdp-pds.s3.amazonaws.com", "www.ncei.noaa.gov", "www.eia.gov", "www.bls.gov", "calmainefoods.gcs-web.com", "data.cms.gov", "opendata.usac.org", "croplandcros.scinet.usda.gov", "www.nass.usda.gov", "api.weather.gov", "api.fda.gov", "api.usaspending.gov", "www.fda.gov", "open.fda.gov", "www.ncbi.nlm.nih.gov", "www.usaspending.gov", "www.sec.gov", "investor.starbucks.com", "docs.advanresearch.com"];
-function safeSource(value: string) { try { const u = new URL(value); return u.protocol === "https:" && !u.username && !u.password && sourceHosts.includes(u.hostname); } catch { return false; } }
+function safeSource(value: string) { try { const u = new URL(value); return u.protocol === "https:" && !u.username && !u.password && (sourceHosts.includes(u.hostname) || exactSourceUrls.includes(value)); } catch { return false; } }
 
 function validRegistryDate(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,10) === value;
