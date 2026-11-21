@@ -11,6 +11,15 @@ const exactSourceUrls = [
   'https://esmis.nal.usda.gov/sites/default/release-files/796099/wasde1026.pdf',
   'https://esmis.nal.usda.gov/sites/default/release-files/796142/wasde1126.pdf',
   'https://www.kibot.com/free-historical-intraday-data.html',
+  'https://agtransport.usda.gov/resource/deqi-uken.json',
+  'https://www.ams.usda.gov/services/transportation-analysis/gtr/archive-2025',
+  'https://content.govdelivery.com/accounts/USDHSCG/bulletins/3f132bb',
+  'https://content.govdelivery.com/accounts/USDHSCG/bulletins/3f57772',
+  'https://www.navcen.uscg.gov/broadcast-notice-to-mariners-message?guid=66239383',
+  'https://www.iso-ne.com/markets-operations/system-forecast-status/seven-day-capacity-forecast-list',
+  'https://www.iso-ne.com/static-assets/documents/100029/we_2025_11_09_weekly_final.pdf',
+  'https://www.nrc.gov/documents-reports/document-collections/events-reports-associated-with/power-reactor-status-reports/2025/20251103ps',
+  'https://www.nrc.gov/documents-reports/document-collections/events-reports-associated-with/power-reactor-status-reports/2025/20251104ps',
 ];
 export function validDate(value) {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)

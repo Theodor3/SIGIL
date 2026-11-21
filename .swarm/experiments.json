@@ -1679,6 +1679,115 @@
           "url": "https://esmis.nal.usda.gov/sites/default/release-files/796142/wasde1126.pdf"
         }
       ]
+    },
+    {
+      "id": "BARGE-CAIRO-MEMPHIS-FEASIBILITY-001",
+      "title": "Cairo–Memphis barge quotes: notice visibility and vintage unresolved",
+      "type": "reviewed_summary",
+      "ticker": "Freight proxy",
+      "stage": "notice_and_quote_source_feasibility",
+      "status": "timing_blocked",
+      "hypothesisVersion": "barge-cairo-memphis-source-summary-v1",
+      "hypothesis": "Can a dated notice lifecycle and quote vintage establish an eligible information set for a future barge-rate study?",
+      "createdAt": "2026-11-21",
+      "nextAction": "Complete the multi-sector notice lifecycle/effective-time audit and historical quote-vintage checks before declaring a rate model. Preserve the original audit count; any revised post-recovery coverage needs a separately versioned audit.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 8,
+      "findings": [
+        {
+          "id": "ORIGINAL_AUDIT",
+          "status": "source_audit",
+          "summary": "The original August 25–October 19, 2025 audit fixed eight weeks and verified complete notice visibility in zero of eight. This is not zero notices and is not a recomputed post-recovery coverage count. Later source recovery does not silently rewrite that original result."
+        },
+        {
+          "id": "QUOTE_SCOPE",
+          "status": "current_vintage_only",
+          "summary": "Eight current USDA nearby quote rows are percent of tariff, not dollars per ton. Five archived Grain Transportation Report issues corroborate rounded rows, not historical first-public quote values or exact release times. USDA describes the series as an origin region; exact geographic limits and shipment destinations are not established."
+        },
+        {
+          "id": "NOTICE_RECOVERY",
+          "status": "reviewed_source_observations",
+          "summary": "The official September 5, 2025 UPDATE-1 restates an earlier rule. October 2 UPDATE-4 changes the displayed southbound text, but its September 19 reference does not establish the amended rule’s effective time. A September 15 Ohio Valley notice covers miles 869–953.8, omitted by the original miles 483–869 review. These corrections expose scope and lifecycle gaps rather than proving complete coverage."
+        },
+        {
+          "id": "LIMITS",
+          "status": "limitations",
+          "summary": "Historical first-public quote vintage/time and the full multi-sector notice lifecycle remain unverified. Notice date, rule reference, effective time and public visibility must remain distinct. No model, causal effect, shipment-destination inference or barge-rate forecast was produced. These source-audit observations do not establish predictive or trading performance."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "USDA official barge-rate series; current quote vintage",
+          "url": "https://agtransport.usda.gov/resource/deqi-uken.json"
+        },
+        {
+          "title": "USDA official 2025 Grain Transportation Report archive",
+          "url": "https://www.ams.usda.gov/services/transportation-analysis/gtr/archive-2025"
+        },
+        {
+          "title": "Coast Guard official September 5, 2025 UPDATE-1",
+          "url": "https://content.govdelivery.com/accounts/USDHSCG/bulletins/3f132bb"
+        },
+        {
+          "title": "Coast Guard official October 2, 2025 UPDATE-4",
+          "url": "https://content.govdelivery.com/accounts/USDHSCG/bulletins/3f57772"
+        },
+        {
+          "title": "Coast Guard Ohio Valley September 15 notice; exact message identity",
+          "url": "https://www.navcen.uscg.gov/broadcast-notice-to-mariners-message?guid=66239383"
+        }
+      ]
+    },
+    {
+      "id": "ISO-NE-GAS-GENERATION-FEASIBILITY-001",
+      "title": "New England nuclear status and gas-fired output: two unqualified joins",
+      "type": "reviewed_summary",
+      "ticker": "New England electricity",
+      "stage": "archived_join_feasibility",
+      "status": "timing_blocked",
+      "hypothesisVersion": "iso-ne-gas-generation-source-summary-v1",
+      "hypothesis": "Can archived capacity/nuclear-status inputs be shown to precede next-day gas-fired electrical generation?",
+      "createdAt": "2026-11-21",
+      "nextAction": "Establish original publication time and vintage for each input before any as-of analysis. Keep later generation reports on the outcome side; do not infer day-before operational-report availability without an exact publication check.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 2,
+      "findings": [
+        {
+          "id": "DATED_JOINS",
+          "status": "archived_date_join_only",
+          "summary": "Only two archived date joins were verified: November 3 and 4, 2025 dated inputs paired with November 4 and 5 outcome days. Eventual gas-fired electrical generation was 154,390 and 183,857 MWh respectively. These are electrical output totals, not gas fuel use, gas price or forecast errors. A date match alone does not qualify the input as available at decision time."
+        },
+        {
+          "id": "AVAILABILITY",
+          "status": "timing_unresolved",
+          "summary": "The Seven-Day Capacity Forecast archive and NRC daily reactor-status records have unresolved first-public vintage and publication timing. No claim is made that a day-before operational report was available: exact publication must first be confirmed. A day-after or other later outcome report must not be used as an input; the weekly final generation report supplies outcome evidence only."
+        },
+        {
+          "id": "LIMITS",
+          "status": "limitations",
+          "summary": "This is a two-case source-feasibility audit. No model was fitted, forecasting scored, causal nuclear-to-gas effect identified, or financial/holdout result established. Later archived files do not authenticate the original information set, and the two joins are not independent predictive confirmation."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "ISO New England Seven-Day Capacity Forecast archive; timing unresolved",
+          "url": "https://www.iso-ne.com/markets-operations/system-forecast-status/seven-day-capacity-forecast-list"
+        },
+        {
+          "title": "ISO New England weekly final report; outcome evidence only",
+          "url": "https://www.iso-ne.com/static-assets/documents/100029/we_2025_11_09_weekly_final.pdf"
+        },
+        {
+          "title": "NRC daily reactor-status record dated November 3, 2025",
+          "url": "https://www.nrc.gov/documents-reports/document-collections/events-reports-associated-with/power-reactor-status-reports/2025/20251103ps"
+        },
+        {
+          "title": "NRC daily reactor-status record dated November 4, 2025",
+          "url": "https://www.nrc.gov/documents-reports/document-collections/events-reports-associated-with/power-reactor-status-reports/2025/20251104ps"
+        }
+      ]
     }
   ]
 }

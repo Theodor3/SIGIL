@@ -16,14 +16,19 @@ test('all twelve prior registry objects and projected entries remain unchanged',
 });
 
 test('snapshot is the existing publisher projection of the whole deduplicated catalog',()=>{
-  assert.equal(additions.length,36);assert.equal(snapshot.experiments.length,48);
-  assert.equal(new Set(registry.experiments.map(item=>item.id)).size,48);
+  assert.equal(additions.length,38);assert.equal(snapshot.experiments.length,50);
+  assert.equal(new Set(registry.experiments.map(item=>item.id)).size,50);
   assert.deepEqual(projectRegistry(registry,snapshot.reviewedOn),snapshot);
 });
 
 test('exact-citation follow-up preserves all 46 existing entries',()=>{
   assert.equal(digest(registry.experiments.slice(0,46)),'f0d333c172f24a59ceff229c5994be96aa22cdfd3d23321ee44f4015bbea5bc8');
   assert.equal(digest(snapshot.experiments.slice(0,46)),'b923a5f9a5c9923505a85c02b11bcb2798635e27a22088238b9d9be03b7b1dad');
+});
+
+test('feasibility follow-through preserves all 48 previous entries',()=>{
+  assert.equal(digest(registry.experiments.slice(0,48)),'6664fa481b89356b5c602b6066790a2aa795346e00ca74a0f61f4d257a9faa9b');
+  assert.equal(digest(snapshot.experiments.slice(0,48)),'a59916cdb0a1e4649676186ab2d6660dab333ba4f8b6c0b3c41f8dfb8843e1f4');
 });
 
 test('new public summaries contain only permitted summary fields and no private artifacts',()=>{
@@ -51,9 +56,24 @@ test('SPY retains correction, negative baselines and sealed-holdout limits',()=>
 });
 
 test('remaining unverified handoffs and synthetic QA stay outside catalog results',()=>{
-  for(const item of additions)assert.doesNotMatch(item.id,/BARGE|ISO-NE|SYNTHETIC|SCORER|BENCHMARK/);
+  for(const item of additions)assert.doesNotMatch(item.id,/SYNTHETIC|SCORER|BENCHMARK/);
   const backlog=readFileSync(new URL('../../docs/study-catalog-review.md',import.meta.url),'utf8');
-  for(const phrase of ['Cairo','ISO New England','Synthetic 30-minute','MOS / Compass'])assert.ok(backlog.includes(phrase));
+  for(const phrase of ['Synthetic 30-minute','MOS / Compass'])assert.ok(backlog.includes(phrase));
+});
+
+test('barge and ISO summaries are timing-blocked source audits, not forecast results',()=>{
+  const barge=study('BARGE-CAIRO-MEMPHIS-FEASIBILITY-001'),iso=study('ISO-NE-GAS-GENERATION-FEASIBILITY-001');
+  for(const item of [barge,iso]){assert.equal(item.status,'timing_blocked');assert.equal(item.predictiveResultsAvailable,false);assert.equal(item.originalPublicationTimesVerified,false);}
+  assert.equal(barge.sourceSamples,8);assert.equal(iso.sourceSamples,2);
+  const b=JSON.stringify(barge.findings),i=JSON.stringify(iso.findings);
+  assert.match(b,/not zero notices.*not a recomputed post-recovery/);
+  assert.match(b,/percent of tariff, not dollars per ton/);
+  assert.match(b,/September 19 reference does not establish.*effective time/);
+  assert.match(b,/869–953.8.*483–869/);
+  assert.match(i,/154,390 and 183,857 MWh/);assert.match(i,/not gas fuel use, gas price/);
+  assert.match(i,/outcome report must not be used as an input/);
+  assert.equal(barge.publicSources[4].url,'https://www.navcen.uscg.gov/broadcast-notice-to-mariners-message?guid=66239383');
+  assert.equal(iso.publicSources.length,4);
 });
 
 test('new IBM and WASDE summaries retain the reconciled scope and exact citations',()=>{
