@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "publicationMode": "reviewed_snapshot",
-  "reviewedOn": "2026-10-30",
-  "contentSha256": "450a447e7d24b34d7f4a4379fff0cbc081bde4b10331e189e2c9714c8080fe46",
+  "reviewedOn": "2026-11-21",
+  "contentSha256": "e97b29d1df720067b8ee4fc686b3b3956dbab226cfc0128405b1579118e6f957",
   "experiments": [
     {
       "id": "DSM-TEMP-PAPER-001",
@@ -597,6 +597,1192 @@
           "title": "Starbucks Q4 FY2025 issuer aggregate release; current-retained bytes",
           "url": "https://investor.starbucks.com/news/financial-releases/news-details/2025/Starbucks-Reports-Q4-and-Full-Fiscal-Year-2025-Results/",
           "sha256": "c609c16bb8677164f0032bf21e2460a80fbc55b25d72e3ad70609379f016aaec"
+        }
+      ]
+    },
+    {
+      "id": "SPY-2022-INTRADAY-001",
+      "title": "SPY 2022: corrected numeric development comparator",
+      "type": "reviewed_summary",
+      "ticker": "SPY",
+      "stage": "retrospective_development",
+      "status": "mixed_exploratory_result",
+      "hypothesisVersion": "spy-2022-intraday-001-summary-v1",
+      "hypothesis": "Do eight fixed trailing numeric features improve intraday return forecast error over no change and training mean?",
+      "createdAt": "2026-11-19",
+      "nextAction": "Review only this summary; keep original private draft and byte pins unchanged. Predeclare an input-representation comparison on development data, rather than repeat the horizon baseline. Keep reserved holdouts sealed.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": true,
+      "sourceSamples": 106,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "Corrected aggregate reports cover 106 July-November 2022 regular sessions and 41,160 raw minute bars. Expanding training folds use 43, 64 and 85 sessions; September-November validation covers 63 sessions. Ridge lambda 1 and training-only normalization were fixed; no parameter search."
+        },
+        {
+          "id": "F002",
+          "status": "reviewed_summary",
+          "summary": "Five- and ten-minute ridge MAE did not beat the best simple baseline. At thirty minutes, pooled row-weighted MAE was 22.578269 log basis points versus 22.608171 for no change and 22.587005 for training mean. Equal-day MAE was 22.423447 versus 22.451892 and 22.434242. Monthly performance was inconsistent; this tiny pooled difference is not stable superiority."
+        },
+        {
+          "id": "F003",
+          "status": "limitations",
+          "summary": "The original daily-error accumulator was wrong. Corrected reports recover daily errors from saved aggregates without price reloads, refitting or tuning; superseded reports are excluded. December 2022 remains sealed and unscored. Finalized/revised bars have unverified first receipt; no quotes, fills, fees, slippage, statistical edge or transfer to IBM/tokens/LSTMs is established."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "SPY-TREND-QC-001",
+      "title": "SPY 200-day trend: lower drawdown, failed progression",
+      "type": "reviewed_summary",
+      "ticker": "SPY",
+      "stage": "exploratory_historical",
+      "status": "negative_result",
+      "hypothesisVersion": "spy-trend-qc-001-summary-v1",
+      "hypothesis": "Does the fixed prior-close 200-day trend rule beat buy-and-hold on both Sharpe and drawdown?",
+      "createdAt": "2026-11-13",
+      "nextAction": "Preserve this result. A new test needs a separately declared protocol and genuinely new evaluation data; no rule tuning or trading conclusion follows.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": true,
+      "sourceSamples": 0,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "Corrected historical simulation spans 2015-2025. At 10 basis points per side, trend CAGR was 7.33% and daily-close maximum drawdown 22.43%, versus 11.98% and 30.48% for buy-and-hold. Trend Sharpe was lower at both 10 and 20 basis points per side, failing the declared progression criterion."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Only the corrected dividend-handling run is used. Retained cloud summary values were transcribed and code reviewed, not independently reconstructed from a downloaded engine tape. Exposure, cash reinvestment and dividend accumulation differ; cash interest is zero and terminal liquidation costs are absent. No durable alpha or live return record."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "SPY-FOMC-OVERNIGHT-001",
+      "title": "FOMC eve overnight: concentration veto",
+      "type": "reviewed_summary",
+      "ticker": "SPY",
+      "stage": "exploratory_historical",
+      "status": "negative_result",
+      "hypothesisVersion": "spy-fomc-overnight-001-summary-v1",
+      "hypothesis": "Does the close-to-next-open before a scheduled FOMC announcement beat matched non-event nights after assumed costs?",
+      "createdAt": "2026-11-13",
+      "nextAction": "Preserve this result. A new test needs a separately declared protocol and genuinely new evaluation data; no rule tuning or trading conclusion follows.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": true,
+      "sourceSamples": 16,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "Sixteen complete 2024-2025 event nights averaged 12.926 basis points after a 5-basis-point round trip versus 3.289 for matched controls. Removing the three best gross nights left -2.178 basis points, failing the frozen concentration test; those nights supplied 67.22% of positive gross gains."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "The available five-event 2026 diagnostic was negative; unavailable late-2026 events were not silently filled. Overlapping controls, a small cohort, a CPI-release confound and exploratory uncertainty preclude an alpha claim. These are per-night historical comparisons, not annualized returns or executable fills."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "SPY-TURN-OF-MONTH-001",
+      "title": "Turn of month: no advantage over the fixed control",
+      "type": "reviewed_summary",
+      "ticker": "SPY",
+      "stage": "exploratory_historical",
+      "status": "negative_result",
+      "hypothesisVersion": "spy-turn-of-month-001-summary-v1",
+      "hypothesis": "Does the conventional four-return month-turn window outperform its fixed four-session non-event control?",
+      "createdAt": "2026-11-13",
+      "nextAction": "Preserve this result. A new test needs a separately declared protocol and genuinely new evaluation data; no rule tuning or trading conclusion follows.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": true,
+      "sourceSamples": 132,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "On 132 reused exploratory month-turns labeled 2015-2025, the rule underperformed the fixed control at 2, 5 and 10 basis points round-trip cost. At 5 basis points, mean returns were 15.500 versus 20.476 basis points per window, a -4.975-basis-point paired difference; eight of eleven turn-years had negative matched excess."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Lower drawdown does not rescue the failed calendar-premium criterion. The year-block uncertainty interval spans zero. This reused history is not an independent holdout; the separate prospective protocol remains unscored. Zero cash yield, idealized closing prices and limited auction/financing assumptions restrict trading interpretation."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "PPP-USDGBP-001",
+      "title": "Slow purchasing-power parity: no reliable nominal advantage",
+      "type": "reviewed_summary",
+      "ticker": "USD/GBP",
+      "stage": "revised_data_prototype",
+      "status": "mixed_exploratory_result",
+      "hypothesisVersion": "ppp-usdgbp-001-summary-v1",
+      "hypothesis": "Does a fixed slow real-exchange-rate adjustment improve nominal forecasts over no change?",
+      "createdAt": "2026-11-17",
+      "nextAction": "Reconstruct release-timed vintages and predeclare a new period and additional pairs before progressing.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": true,
+      "sourceSamples": 408,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "For 408 monthly origins per horizon from 1990-2023, nominal RMSE ratios to no change were 1.0088, 1.0083 and 0.9734 at one, three and twelve months. Every reported HAC interval included zero. The fixed 36-month adjustment half-life was not tuned."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Latest revised CPI and exchange-rate series, an assumed two-month CPI lag and monthly-average statistical targets are not point-in-time or executable prices. One pair and overlapping horizons do not establish forecast skill or profits. No financing/spread/cost model was evaluated."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "SPACE-PERSHARE-001",
+      "title": "Space-company growth through the share count",
+      "type": "reviewed_summary",
+      "ticker": "RDW / RKLB / BKSY",
+      "stage": "retrospective_accounting",
+      "status": "descriptive_result",
+      "hypothesisVersion": "space-pershare-001-summary-v1",
+      "hypothesis": "Does reported growth survive per-share, gross-profit and operating-cash checks?",
+      "createdAt": "2026-11-17",
+      "nextAction": "Keep the mixed case study. A prospective cohort needs dated membership, comparable accounts and a declared business outcome.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 9,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "Nine retrospectively selected company-years (2022-2024) give mixed mechanisms. Redwire revenue rose 24.73% in 2024 while gross profit per share fell 25.04%; margin deterioration, not primarily share dilution, explains that divergence. BlackSky revenue rose 8.04% while split-normalized shares rose 26.65% and revenue per share fell 14.69%. Rocket Lab was a counterexample with rising per-share operating measures."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Original annual filings and explicit split normalization support accounting comparisons, not historical stock selection. Selection was retrospective; acquisitions, working-capital cash timing, capital spending and preferred/convertible claims complicate interpretation. BlackSky ex-depreciation contribution is not comparable gross profit. No price, return, valuation or alpha test."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "Redwire original FY2024 annual filing",
+          "url": "https://www.sec.gov/Archives/edgar/data/1819810/000181981025000063/rdw-20241231.htm"
+        }
+      ]
+    },
+    {
+      "id": "SEC-INSIDER-SOURCE-AUDIT-001",
+      "title": "Insider clusters: original-document and identity gates",
+      "type": "reviewed_summary",
+      "ticker": "US equities",
+      "stage": "source_feasibility",
+      "status": "source_audit",
+      "hypothesisVersion": "sec-insider-source-audit-001-summary-v1",
+      "hypothesis": "Can original filings establish two distinct actual-person purchases with valid information chronology?",
+      "createdAt": "2026-11-17",
+      "nextAction": "Resolve person identity, footnotes, amendments/duplicates and negative-screen coverage before any event cohort or return test.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 2140,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "The bounded audit retained 41 filing-day indexes and 2,140 purchase-original filings with 3,670 Table I P rows; independent XML checks found no parsing failures. The reviewed final receipt did not assert a verified cluster. Original versus flattened-extract precision differences changed some threshold decisions."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "A reporting CIK is not a verified actual person, code P is not necessarily discretionary public-market buying, and missing plan markers prove nothing. Original coverage of nonpurchase negatives remains incomplete. No prices were collected, no strategy was fitted and no investment performance was measured."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "SEC official filings",
+          "url": "https://www.sec.gov/edgar/search/"
+        }
+      ]
+    },
+    {
+      "id": "CORN-JULY-YIELD-PILOT-001",
+      "title": "Early-July corn conditions: vintage gate before fitting",
+      "type": "reviewed_summary",
+      "ticker": "CORN",
+      "stage": "pre_fit_feasibility",
+      "status": "timing_blocked",
+      "hypothesisVersion": "corn-july-yield-pilot-001-summary-v1",
+      "hypothesis": "Can early-July crop condition improve a following-annual-yield forecast over expanding trend?",
+      "createdAt": "2026-11-13",
+      "nextAction": "Choose and version the target/vintage qualification track before fitting. Freeze per-fold available training vintages and preserve exposed-label limitations.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 26,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "The completed source-coverage follow-up has 26 numerical condition/outcome pairs, but zero pairs qualified for strict historical timing and original-byte provenance. Twenty-five match the frozen January-target rule; the 2018 February release is an explicit deviation, not a silently replaced target."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "No model was fitted or predictions scored. All 26 outcome values were exposed during QA; a later retrospective fixed-protocol score cannot be labeled genuinely unseen. First-receipt timing, corrected editions, source-era scope and fold-level outcome availability remain unresolved."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "WM-RNG-FEASIBILITY-001",
+      "title": "Waste Management RNG: matched operating labels missing",
+      "type": "reviewed_summary",
+      "ticker": "WM",
+      "stage": "operating_driver_feasibility",
+      "status": "blocked_missing_labels",
+      "hypothesisVersion": "wm-rng-feasibility-001-summary-v1",
+      "hypothesis": "Can actual capacity, output and realized price explain renewable-gas earnings beyond simple baselines?",
+      "createdAt": "2026-11-13",
+      "nextAction": "Retain the negative feasibility result. Obtain a matched, dated and comparable operating panel before reopening the test.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 8,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "The reviewed eight-quarter source screen established zero complete matched quarters for actual RNG output, comparable capacity and realized blended price. Planned plants, annual blended prices and forecasts cannot substitute for quarterly actual operating labels."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "The bounded screen rejects proceeding with the proposed joint operating-driver forecast, not the economic mechanism or all possible data sources. Renewable Energy segment earnings are not pure RNG; accounting presentation and intercompany royalties matter. No regression, returns test or alpha result."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "MONTHEND-NAV-001",
+      "title": "Month-end ETF reversal: descriptive NAV result remains inconclusive",
+      "type": "reviewed_summary",
+      "ticker": "SPY / TLT",
+      "stage": "historical_nav_extension",
+      "status": "mixed_exploratory_result",
+      "hypothesisVersion": "monthend-nav-001-summary-v1",
+      "hypothesis": "Does the earlier-month SPY-minus-TLT gap relate inversely to later-month SPY NAV returns?",
+      "createdAt": "2026-11-17",
+      "nextAction": "Retain the inconclusive NAV result separately from the unrun execution protocol. Resolve data rights and executable corporate-action/price treatment before a new trading test.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": true,
+      "sourceSamples": 274,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "The separately frozen issuer-NAV extension used 274 months: 183 training and 91 later evaluation months. Signed same-window gross means were 47.9 and 23.7 basis points; unconditional long SPY in the latter window averaged 48.7. The later signed mean uncertainty interval was -14.3 to 64.1 basis points; the effect weakened later."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "This records a completed historical evaluation, not permission to open any other reserved data. NAV reconstruction, full-session lag, dependence, current-vintage issuer files and illustrative cost/borrow scenarios do not establish executable open/close prices, short availability or alpha. The original next-open trading protocol remains unrun."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "BA-Q1-2027-FORECAST-001",
+      "title": "Boeing: a fully future business-quarter forecast",
+      "type": "reviewed_summary",
+      "ticker": "BA",
+      "stage": "prospective_business_forecast",
+      "status": "pending_outcome",
+      "hypothesisVersion": "ba-q1-2027-forecast-001-summary-v1",
+      "hypothesis": "Do revenue growth and operating margins persist into a fully future fiscal quarter?",
+      "createdAt": "2026-11-04",
+      "nextAction": "Wait for a permitted first comparable original quarterly result under the frozen resolution rule and September 27, 2027 deadline. Do not replace it with later revisions.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 0,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "Frozen November 4, 2026 before the January-March 2027 target starts. Stored revenue baselines are seasonal no growth at $22.217 billion and latest-quarter growth persistence at about $23.093 billion, with their respective margin assumptions. These are predictions, not realized sales."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "No outcome has been scored in the reviewed artifact. Input current-vintage publication/receipt review and an inferred fiscal calendar are qualified, not authenticated historical first-release data. Business forecast errors are not stock returns or proof of skill."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "GUIDANCE-INTAKE-001",
+      "title": "Guidance revisions: content found, event timing unresolved",
+      "type": "reviewed_summary",
+      "ticker": "US issuers",
+      "stage": "content_feasibility",
+      "status": "timing_blocked",
+      "hypothesisVersion": "guidance-intake-001-summary-v1",
+      "hypothesis": "Can dated guidance revisions form a valid event cohort before return analysis?",
+      "createdAt": "2026-10-27",
+      "nextAction": "Verify latest-prior comparable guidance and first-public availability before freezing any return cohort.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 30,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "The existing 30-slot convenience-sample audit retained 35 exhibits and matched 30 source dates. Fifteen first exhibits contained numeric annual guidance, but zero latest-prior guidance pairs, verified availability times or return-eligible events were established."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Finding annual guidance is not proving a revision or a causal event. Calls and additional exhibits may change content classification; first-exhibit review is not a full-document absence audit. No predictive return test was performed."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "DIVERSIFIED-WORKBENCH-001",
+      "title": "Four assets: historical allocation comparison workbench",
+      "type": "reviewed_summary",
+      "ticker": "SPY / EFA / IEF / GLD / BIL",
+      "stage": "historical_comparison_tool",
+      "status": "in_progress",
+      "hypothesisVersion": "diversified-workbench-001-summary-v1",
+      "hypothesis": "Can a fixed monthly trend rule improve on equal fixed diversification under matched assumed costs?",
+      "createdAt": "2026-11-20",
+      "nextAction": "Preserve the existing workbench; declare a fixed data version, comparison and evaluation protocol before treating a saved result as independent evidence.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 0,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "The existing standalone tool compares four equal sleeves with BIL used defensively and supports 10/25 basis points per side. It remains accessible as a historical comparison, not an independently validated signal. This catalog import does not rerun the strategy or select a favorable period."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Current-vintage adjusted closes are return proxies, not executable prices or authenticated point-in-time inputs. A separately frozen result and independent evaluation are not established by interactive parameter/period views. No new performance numbers are asserted here."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "BAX-RECOVERY-ARCHIVE-001",
+      "title": "Baxter: operational recovery is not automatically growth",
+      "type": "reviewed_summary",
+      "ticker": "BAX",
+      "stage": "selected_operating_case",
+      "status": "descriptive_result",
+      "hypothesisVersion": "bax-recovery-archive-001-summary-v1",
+      "hypothesis": "Does a reported plant restart establish a company growth or revenue-recovery result?",
+      "createdAt": "2026-11-20",
+      "nextAction": "Require a dated ownership/exposure and operating-to-revenue bridge before testing a forecast.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 1,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "The selected disclosures progress from September 2024 closure to November partial restart and February 2025 reported pre-hurricane production. This is one operational recovery episode, not evidence of incremental growth, shipments or normalized customer allocation."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Earnings-bundled news, information already public before later filings and the January 2025 Kidney Care sale complicate exposure. SEC acceptance metadata is distinct from original first-public content time. No current valuation, company revenue bridge or shareholder-return test."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "Issuer furnished production update in February 2025 filing",
+          "url": "https://www.sec.gov/Archives/edgar/data/10456/000162828025006558/bax-20250220xex991.htm"
+        }
+      ]
+    },
+    {
+      "id": "HRRR-HOUSTON-AVAILABILITY-001",
+      "title": "Houston temperature forecasts: archive availability gate",
+      "type": "reviewed_summary",
+      "ticker": "Weather proxy",
+      "stage": "data_feasibility",
+      "status": "timing_blocked",
+      "hypothesisVersion": "hrrr-houston-availability-001-summary-v1",
+      "hypothesis": "Can the retained operational forecast archive support a historical decision-time information set?",
+      "createdAt": "2026-11-17",
+      "nextAction": "Establish original dissemination and upgrade history before strict decision-time use. Keep proxy location, model initialization, valid time and assumed availability separate.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 0,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "The source audit documents nearest-gridpoint operational 00 UTC forecasts with leads 1-48, original NOAA recovery for missing derivative runs and explicit precision/model-version qualifications. This is data assembly, not a financial model or company-asset assertion."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Original dissemination times are unverified; current object modification time is not historical availability. Every row is marked strict point-in-time ineligible. A hypothetical three-hour lag is only a scenario, not proven conservative. No forecast skill, model fit or investing outcome is recorded here."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "COST-WC",
+      "title": "Investment funded; cash growth needs context",
+      "type": "reviewed_summary",
+      "ticker": "COST",
+      "stage": "descriptive_accounting",
+      "status": "descriptive_result",
+      "hypothesisVersion": "cost-wc-summary-v1",
+      "hypothesis": "Same periods; accounting sensitivity, not a forecast or investor return",
+      "createdAt": "2026-11-03T00:44:07.781085-05:00",
+      "nextAction": "Obtain a dated warehouse cohort, maturity/cannibalization and capital/cash-contribution bridge. Do not infer returns from aggregate cash coverage.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 0,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "Operating cash covered PPE spending 2.43× while capex rose $788m. Cash after PPE grew 18.22%; the fixed inventory/payable-neutral sensitivity grew 1.70%."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Scope: FY2025 versus FY2024, both 52 weeks. Two-item cash-flow sensitivity is not sustainable cash or project payback. One later filing vintage; no historical forecast test."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "Costco FY2025 filing, cash-flow table",
+          "url": "https://www.sec.gov/Archives/edgar/data/909832/000090983225000101/cost-20250831.htm"
+        }
+      ]
+    },
+    {
+      "id": "WMT-ROI",
+      "title": "Average ROI rose; project return unidentified",
+      "type": "reviewed_summary",
+      "ticker": "WMT",
+      "stage": "descriptive_accounting",
+      "status": "descriptive_result",
+      "hypothesisVersion": "wmt-roi-summary-v1",
+      "hypothesis": "Two reported trailing-year ratios, not investment returns",
+      "createdAt": "2026-11-03T00:37:52.885047-05:00",
+      "nextAction": "Obtain cohort capital, deployment and incremental cash contribution, with a legacy-business counterfactual.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 0,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "Issuer ROI rose despite a 4.40% larger average capital base. Different legacy/new-capital allocations reproduce the same aggregates; the naive 37.68% incremental proxy is not project ROI."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Scope: Archived TTM October 2023 versus October 2024. Issuer non-GAAP ROI is not after-tax ROIC or new-project cash payback. Restructuring comparisons affect operating growth. This is archived 2024 evidence."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "NOW-CASH",
+      "title": "Capex cuts dominate the cash-growth bridge",
+      "type": "reviewed_summary",
+      "ticker": "NOW",
+      "stage": "exposed_development_diagnostic",
+      "status": "negative_result",
+      "hypothesisVersion": "now-cash-summary-v1",
+      "hypothesis": "Reported measure versus fixed-intensity sensitivity; no stock return",
+      "createdAt": "2026-11-03T00:28:38.874992-05:00",
+      "nextAction": "Check future original cash-flow releases under the frozen rule; keep billing, acquisition and capex-efficiency alternatives visible.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 0,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "Cash after PPE per diluted share rose 30.03%, but lower capex supplied 84.71% of the dollar improvement. The fixed prior-year capex-intensity sensitivity falls 3.38% per share."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Scope: Q3 2026 versus Q3 2025. Negative for a chiefly operating-cash explanation, not for all improvement: Q3CFO/share rose 3.69%. The sensitivity is not a sustainable-cash estimate."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "NOW-CFO-PENDING",
+      "title": "Frozen cash-conversion forecast, not a result",
+      "type": "reviewed_summary",
+      "ticker": "NOW",
+      "stage": "prospective_business_forecast",
+      "status": "pending_outcome",
+      "hypothesisVersion": "now-cfo-pending-summary-v1",
+      "hypothesis": "Predictions only; actual outcome unavailable here",
+      "createdAt": "2026-11-03T00:28:38.874992-05:00",
+      "nextAction": "Retained records are unscored. By March 15, 2027, retain the first comparable official Q4 2026 quarterly CFO/revenue release after freeze and period end. Score absolute error; must beat BOTH baselines, ties fail. Conflicts remain unresolved.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 0,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "Candidate 59.30% versus seasonal 62.72% and latest-quarter 20.43%. Outcome remains unscored in retained records. This is CFO divided by revenue, not profit margin."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Scope: Target October 1–December 31, 2026; partly elapsed at freeze. One partly elapsed-quarter business forecast, no skill or alpha inference. Distinct from the unchanged operating-margin forecast; correlated company trials are not independent proof."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "TRANSIT-BLEND",
+      "title": "Extra modeling failed the seasonal hurdle",
+      "type": "reviewed_summary",
+      "ticker": "MTA proxy",
+      "stage": "exposed_development_diagnostic",
+      "status": "negative_result",
+      "hypothesisVersion": "transit-blend-summary-v1",
+      "hypothesis": "Lower error is better; same eligible rows, not trading returns",
+      "createdAt": "2026-11-03",
+      "nextAction": "Keep this failure and the annual baseline. Any new model needs genuinely untouched later data, source receipts and a separately locked protocol.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": true,
+      "sourceSamples": 0,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "The fixed recent/annual blend had 1.08% worse primary normalized error than annual seasonality. Three station improvements do not override the failed primary metric."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Scope: Exposed 2025 Q4-2026 Q2 partial panel, four stations. Previously exposed revised-vintage panel, assumed input lag and incomplete station coverage. Not fresh out-of-sample evidence, store demand or equity alpha. Exact analysis time unrecorded. Upstream link is contextual only: retained plan does not bind that URL to original source bytes; the hash verifies only the derived panel."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "HYPERSCALER-CASH",
+      "title": "Cash after equipment spending: four matched quarters",
+      "type": "reviewed_summary",
+      "ticker": "MSFT / GOOGL",
+      "stage": "descriptive_accounting",
+      "status": "descriptive_result",
+      "hypothesisVersion": "hyperscaler-cash-summary-v1",
+      "hypothesis": "Operating cash minus cash PPE; paired issuers share one scale and zero. No separate lease adjustment.",
+      "createdAt": "2026-11-03T10:09:31.500Z",
+      "nextAction": "Reconcile original publication vintages and lease classifications before historical information-set analysis. No forecast or investment-performance test has been run.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 0,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "Microsoft cash residual recovered after December, then eased in September. Alphabet was negative in June and September. This is consolidated accounting, not AI-specific return or a trading signal."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Scope: Calendar quarters ended December 2025–September 2026. Current downloads are not authenticated historical vintages. Lease investment is not fully harmonized; working capital, taxes and business mix differ. Four quarters do not establish a persistent trend. Browser rendering unverified; server-render checks passed."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "COST-MEMBERSHIP-001",
+      "title": "Costco membership: price, counts and lagged renewal",
+      "type": "reviewed_summary",
+      "ticker": "COST",
+      "stage": "accounting_diagnostic",
+      "status": "descriptive_result",
+      "hypothesisVersion": "cost-membership-001-summary-v1",
+      "hypothesis": "Does membership-income growth separate price changes from reported membership growth?",
+      "createdAt": "2026-11-03",
+      "nextAction": "Obtain cohort membership timing and a comparable price/volume bridge before testing persistence.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 2,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "FY2025 membership income rose 10.25% and reported ending paid memberships 6.30%. Management attributed approximately 40% of income growth to the fee increase; the remainder is not exclusively new members. A count-ratio stock-flow proxy is descriptive, not a fitted forecast."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Ending counts include some expired/nonrenewed memberships and are not average paid-member-months. Tier, geography, FX and renewal lags remain unresolved. Later comparative columns are one source vintage; price growth is not 100% incremental profit or a pricing-elasticity estimate."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "Costco FY2025 annual filing",
+          "url": "https://www.sec.gov/Archives/edgar/data/909832/000090983225000101/cost-20250831.htm"
+        }
+      ]
+    },
+    {
+      "id": "COST-MONTHLY-PROSPECTIVE-001",
+      "title": "Costco monthly nowcast: stored forecasts, outcomes unresolved",
+      "type": "reviewed_summary",
+      "ticker": "COST",
+      "stage": "prospective_business_forecast",
+      "status": "pending_outcome",
+      "hypothesisVersion": "cost-monthly-prospective-001-summary-v1",
+      "hypothesis": "Does a frozen three-month weighted comparable-sales average beat last-month persistence?",
+      "createdAt": "2026-11-03",
+      "nextAction": "Review permitted retained receipts against the frozen periods, evaluation clock and deadlines. Keep missing/late/conflicting evidence unresolved and score jointly only under the frozen rule.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 0,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "Frozen November 3, 2026: candidate 6.62% versus last-month baseline 7.60%, fixed for both October and November retail periods. October was a completed-period prepublication nowcast; November was early-period. The October outcome must not update the November prediction."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Reviewed retained records show no scored real outcomes. As of this catalog review the October receipt deadline (November 11) has elapsed; no new release or receipt was obtained here, so it is unresolved rather than a silently scored failure or zero. November deadline is December 9. Exact standalone adjusted total-company period/scope and publication-after-freeze evidence are required; current reader representations are not original historical bytes."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "ICFI-CASH-QUALITY-001",
+      "title": "ICF operating cash: the full receivables bridge",
+      "type": "reviewed_summary",
+      "ticker": "ICFI",
+      "stage": "accounting_diagnostic",
+      "status": "descriptive_result",
+      "hypothesisVersion": "icfi-cash-quality-001-summary-v1",
+      "hypothesis": "How much of the observed operating-cash decline mechanically reconciles to the receivables program?",
+      "createdAt": "2026-11-03",
+      "nextAction": "Preserve the complete two-rollforward accounting bridge; require dated comparable vintages and a declared outcome before any forecast.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 2,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "FY2025 reported CFO fell $29.674 million. The full receivables-program effect changed from +$6.207 million to -$7.259 million, a $13.466 million swing, about 45.38% of that decline. Counting only sale proceeds would give the wrong direction."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Subtracting this one program effect still leaves a cash decline and does not estimate normalized structural cash or a causal no-factoring counterfactual. Comparative figures come from one later filing; customer behavior, other working capital, taxes and financing remain unresolved. No fraud score, ROIC or alpha result."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "ICF FY2025 annual filing",
+          "url": "https://www.sec.gov/Archives/edgar/data/1362004/000119312526082536/icfi-20251231.htm"
+        }
+      ]
+    },
+    {
+      "id": "ICFI-CONTRACT-MIX-001",
+      "title": "ICF fixed-price share: denominator change versus growth",
+      "type": "reviewed_summary",
+      "ticker": "ICFI",
+      "stage": "accounting_diagnostic",
+      "status": "descriptive_result",
+      "hypothesisVersion": "icfi-contract-mix-001-summary-v1",
+      "hypothesis": "Does a rising fixed-price revenue share establish growth in fixed-price business?",
+      "createdAt": "2026-11-03",
+      "nextAction": "Keep share, dollars and contract risk distinct; obtain comparable cohort economics before asserting compounding.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 2,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "FY2024-2025 total revenue fell 7.27%, while fixed-price dollars rose only 0.033%. The share rose about 3.64 percentage points; a declared denominator-first bridge allocates over 99% to the shrinking denominator. Contract types reconcile to total revenue."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "This ordered accounting identity is not a causal estimate, organic-growth claim or proof that fixed-price contracts improve profitability. Client-type categories are not separate operating segments; one later filing is not multiple historical information vintages."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "ICF FY2025 annual filing",
+          "url": "https://www.sec.gov/Archives/edgar/data/1362004/000119312526082536/icfi-20251231.htm"
+        }
+      ]
+    },
+    {
+      "id": "MSFT-AI-CASH-FEASIBILITY-001",
+      "title": "Microsoft capacity-to-cash: AI project returns unidentified",
+      "type": "reviewed_summary",
+      "ticker": "MSFT",
+      "stage": "source_feasibility",
+      "status": "feasibility_blocked",
+      "hypothesisVersion": "msft-ai-cash-feasibility-001-summary-v1",
+      "hypothesis": "Can issuer disclosures isolate AI capacity investment and resulting project cash returns?",
+      "createdAt": "2026-11-03",
+      "nextAction": "Reconcile lease classifications and dated project/cohort capital and cash contribution before a project-return claim.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 4,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "The reviewed issuer-source audit supports consolidated cash-conversion analysis, but selected disclosures do not isolate AI project returns. A lease-presentation break and the divergence between CFO growth and cash remaining after PPE purchases are material scope issues."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Current issuer HTML receipt hashes do not establish original dissemination times or historical vintages. Modern comparative/recast figures cannot replace original information sets. No historical predictive test, model fit, causal project-payback estimate or alpha result."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "ROL-GROWTH-CASH-001",
+      "title": "Rollins: slower organic growth and tax-timed cash",
+      "type": "reviewed_summary",
+      "ticker": "ROL",
+      "stage": "retrospective_accounting",
+      "status": "descriptive_result",
+      "hypothesisVersion": "rol-growth-cash-001-summary-v1",
+      "hypothesis": "Does reported cash growth confirm durable operating growth?",
+      "createdAt": "2026-11-03",
+      "nextAction": "Compare future original releases under a declared accounting bridge, preserving tax-timing and acquisition alternatives.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 2,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "Issuer-defined organic revenue growth slowed from 5.73% in Q2 2026 to 4.41% in Q3 while reported quarterly CFO grew 26.40%. The issuer identified about $63 million of favorable tax-refund timing; a one-way subtraction makes CFO 6.53% lower than the unchanged prior-year comparison."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "The sensitivity is not a symmetric, recurring-cash measure or causal attribution. Issuer-defined organic growth is not a fixed customer cohort; acquisition revenue is not acquisition payback. This exploratory diagnostic was selected after reading releases and is not a forecast or return test."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "NOW-CASH-DILUTION-001",
+      "title": "ServiceNow FY2025 cash and dilution: a narrow falsifier not met",
+      "type": "reviewed_summary",
+      "ticker": "NOW",
+      "stage": "accounting_diagnostic",
+      "status": "descriptive_result",
+      "hypothesisVersion": "now-cash-dilution-001-summary-v1",
+      "hypothesis": "Does per-share cash improvement disappear after two fixed mechanical sensitivities?",
+      "createdAt": "2026-11-03",
+      "nextAction": "Retain the supported counterexample to the narrow falsifier; use a dated multi-year bridge and prior-growth baseline for future tests.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 2,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "CFO less capex per diluted share rose 33.36%, versus revenue growth of 20.88%. A separate sensitivity subtracting cash-flow stock-compensation addbacks still improved; the narrow claim that improvement vanishes under these adjustments was not supported."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "The SBC sensitivity is not cash compensation expense, owner earnings or fair value. Issuer adjusted FCF differs from CFO less capex. One retrospective annual pair does not establish persistence, organic growth, valuation or alpha; acquisitions and working-capital timing remain."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "CALM-SPECIALTY-PREMIUM-001",
+      "title": "Cal-Maine specialty premium: relative resilience, not compounding",
+      "type": "reviewed_summary",
+      "ticker": "CALM",
+      "stage": "accounting_decomposition",
+      "status": "descriptive_result",
+      "hypothesisVersion": "calm-specialty-premium-001-summary-v1",
+      "hypothesis": "Does a wider specialty premium establish absolute pricing power?",
+      "createdAt": "2026-11-03",
+      "nextAction": "Keep the existing margin-bridge study and this distinct price/mix question linked; require dated cohort economics before forecast testing.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 1,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "In the archived FY2024 Q3 comparison, specialty ASP fell 7.68% and conventional ASP fell 41.49%. The relative premium moved from negative $1.062 to positive $0.263 per dozen despite lower absolute specialty prices. Specialty volume share rose only about 0.40 percentage points."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "The price/mix decomposition is an accounting allocation, not causality or segment profit. It is a distinct question using the same source vintage as EGG-MARGIN-002, not independent corroboration. One later comparative release and unverified dissemination timing do not establish compounding or returns."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "Cal-Maine FY2024 Q3 release",
+          "url": "https://calmainefoods.gcs-web.com/node/13601/pdf"
+        }
+      ]
+    },
+    {
+      "id": "TRANSIT-WEEKPART-001",
+      "title": "Transit recovery: weekday-led growth failed on common dates",
+      "type": "reviewed_summary",
+      "ticker": "MTA proxy",
+      "stage": "exposed_panel_diagnostic",
+      "status": "negative_result",
+      "hypothesisVersion": "transit-weekpart-001-summary-v1",
+      "hypothesis": "Was weekday recovery stronger than weekend recovery relative to the same-weekday annual baseline?",
+      "createdAt": "2026-11-03",
+      "nextAction": "Preserve the negative common-cohort finding and selection sensitivity; a new forecast needs new eligible data and a separately frozen rule.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 77,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "On 77 gapped common dates across four stations in January-June 2026, every weekday-minus-weekend growth contrast was negative. Own-station eligibility changed the Times Square sign and materially shrank another gap, exposing selection and coverage sensitivity."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "This uses already exposed revised-vintage counts, an assumed input age and existing holiday masks. Common dates do not balance seasonal composition. No new fit, fresh holdout, neural model, store-demand inference or equity-alpha result."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "NOW-SEC-PIT-017",
+      "title": "ServiceNow margin panel: acquisition stopped before facts",
+      "type": "reviewed_summary",
+      "ticker": "NOW",
+      "stage": "historical_source_gate",
+      "status": "feasibility_blocked",
+      "hypothesisVersion": "now-sec-pit-017-summary-v1",
+      "hypothesis": "Can a dated original quarterly margin panel support a fixed next-quarter comparison?",
+      "createdAt": "2026-11-03",
+      "nextAction": "Respect the original stop rule. Resolve permissible original-source access and period mapping before any facts or scoring.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 0,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "The frozen historical-panel acquisition stopped at the first development filing HTTP 403. Metadata identified 40 candidate quarterly accessions, but this batch obtained zero of 40 financial fact sets and zero of eight reserved evaluation fact sets; one report-period anomaly remains unresolved."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "No retry or alternate route was used, no model was fitted and no reserved financial facts were inspected. Metadata acceptance timestamps do not establish original financial content. This is an access/source-feasibility blocker, not a negative predictive result."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "SEC official filings",
+          "url": "https://www.sec.gov/edgar/search/"
+        }
+      ]
+    },
+    {
+      "id": "NOW-MARGIN-PROSPECTIVE-001",
+      "title": "ServiceNow Q4 margin: partly elapsed target, unscored",
+      "type": "reviewed_summary",
+      "ticker": "NOW",
+      "stage": "prospective_business_forecast",
+      "status": "pending_outcome",
+      "hypothesisVersion": "now-margin-prospective-001-summary-v1",
+      "hypothesis": "Does a fixed quarterly operating-margin gap improve on latest-quarter and seasonal baselines?",
+      "createdAt": "2026-11-03",
+      "nextAction": "Use the frozen resolution rule with an explicit evaluation clock and permitted original receipts; preserve missing, late and conflicting evidence as unresolved.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 0,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "Retained resolution review records Q4 2026 candidate margin 5.00%, latest-quarter 9.38% and seasonal baseline 12.42%. The October-December target was partly elapsed at freeze, so this is not a fully future-quarter test."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "No real outcome was scored in the reviewed records. The March 15, 2027 receipt deadline and original standalone GAAP scope remain binding. A separate cash-conversion forecast is correlated company research, not independent confirmation; business forecast errors are not investment returns."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "PROFITABLE-GROWTH-BUSINESS-001",
+      "title": "Profitable growth: persistence did not beat growth alone",
+      "type": "reviewed_summary",
+      "ticker": "US equities",
+      "stage": "retrospective_business_cohort",
+      "status": "negative_result",
+      "hypothesisVersion": "profitable-growth-business-001-summary-v1",
+      "hypothesis": "Does requiring a positive operating margin select faster growers that keep growing?",
+      "createdAt": "2026-11-04",
+      "nextAction": "Preserve this result. A new test needs a separately declared protocol and genuinely new evaluation data; no rule tuning or trading conclusion follows.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 17,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "In the fixed January 2024 to January 2025 provider-snapshot comparison, growth alone retained positive endpoint growth for 9/10 names versus 8/10 for growth plus positive margin. Median endpoint growth was 22.94% versus 11.23%; the profitability filter instead selected more consistently profitable businesses."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "Three shared names leave 17 distinct companies, not 20 independent observations. This descriptive snapshot failed strict growth-persistence superiority; it does not prove profitability causes worse growth. Membership was recomputed and not asserted identical to a separate return test. Source-vintage/selection limits preclude alpha."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "PROFITABLE-GROWTH-Q2-001",
+      "title": "Profitable growth Q2: a small exploratory stock comparison",
+      "type": "reviewed_summary",
+      "ticker": "US equities",
+      "stage": "exploratory_historical",
+      "status": "mixed_exploratory_result",
+      "hypothesisVersion": "profitable-growth-q2-001-summary-v1",
+      "hypothesis": "Did the profitability filter improve the fixed next-quarter stock comparison after modeled costs?",
+      "createdAt": "2026-11-04",
+      "nextAction": "Preserve this result. A new test needs a separately declared protocol and genuinely new evaluation data; no rule tuning or trading conclusion follows.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": true,
+      "sourceSamples": 0,
+      "findings": [
+        {
+          "id": "F001",
+          "status": "reviewed_summary",
+          "summary": "In the retained April-June 2024 comparison, growth-only returned 2.13%, growth plus positive margin 5.41%, and the matched 95% SPY/5% cash reference 3.88%. Model fees and slippage were each 5 basis points per side, already included. Filtered-stock drawdown was 9.5%, versus SPY 5.4%."
+        },
+        {
+          "id": "F002",
+          "status": "limitations",
+          "summary": "These are exploratory simulated portfolio results, not a live record or robust alpha. Small portfolios, shared market exposure, schedule-sampled NAV, three rebalances and no terminal liquidation limit interpretation. Later business-persistence results answer a different question; earlier material variants are not erased."
+        }
+      ],
+      "publicSources": []
+    },
+    {
+      "id": "IBM-KIBOT-30M-DEV-001",
+      "title": "IBM 30-minute development: ridge lost to simple baselines",
+      "type": "reviewed_summary",
+      "ticker": "IBM",
+      "stage": "exploratory_development",
+      "status": "negative_result",
+      "hypothesisVersion": "ibm-kibot-30m-summary-v1",
+      "hypothesis": "Does a fixed chronological ridge forecast improve 30-minute log close-to-close error over no change and training mean?",
+      "createdAt": "2026-11-20",
+      "nextAction": "Retain this negative exposed-development finding. Any new representation test needs a separately declared development protocol; keep reserved holdouts sealed and raw vendor data private.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": true,
+      "sourceSamples": 47,
+      "findings": [
+        {
+          "id": "PROVENANCE",
+          "status": "reviewed_aggregate",
+          "summary": "Coordinator review reconciled the original aggregate, frozen protocol, independent audit and original retrieval manifest. The audit marker matches the exact protocol and runner; the prior source hash agrees with the retrieval manifest. This is review of one preserved study, not independent predictive confirmation."
+        },
+        {
+          "id": "NEGATIVE_RESULT",
+          "status": "negative_development",
+          "summary": "There were 47 previously exposed development dates and 490 eligible paths overall. Expanding validation scored 400 paths in folds of 83, 157 and 160. The 30-minute log close-to-close ridge lost to both no change and training mean in every fold; ridge/no-change MAE ratios were 1.053268289, 1.043802992 and 1.008797830. Equal-day weighting agrees. The 490 overall paths are not 490 validation scores or independent observations."
+        },
+        {
+          "id": "LIMITS",
+          "status": "limitations",
+          "summary": "The Kibot official samples landing page is rolling documentation, not the pinned historical payload or proof of that vintage. No historical timing receipt, executable fills, spread/slippage/cost model or sealed-holdout score was established. No raw data, reconstructions or data charts are reproduced; the saved terms review permits aggregate research results only. This exploratory negative result establishes no tradable signal and does not transfer to SPY, tokens or LSTMs."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "Kibot official samples documentation; rolling page, not pinned data vintage",
+          "url": "https://www.kibot.com/free-historical-intraday-data.html"
+        }
+      ]
+    },
+    {
+      "id": "CORN-EXPORT-WASDE-2026-001",
+      "title": "Corn exports: one dated WASDE projection revision",
+      "type": "reviewed_summary",
+      "ticker": "CORN",
+      "stage": "descriptive_feasibility",
+      "status": "descriptive_result",
+      "hypothesisVersion": "corn-exports-wasde-2026-summary-v1",
+      "hypothesis": "Can a dated official export-projection comparison form a qualified starting fixture for later inspection-data research?",
+      "createdAt": "2026-11-20",
+      "nextAction": "Keep this one descriptive edition comparison separate from any forecast or price study. Establish inspection-report revisions and historical first-receipt timing before a predeclared predictive evaluation.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 1,
+      "findings": [
+        {
+          "id": "EDITION_COMPARISON",
+          "status": "reviewed_descriptive_fixture",
+          "summary": "Coordinator review of the archived official October 9 and November 10, 2026 WASDE PDFs and the saved official CSV extraction agrees that the same 2026/27 U.S. corn export projection fell from 3,300 to 3,275 million bushels, a reduction of 25 million bushels. These are report projections for the same marketing year, not observed exports or realized prices."
+        },
+        {
+          "id": "LIMITS",
+          "status": "limitations",
+          "summary": "This is one descriptive feasibility fixture, not a scored forecast, independent event cohort, causal finding or predictive result. Inspection-report revisions and historical first receipts remain unverified; the report edition dates and present source links do not prove original public availability. No source downloads, raw observations, models, price study or holdout evaluation were performed for this catalog admission."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "Official WASDE October 9, 2026 archived report",
+          "url": "https://esmis.nal.usda.gov/sites/default/release-files/796099/wasde1026.pdf"
+        },
+        {
+          "title": "Official WASDE November 10, 2026 archived report",
+          "url": "https://esmis.nal.usda.gov/sites/default/release-files/796142/wasde1126.pdf"
+        }
+      ]
+    },
+    {
+      "id": "BARGE-CAIRO-MEMPHIS-FEASIBILITY-001",
+      "title": "Cairo–Memphis barge quotes: notice visibility and vintage unresolved",
+      "type": "reviewed_summary",
+      "ticker": "Freight proxy",
+      "stage": "notice_and_quote_source_feasibility",
+      "status": "timing_blocked",
+      "hypothesisVersion": "barge-cairo-memphis-source-summary-v1",
+      "hypothesis": "Can a dated notice lifecycle and quote vintage establish an eligible information set for a future barge-rate study?",
+      "createdAt": "2026-11-21",
+      "nextAction": "Complete the multi-sector notice lifecycle/effective-time audit and historical quote-vintage checks before declaring a rate model. Preserve the original audit count; any revised post-recovery coverage needs a separately versioned audit.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 8,
+      "findings": [
+        {
+          "id": "ORIGINAL_AUDIT",
+          "status": "source_audit",
+          "summary": "The original August 25–October 19, 2025 audit fixed eight weeks and verified complete notice visibility in zero of eight. This is not zero notices and is not a recomputed post-recovery coverage count. Later source recovery does not silently rewrite that original result."
+        },
+        {
+          "id": "QUOTE_SCOPE",
+          "status": "current_vintage_only",
+          "summary": "Eight current USDA nearby quote rows are percent of tariff, not dollars per ton. Five archived Grain Transportation Report issues corroborate rounded rows, not historical first-public quote values or exact release times. USDA describes the series as an origin region; exact geographic limits and shipment destinations are not established."
+        },
+        {
+          "id": "NOTICE_RECOVERY",
+          "status": "reviewed_source_observations",
+          "summary": "The official September 5, 2025 UPDATE-1 restates an earlier rule. October 2 UPDATE-4 changes the displayed southbound text, but its September 19 reference does not establish the amended rule’s effective time. A September 15 Ohio Valley notice covers miles 869–953.8, omitted by the original miles 483–869 review. These corrections expose scope and lifecycle gaps rather than proving complete coverage."
+        },
+        {
+          "id": "LIMITS",
+          "status": "limitations",
+          "summary": "Historical first-public quote vintage/time and the full multi-sector notice lifecycle remain unverified. Notice date, rule reference, effective time and public visibility must remain distinct. No model, causal effect, shipment-destination inference or barge-rate forecast was produced. These source-audit observations do not establish predictive or trading performance."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "USDA official barge-rate series; current quote vintage",
+          "url": "https://agtransport.usda.gov/resource/deqi-uken.json"
+        },
+        {
+          "title": "USDA official 2025 Grain Transportation Report archive",
+          "url": "https://www.ams.usda.gov/services/transportation-analysis/gtr/archive-2025"
+        },
+        {
+          "title": "Coast Guard official September 5, 2025 UPDATE-1",
+          "url": "https://content.govdelivery.com/accounts/USDHSCG/bulletins/3f132bb"
+        },
+        {
+          "title": "Coast Guard official October 2, 2025 UPDATE-4",
+          "url": "https://content.govdelivery.com/accounts/USDHSCG/bulletins/3f57772"
+        },
+        {
+          "title": "Coast Guard Ohio Valley September 15 notice; exact message identity",
+          "url": "https://www.navcen.uscg.gov/broadcast-notice-to-mariners-message?guid=66239383"
+        }
+      ]
+    },
+    {
+      "id": "ISO-NE-GAS-GENERATION-FEASIBILITY-001",
+      "title": "New England nuclear status and gas-fired output: two unqualified joins",
+      "type": "reviewed_summary",
+      "ticker": "New England electricity",
+      "stage": "archived_join_feasibility",
+      "status": "timing_blocked",
+      "hypothesisVersion": "iso-ne-gas-generation-source-summary-v1",
+      "hypothesis": "Can archived capacity/nuclear-status inputs be shown to precede next-day gas-fired electrical generation?",
+      "createdAt": "2026-11-21",
+      "nextAction": "Establish original publication time and vintage for each input before any as-of analysis. Keep later generation reports on the outcome side; do not infer day-before operational-report availability without an exact publication check.",
+      "originalPublicationTimesVerified": false,
+      "predictiveResultsAvailable": false,
+      "sourceSamples": 2,
+      "findings": [
+        {
+          "id": "DATED_JOINS",
+          "status": "archived_date_join_only",
+          "summary": "Only two archived date joins were verified: November 3 and 4, 2025 dated inputs paired with November 4 and 5 outcome days. Eventual gas-fired electrical generation was 154,390 and 183,857 MWh respectively. These are electrical output totals, not gas fuel use, gas price or forecast errors. A date match alone does not qualify the input as available at decision time."
+        },
+        {
+          "id": "AVAILABILITY",
+          "status": "timing_unresolved",
+          "summary": "The Seven-Day Capacity Forecast archive and NRC daily reactor-status records have unresolved first-public vintage and publication timing. No claim is made that a day-before operational report was available: exact publication must first be confirmed. A day-after or other later outcome report must not be used as an input; the weekly final generation report supplies outcome evidence only."
+        },
+        {
+          "id": "LIMITS",
+          "status": "limitations",
+          "summary": "This is a two-case source-feasibility audit. No model was fitted, forecasting scored, causal nuclear-to-gas effect identified, or financial/holdout result established. Later archived files do not authenticate the original information set, and the two joins are not independent predictive confirmation."
+        }
+      ],
+      "publicSources": [
+        {
+          "title": "ISO New England Seven-Day Capacity Forecast archive; timing unresolved",
+          "url": "https://www.iso-ne.com/markets-operations/system-forecast-status/seven-day-capacity-forecast-list"
+        },
+        {
+          "title": "ISO New England weekly final report; outcome evidence only",
+          "url": "https://www.iso-ne.com/static-assets/documents/100029/we_2025_11_09_weekly_final.pdf"
+        },
+        {
+          "title": "NRC daily reactor-status record dated November 3, 2025",
+          "url": "https://www.nrc.gov/documents-reports/document-collections/events-reports-associated-with/power-reactor-status-reports/2025/20251103ps"
+        },
+        {
+          "title": "NRC daily reactor-status record dated November 4, 2025",
+          "url": "https://www.nrc.gov/documents-reports/document-collections/events-reports-associated-with/power-reactor-status-reports/2025/20251104ps"
         }
       ]
     }

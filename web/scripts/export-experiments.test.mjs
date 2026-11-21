@@ -33,7 +33,7 @@ test('reject malformed counts, booleans, duplicate IDs and unsafe URLs', () => {
 test('reviewed overnight records retain outcomes and source boundaries', () => {
   const input = fixture();
   const out = projectRegistry(input, '2026-10-29');
-  assert.equal(out.experiments.length, 12);
+  assert.equal(out.experiments.length, input.experiments.length);
   assert.equal(out.experiments.find(x => x.id === 'CROP-SPATIAL-ALIGNMENT-001').predictiveResultsAvailable, false);
   assert.match(out.experiments.find(x => x.id === 'CPC-CASH-MONTHLY-001').findings[0].summary, /worsened/);
   for (const url of ['https://www.eia.gov.evil.example/', 'http://www.eia.gov/', 'https://user@www.eia.gov/']) {
@@ -44,7 +44,8 @@ test('reviewed overnight records retain outcomes and source boundaries', () => {
 });
 
 test('paper forecast stays frozen with one descriptive scored outcome', () => {
-  const out = projectRegistry(fixture(), '2026-10-30');
+  const published = JSON.parse(readFileSync(new URL('../public/research/experiments.json', import.meta.url), 'utf8'));
+  const out = projectRegistry(fixture(), published.reviewedOn);
   const card = out.experiments.find(x => x.id === 'DSM-TEMP-PAPER-001');
   assert.equal(card.status, 'resolved_single_case');
   assert.equal(card.sourceSamples, 1);
@@ -56,7 +57,7 @@ test('paper forecast stays frozen with one descriptive scored outcome', () => {
   assert.match(card.findings.find(x => x.id === 'COMPARISON').summary, /uncalibrated/);
   assert.match(card.findings.find(x => x.id === 'LIMITS').summary, /not a live outcome feed/);
   assert.ok(card.publicSources.every(x => new URL(x.url).hostname === 'api.weather.gov'));
-  assert.deepEqual(JSON.parse(readFileSync(new URL('../public/research/experiments.json', import.meta.url), 'utf8')), out);
+  assert.deepEqual(published, out);
   const bad = fixture();
   bad.experiments[0].publicSources[0].url = 'https://api.weather.gov.evil.example/';
   assert.throws(() => projectRegistry(bad, '2026-10-29'));

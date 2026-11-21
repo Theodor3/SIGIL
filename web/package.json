@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "node scripts/check-research-checkpoint.mjs && node scripts/check-company-growth.mjs && tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "studies:candidate:generate": "node scripts/intake-study.mjs generate",
+    "studies:candidate:check": "node scripts/intake-study.mjs check",
+    "studies:candidate:test": "node --test scripts/intake-study.test.mjs scripts/intake-receipt.test.mjs scripts/intake-workflow.test.mjs",
+    "studies:catalog:test": "node --test scripts/study-catalog-review.test.mjs scripts/exact-study-citations.test.mjs scripts/export-experiments.test.mjs tests/studies.test.mjs scripts/research-updates.test.mjs"
   },
   "dependencies": {
     "react": "^19.0.0",

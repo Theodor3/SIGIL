@@ -15,6 +15,9 @@ export function studyStatus(status: string): string {
     unconfirmed_lead: "Unconfirmed lead", blocked_duration_labels: "Blocked: missing duration labels",
     blocked_entity_and_revenue_labels: "Blocked: company and revenue labels",
     blocked_missing_labels: "Blocked: missing outcome labels",
+    pending_outcome: "Forecast stored; outcome unresolved",
+    source_audit: "Source audit; prediction untested",
+    feasibility_blocked: "Feasibility blocked",
   };
   return Object.prototype.hasOwnProperty.call(labels, status) ? labels[status] : status.replace(/_/g, " ");
 }

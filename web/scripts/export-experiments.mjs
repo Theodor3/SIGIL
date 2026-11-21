@@ -6,6 +6,21 @@ const strings = ['id', 'title', 'type', 'ticker', 'stage', 'status', 'hypothesis
 const bools = ['originalPublicationTimesVerified', 'predictiveResultsAvailable'];
 const fail = () => { throw new Error('Invalid experiment publication input'); };
 const text = (x) => typeof x === 'string' && x.length > 0 && x.length <= 12000 ? x : fail();
+// Reviewed citation exceptions only. Compare the supplied string before URL normalization.
+const exactSourceUrls = [
+  'https://esmis.nal.usda.gov/sites/default/release-files/796099/wasde1026.pdf',
+  'https://esmis.nal.usda.gov/sites/default/release-files/796142/wasde1126.pdf',
+  'https://www.kibot.com/free-historical-intraday-data.html',
+  'https://agtransport.usda.gov/resource/deqi-uken.json',
+  'https://www.ams.usda.gov/services/transportation-analysis/gtr/archive-2025',
+  'https://content.govdelivery.com/accounts/USDHSCG/bulletins/3f132bb',
+  'https://content.govdelivery.com/accounts/USDHSCG/bulletins/3f57772',
+  'https://www.navcen.uscg.gov/broadcast-notice-to-mariners-message?guid=66239383',
+  'https://www.iso-ne.com/markets-operations/system-forecast-status/seven-day-capacity-forecast-list',
+  'https://www.iso-ne.com/static-assets/documents/100029/we_2025_11_09_weekly_final.pdf',
+  'https://www.nrc.gov/documents-reports/document-collections/events-reports-associated-with/power-reactor-status-reports/2025/20251103ps',
+  'https://www.nrc.gov/documents-reports/document-collections/events-reports-associated-with/power-reactor-status-reports/2025/20251104ps',
+];
 export function validDate(value) {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
     && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,10) === value;
@@ -35,8 +50,9 @@ export function projectRegistry(data, reviewedOn) {
     if (!Array.isArray(item.findings)) fail();
     out.findings = item.findings.map(f => Object.fromEntries(['id', 'status', 'summary'].map(k => [k, text(f[k])])));
     out.publicSources = (item.publicSources ?? []).map(s => {
-      const url = new URL(text(s.url));
-      if (url.protocol !== 'https:' || url.username || url.password || !["www.stb.gov", "stb.gov", "www.csx.com", "csx.com", "www.cpc.ncep.noaa.gov", "www.ers.usda.gov", "noaa-gfs-bdp-pds.s3.amazonaws.com", "www.ncei.noaa.gov", "www.eia.gov", "www.bls.gov", "calmainefoods.gcs-web.com", "data.cms.gov", "opendata.usac.org", "croplandcros.scinet.usda.gov", "www.nass.usda.gov", "api.weather.gov", "api.fda.gov", "api.usaspending.gov", "www.fda.gov", "open.fda.gov", "www.ncbi.nlm.nih.gov", "www.usaspending.gov", "www.sec.gov", "investor.starbucks.com", "docs.advanresearch.com"].includes(url.hostname)) fail();
+      const suppliedUrl = text(s.url);
+      const url = new URL(suppliedUrl);
+      if (url.protocol !== 'https:' || url.username || url.password || (!["www.stb.gov", "stb.gov", "www.csx.com", "csx.com", "www.cpc.ncep.noaa.gov", "www.ers.usda.gov", "noaa-gfs-bdp-pds.s3.amazonaws.com", "www.ncei.noaa.gov", "www.eia.gov", "www.bls.gov", "calmainefoods.gcs-web.com", "data.cms.gov", "opendata.usac.org", "croplandcros.scinet.usda.gov", "www.nass.usda.gov", "api.weather.gov", "api.fda.gov", "api.usaspending.gov", "www.fda.gov", "open.fda.gov", "www.ncbi.nlm.nih.gov", "www.usaspending.gov", "www.sec.gov", "investor.starbucks.com", "docs.advanresearch.com"].includes(url.hostname) && !exactSourceUrls.includes(suppliedUrl))) fail();
       const source = {title: text(s.title), url: url.href};
       if (s.sha256 !== undefined) {
         if (!/^[a-f0-9]{64}$/.test(s.sha256)) fail();

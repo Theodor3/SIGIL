@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "publicationMode": "reviewed_snapshot",
   "coverage": "curated_partial",
-  "registryContentSha256": "450a447e7d24b34d7f4a4379fff0cbc081bde4b10331e189e2c9714c8080fe46",
+  "registryContentSha256": "e97b29d1df720067b8ee4fc686b3b3956dbab226cfc0128405b1579118e6f957",
   "updates": [
     {
       "id": "CURATED-20261102-ERATE-DISTRICT-AUDIT-001",
@@ -82,4 +82,3 @@
     }
   ]
 }
-

@@ -6,8 +6,24 @@ import CompanyStudies from "../components/CompanyStudies";
 import ResearchCheckpoint from "../components/ResearchCheckpoint";
 import StudyCatalog from "../components/StudyCatalog";
 
+// Reviewed citation exceptions only; do not normalize variants into permission.
+const exactSourceUrls = [
+  "https://esmis.nal.usda.gov/sites/default/release-files/796099/wasde1026.pdf",
+  "https://esmis.nal.usda.gov/sites/default/release-files/796142/wasde1126.pdf",
+  "https://www.kibot.com/free-historical-intraday-data.html",
+  "https://agtransport.usda.gov/resource/deqi-uken.json",
+  "https://www.ams.usda.gov/services/transportation-analysis/gtr/archive-2025",
+  "https://content.govdelivery.com/accounts/USDHSCG/bulletins/3f132bb",
+  "https://content.govdelivery.com/accounts/USDHSCG/bulletins/3f57772",
+  "https://www.navcen.uscg.gov/broadcast-notice-to-mariners-message?guid=66239383",
+  "https://www.iso-ne.com/markets-operations/system-forecast-status/seven-day-capacity-forecast-list",
+  "https://www.iso-ne.com/static-assets/documents/100029/we_2025_11_09_weekly_final.pdf",
+  "https://www.nrc.gov/documents-reports/document-collections/events-reports-associated-with/power-reactor-status-reports/2025/20251103ps",
+  "https://www.nrc.gov/documents-reports/document-collections/events-reports-associated-with/power-reactor-status-reports/2025/20251104ps",
+];
+
 const sourceHosts = ["www.stb.gov", "stb.gov", "www.csx.com", "csx.com", "www.cpc.ncep.noaa.gov", "www.ers.usda.gov", "noaa-gfs-bdp-pds.s3.amazonaws.com", "www.ncei.noaa.gov", "www.eia.gov", "www.bls.gov", "calmainefoods.gcs-web.com", "data.cms.gov", "opendata.usac.org", "croplandcros.scinet.usda.gov", "www.nass.usda.gov", "api.weather.gov", "api.fda.gov", "api.usaspending.gov", "www.fda.gov", "open.fda.gov", "www.ncbi.nlm.nih.gov", "www.usaspending.gov", "www.sec.gov", "investor.starbucks.com", "docs.advanresearch.com"];
-function safeSource(value: string) { try { const u = new URL(value); return u.protocol === "https:" && !u.username && !u.password && sourceHosts.includes(u.hostname); } catch { return false; } }
+function safeSource(value: string) { try { const u = new URL(value); return u.protocol === "https:" && !u.username && !u.password && (sourceHosts.includes(u.hostname) || exactSourceUrls.includes(value)); } catch { return false; } }
 
 function validRegistryDate(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,10) === value;
@@ -66,6 +82,11 @@ export default function Experiments() {
         if (raw.length > 1_000_000) throw new Error("Oversized publication");
         const result: unknown = JSON.parse(raw);
         if (!validSnapshot(result)) throw new Error("Invalid publication");
+        // Match the publisher's JSON-array fingerprint before trusting its identity.
+        // This detects inconsistent publications, not source authenticity.
+        const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(result.experiments)));
+        const actual = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+        if (actual !== result.contentSha256) throw new Error("Publication fingerprint mismatch");
         if (current) setData(result);
       }).catch(() => { if (current) setError(true); })
       .finally(() => { clearTimeout(timeout); if (current) setLoading(false); });
