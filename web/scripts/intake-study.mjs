@@ -65,6 +65,17 @@ export function validateEvidence(context){
   const metrics=h=>r.horizons[h].pooledDevelopmentValidation.metrics;
   for(const h of [5,10])for(const w of weights)check(metrics(h).numeric_ridge[w]>=Math.min(metrics(h).no_change[w],metrics(h).training_mean[w]),'5/10 minute claim no longer matches evidence');
   for(const w of weights){const gain=1-metrics(30).numeric_ridge[w]/metrics(30).no_change[w];check(gain>0&&gain<.005,'30 minute gain is not narrowly positive');check(r.horizons[30].folds.some(f=>f.score.metrics.numeric_ridge[w]>=f.score.metrics.no_change[w]),'30 minute inconsistency claim no longer matches evidence');}
+  // Every ordering asserted by the fixed draft prose must hold, not just one losing fold.
+  for(const w of weights){
+    const ten=metrics(10),gain=1-ten.numeric_ridge[w]/ten.no_change[w];
+    check(gain>0&&gain<.005&&ten.numeric_ridge[w]>ten.training_mean[w],'10 minute baseline ordering contradicts draft');
+    const [sep,oct,nov]=r.horizons[30].folds.map(f=>f.score.metrics);
+    check(sep.numeric_ridge[w]>sep.no_change[w]&&sep.numeric_ridge[w]>sep.training_mean[w],'September ordering contradicts draft');
+    check(oct.numeric_ridge[w]<oct.no_change[w]&&oct.numeric_ridge[w]<oct.training_mean[w],'October ordering contradicts draft');
+    check(nov.numeric_ridge[w]>nov.training_mean[w],'November training-mean ordering contradicts draft');
+  }
+  const november=r.horizons[30].folds[2].score.metrics;
+  check(november.numeric_ridge.dayWeightedMAE>november.no_change.dayWeightedMAE,'November equal-day ordering contradicts draft');
   return true;
 }
 function checkMetrics(score){

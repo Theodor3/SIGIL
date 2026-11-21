@@ -82,6 +82,11 @@ export default function Experiments() {
         if (raw.length > 1_000_000) throw new Error("Oversized publication");
         const result: unknown = JSON.parse(raw);
         if (!validSnapshot(result)) throw new Error("Invalid publication");
+        // Match the publisher's JSON-array fingerprint before trusting its identity.
+        // This detects inconsistent publications, not source authenticity.
+        const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(result.experiments)));
+        const actual = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+        if (actual !== result.contentSha256) throw new Error("Publication fingerprint mismatch");
         if (current) setData(result);
       }).catch(() => { if (current) setError(true); })
       .finally(() => { clearTimeout(timeout); if (current) setLoading(false); });

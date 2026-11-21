@@ -21,3 +21,51 @@ test('evidence provenance requiring fresh data, refit or tuning rejects',()=>{fo
 test('protected snapshot/publisher hashes fail closed',()=>{const c=context();c.policy.baseline['web/public/research/experiments.json'].sha256='0'.repeat(64);assert.throws(()=>preserveCheck(c.policy,ROOT),/protected source changed/);});
 test('offline gate requires neither fetch nor sign-in',()=>{const old=globalThis.fetch;globalThis.fetch=()=>{throw new Error('network forbidden in offline check');};try{const c=context(),r=validateCandidate(draftCandidate(c),c);assert.equal(r.networkRequired,false);assert.equal(r.signInRequired,false);}finally{globalThis.fetch=old;}});
 test('unknown CLI actions and publish flags fail closed',()=>{assert.throws(()=>main(['publish']));assert.throws(()=>main(['generate','--publish']));assert.throws(()=>main(['generate','--record']));});
+
+function recompute(c,h){
+  const report=c.evidence['development-report.json'].horizons[h];
+  const metrics=score=>{
+    score.rows=score.daily.reduce((sum,d)=>sum+d.rows,0);score.sessions=score.daily.length;
+    for(const model of ['no_change','training_mean','numeric_ridge']){
+      const row=score.daily.reduce((sum,d)=>sum+d.absoluteErrorSum[model],0)/score.rows;
+      const day=score.daily.reduce((sum,d)=>sum+d.absoluteErrorSum[model]/d.rows,0)/score.daily.length;
+      score.metrics[model]={rowWeightedMAE:row,dayWeightedMAE:day,rowWeightedMAELogBps:row*10000,dayWeightedMAELogBps:day*10000};
+    }
+  };
+  report.folds.forEach(f=>metrics(f.score));
+  report.pooledDevelopmentValidation.daily=report.folds.flatMap(f=>f.score.daily);
+  metrics(report.pooledDevelopmentValidation);
+  c.evidence[`horizon-${h}m.json`].folds=structuredClone(report.folds);
+  c.evidence[`horizon-${h}m.json`].pooledDevelopmentValidation=structuredClone(report.pooledDevelopmentValidation);
+}
+
+test('arithmetically consistent comparisons contradicting fixed prose fail closed',()=>{
+  for(const [h,folds,model,factor,message]of [
+    [10,[0,1,2],'numeric_ridge',1.002,/10 minute baseline ordering/],
+    [10,[0,1,2],'numeric_ridge',1,/10 minute baseline ordering/],
+    [30,[0],'numeric_ridge',.9995,/September ordering/],
+    [30,[1],'training_mean',.995,/October ordering/],
+    [30,[2],'training_mean',1.001,/November training-mean ordering/],
+    [30,[2],'no_change',1.002,/November equal-day ordering/],
+  ]){
+    const c=context(),a=c.evidence['development-report.json'].horizons[h];
+    for(const index of folds)for(const day of a.folds[index].score.daily)day.absoluteErrorSum[model]=day.rows*.001*factor;
+    recompute(c,h);
+    assert.throws(()=>validateEvidence(c),message);
+    assert.throws(()=>draftCandidate(c),message);
+  }
+});
+
+test('accepted synthetic evidence supports every fixed baseline and monthly statement',()=>{
+  const c=context(),r=c.evidence['development-report.json'];draftCandidate(c);
+  for(const w of ['rowWeightedMAE','dayWeightedMAE']){
+    const ten=r.horizons[10].pooledDevelopmentValidation.metrics;
+    assert.ok(ten.training_mean[w]<ten.numeric_ridge[w]&&ten.numeric_ridge[w]<ten.no_change[w]);
+    const [sep,oct,nov]=r.horizons[30].folds.map(f=>f.score.metrics);
+    assert.ok(sep.numeric_ridge[w]>Math.max(sep.no_change[w],sep.training_mean[w]));
+    assert.ok(oct.numeric_ridge[w]<Math.min(oct.no_change[w],oct.training_mean[w]));
+    assert.ok(nov.numeric_ridge[w]>nov.training_mean[w]);
+  }
+  const nov=r.horizons[30].folds[2].score.metrics;
+  assert.ok(nov.numeric_ridge.dayWeightedMAE>nov.no_change.dayWeightedMAE);
+});

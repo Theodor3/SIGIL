@@ -48,8 +48,9 @@ export function createFixture(){
     const folds=['09','10','11'].map((month,index)=>{
       const trainEnd=['2022-08-31','2022-09-30','2022-10-31'][index],firstDate=`2022-${month}-01`,lastDate=['2022-09-30','2022-10-31','2022-11-30'][index];
       const daily=dates(month).map(date=>{const rows=(date==='2022-11-25'?180:360)-horizon;
-        const ridge=horizon===30?[1.0005,.997,.999][index]:1.002;
-        return {date,rows,absoluteErrorSum:{no_change:rows*.001,training_mean:rows*.001,numeric_ridge:rows*.001*ridge}};});
+        const ridge=horizon===10?.9995:horizon===30?[1.0005,.996,1.0005][index]:1.002;
+        const mean=horizon===10?.999:horizon===30&&index===2?.999:1;
+        return {date,rows,absoluteErrorSum:{no_change:rows*.001,training_mean:rows*.001*mean,numeric_ridge:rows*.001*ridge}};});
       return {id:['sep','oct','nov'][index],training:{sessions:[43,64,85][index],rows:100,firstDate:'2022-07-01',lastDate:trainEnd},validation:{sessions:21,firstDate,lastDate},boundaries:{trainEnd,validationStart:firstDate},fit:{latestTrainingLabelTime:trainEnd+'T20:00:00Z',lambda:1,trainingRows:100},score:score(daily)};
     });
     report.horizons[horizon]={coverage:{developmentSessions:106},folds,pooledDevelopmentValidation:score(folds.flatMap(f=>f.score.daily))};

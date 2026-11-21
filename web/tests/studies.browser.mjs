@@ -6,6 +6,7 @@
 //   SIGIL_PLAYWRIGHT_MODULE=<existing playwright/index.mjs> node --test tests/studies.browser.mjs
 import { after, afterEach, before, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import { dirname, extname, join, resolve, sep } from 'node:path';
@@ -31,7 +32,7 @@ const records = [
   study('beta', { title: 'Beta weather study', ticker: 'CORN', status: 'negative_result', createdAt: '2026-10-02' }),
   study('gamma', { title: 'Gamma freight study', ticker: 'CSX', status: 'negative_result', createdAt: '2026-10-03' }),
 ];
-const publication = (experiments = records) => ({ schemaVersion: 1, publicationMode: 'reviewed_snapshot', reviewedOn: '2026-11-11', contentSha256: 'a'.repeat(64), experiments });
+const publication = (experiments = records) => ({ schemaVersion: 1, publicationMode: 'reviewed_snapshot', reviewedOn: '2026-11-11', contentSha256: createHash('sha256').update(JSON.stringify(experiments)).digest('hex'), experiments });
 const fx = { responses: [], requests: 0, unexpected: [], reset() { this.responses = []; this.requests = 0; this.unexpected = []; } };
 const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
@@ -87,6 +88,26 @@ const sort = page => page.getByRole('combobox', { name: /^Sort/ });
 const catalog = page => page.getByRole('region', { name: 'Published studies' });
 const cards = page => catalog(page).locator('article');
 const loaded = page => catalog(page).waitFor();
+
+test('mismatched content fingerprint rejects cold load and preserves a valid prior refresh', async () => {
+  const { page, problems } = await openPage();
+  const valid = publication();
+  const changed = structuredClone(valid);
+  changed.experiments[0].title = 'Changed without a new publication fingerprint';
+  fx.responses.push([changed, 200]);
+  await page.goto(`${origin}/experiments`);
+  await page.getByRole('heading', { name: 'Studies could not be refreshed' }).waitFor();
+  assert.equal(await cards(page).count(), 0);
+  fx.responses.push([valid, 200]);
+  await page.getByRole('button', { name: 'Try again' }).click(); await loaded(page);
+  await page.getByRole('heading', { name: 'Alpha freight study' }).waitFor();
+  fx.responses.push([changed, 200]);
+  await page.getByRole('button', { name: 'Refresh publication' }).click();
+  await page.getByRole('heading', { name: 'Studies could not be refreshed' }).waitFor();
+  assert.equal(await catalog(page).getByRole('heading', { name: 'Alpha freight study' }).count(), 1);
+  assert.equal(await page.getByRole('heading', { name: changed.experiments[0].title }).count(), 0);
+  clean(problems);
+});
 
 test('actual cold-loaded snapshot validator enforces exact citations and legacy behavior', async () => {
   const { page, problems } = await openPage();
